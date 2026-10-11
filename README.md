@@ -65,7 +65,7 @@ The package automatically detects host CPU features:
 | Tier | Architectures | Instructions Used | Register Width (x4 functions) |
 | :--- | :--- | :--- | :--- |
 | **`avx512`** | Intel Ice Lake, Tiger Lake, Rocket Lake, Xeon Ice Lake-SP+; AMD Zen 4+ | `VAESENC`, `VAESENCLAST` | 512-bit ZMM (4 AES blocks) |
-| **`vaesavx2`** | Intel Alder Lake+ (client, no AVX-512); AMD Zen 3 | `VAESENC`, `VAESENCLAST` | 256-bit YMM (2 AES blocks) |
+| **`vaesavx2`** | Intel Alder Lake+ (no AVX-512); AMD Zen 3 | `VAESENC`, `VAESENCLAST` | 256-bit YMM (2 AES blocks) |
 | **`aesni`** | Intel Westmere+, AMD Bulldozer+ | `AESENC`, `AESENCLAST`, `AESDECLAST`, `AESIMC` | 128-bit XMM (1 AES block) |
 | **`arm64`** | ARMv8 with Cryptographic Extension, Apple Silicon, Graviton | `AESE`, `AESMC`, `AESD`, `AESIMC` | 128-bit NEON |
 | **`purego`** | All architectures | Portable pure Go table-based software (not constant-time) | Software scalar fallback |
@@ -103,7 +103,7 @@ On this host the `vaesavx2` tier is slower than `aesni` for `Permute256x4`, `SoE
 
 ### 2. Graviton 4 (Neoverse V2, 16 vCPUs, ARM64)
 
-Measured on Graviton 4 (`Ubuntu 26.04 LTS`, ARMv8 Cryptographic Extension):
+Measured on Graviton 4 (ARMv8 Cryptographic Extension):
 
 | Operation | Throughput | Latency |
 | :--- | :---: | :---: |
@@ -129,7 +129,7 @@ All operations: 0 B/op, 0 allocs/op.
 ### 1. Run Complete Test Suite
 ```bash
 # Run all unit tests, known-answer tests, and roundtrips:
-go test -v ./...
+go test -v -count=1 ./...
 
 # Verify clean asmdecl and cross-architecture compilation:
 go vet ./...
@@ -141,19 +141,19 @@ go vet -tags purego ./...
 The environment variable `AREION_FORCE_TIER` forces the execution tier:
 ```bash
 # Portable Go scalar fallback:
-AREION_FORCE_TIER=purego   go test -v ./...
+AREION_FORCE_TIER=purego go test -v -count=1 ./...
 
 # AES-NI (128-bit XMM):
-AREION_FORCE_TIER=aesni    go test -v ./...
+AREION_FORCE_TIER=aesni go test -v -count=1 ./...
 
 # 256-bit YMM Vector AES (AVX2 + VAES):
-AREION_FORCE_TIER=vaesavx2 go test -v ./...
+AREION_FORCE_TIER=vaesavx2 go test -v -count=1 ./...
 
 # 512-bit ZMM Vector AES (AVX-512 + VAES):
-AREION_FORCE_TIER=avx512   go test -v ./...
+AREION_FORCE_TIER=avx512 go test -v -count=1 ./...
 
 # ARMv8 Cryptographic Extension (on arm64 hosts):
-AREION_FORCE_TIER=arm64    go test -v ./...
+AREION_FORCE_TIER=arm64 go test -v -count=1 ./...
 ```
 
 ### 3. Run Benchmarks
@@ -162,11 +162,11 @@ AREION_FORCE_TIER=arm64    go test -v ./...
 go test -run '^$' -bench=. -benchmem ./...
 
 # Benchmark individual tiers:
-AREION_FORCE_TIER=purego   go test -run '^$' -bench=. -benchmem -benchtime=500ms ./...
-AREION_FORCE_TIER=aesni    go test -run '^$' -bench=. -benchmem -benchtime=500ms ./...
-AREION_FORCE_TIER=vaesavx2 go test -run '^$' -bench=. -benchmem -benchtime=500ms ./...
-AREION_FORCE_TIER=avx512   go test -run '^$' -bench=. -benchmem -benchtime=500ms ./...
-AREION_FORCE_TIER=arm64    go test -run '^$' -bench=. -benchmem -benchtime=500ms ./...
+AREION_FORCE_TIER=purego go test -run '^$' -bench=. -benchmem -benchtime=500ms -count=1 ./...
+AREION_FORCE_TIER=aesni go test -run '^$' -bench=. -benchmem -benchtime=500ms -count=1 ./...
+AREION_FORCE_TIER=vaesavx2 go test -run '^$' -bench=. -benchmem -benchtime=500ms -count=1 ./...
+AREION_FORCE_TIER=avx512 go test -run '^$' -bench=. -benchmem -benchtime=500ms -count=1 ./...
+AREION_FORCE_TIER=arm64 go test -run '^$' -bench=. -benchmem -benchtime=500ms -count=1 ./...
 ```
 
 ### 4. Verify Round Constant Derivation
@@ -209,13 +209,13 @@ func main() {
 
 ## References
 
-1. **Areion: Highly-Efficient Permutations and Its Applications to Hash Functions for Short Input**  
-   Takanori Isobe, Ryoma Ito, Fukang Liu, Kazuhiko Minematsu, Motoki Nakahashi, Kosei Sakamoto, Rentaro Shiba.  
-   *IACR Transactions on Cryptographic Hardware and Embedded Systems (TCHES)*, Volume 2023, Issue 2, pp. 115–154, [doi:10.46586/tches.v2023.i2.115-154](https://doi.org/10.46586/tches.v2023.i2.115-154).  
+1. **Areion: Highly-Efficient Permutations and Its Applications to Hash Functions for Short Input**
+   Takanori Isobe, Ryoma Ito, Fukang Liu, Kazuhiko Minematsu, Motoki Nakahashi, Kosei Sakamoto, Rentaro Shiba.
+   *IACR Transactions on Cryptographic Hardware and Embedded Systems (TCHES)*, Volume 2023, Issue 2, pp. 115–154, [doi:10.46586/tches.v2023.i2.115-154](https://doi.org/10.46586/tches.v2023.i2.115-154).
    Extended version: **Areion: Highly-Efficient Permutations and Its Applications (Extended Version)**, [IACR ePrint 2023/794](https://eprint.iacr.org/2023/794). Section, table, equation, and appendix numbers in this repository refer to the extended version.
 
-2. **How to Build Pseudorandom Functions from Public Random Permutations**  
-   Yu Long Chen, Eran Lambooij, Bart Mennink.  
+2. **How to Build Pseudorandom Functions from Public Random Permutations**
+   Yu Long Chen, Eran Lambooij, Bart Mennink.
    *CRYPTO 2019*, Part I, Lecture Notes in Computer Science, vol. 11692, pp. 266–293, [doi:10.1007/978-3-030-26948-7_10](https://doi.org/10.1007/978-3-030-26948-7_10), [IACR ePrint 2019/554](https://eprint.iacr.org/2019/554).
 
 ---
