@@ -49,8 +49,11 @@ var roundConstantsP1 = [15][16]byte{
 //
 // The SoEM22 security bound is proven for two independent random permutations. Treating the
 // Areion permutation under this second table as independent of P1 is an assumption about the
-// instantiation, not a proven property. Two distinct permutations remove the shift symmetry
-// of single-permutation SoEM (SoEM1, Section 4.1 of Chen, Lambooij, Mennink).
+// instantiation, not a proven property. With the round-constant table regarded as the key of
+// a block cipher, P1 and P2 are that cipher under two fixed, related keys, so the assumption is
+// a related-key assumption on Areion rather than a consequence of the tables being distinct.
+// Two distinct permutations remove the shift symmetry of single-permutation SoEM (SoEM1,
+// Section 4.1 of Chen, Lambooij, Mennink).
 var roundConstantsP2 = [15][16]byte{
 	// 0xb4cc5c341141e8cea15486af7c72e993
 	{0x93, 0xe9, 0x72, 0x7c, 0xaf, 0x86, 0x54, 0xa1, 0xce, 0xe8, 0x41, 0x11, 0x34, 0x5c, 0xcc, 0xb4},

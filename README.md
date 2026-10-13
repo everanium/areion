@@ -43,7 +43,7 @@ The shift $k_1 \oplus k_2 \oplus d$ is secret, but an adversary finds a collidin
 ### SoEM22
 [Chen, Lambooij, and Mennink (CRYPTO 2019)](https://eprint.iacr.org/2019/554) prove SoEM22 secure up to about $2^{2n/3}$ queries (Theorem 1) when $P_1$ and $P_2$ are two independent random permutations and $k_1$, $k_2$ are independent random keys:
 $$F(k_1, k_2, m) = P_1(m \oplus k_1) \oplus P_2(m \oplus k_2) \oplus k_1 \oplus k_2$$
-This library instantiates $P_1$ and $P_2$ as the Areion permutation under two different round-constant tables. Treating the two as independent permutations is an assumption about this instantiation, not a proven property.
+This library instantiates $P_1$ and $P_2$ as the Areion permutation under two different round-constant tables. Treating the two as independent permutations is an assumption about this instantiation, not a proven property. Stated in standard terms: if the round-constant table is regarded as the key of a block cipher, $P_1$ and $P_2$ are that cipher under two fixed, related keys, and the assumption is that this pair cannot be distinguished from two independent random permutations — a related-key assumption on Areion, not a consequence of the two tables being distinct.
 
 ### Table 2 Round Constants ($P_2$)
 Table 2 is proposed by Andrey Kuvshinov and derived by `scripts/verify_p2_table.py`. Following the Nothing-Up-My-Sleeve (NUMS) methodology of the original Areion paper, it continues the same stream of $\pi$ words:
