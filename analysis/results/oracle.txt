@@ -1,0 +1,7 @@
+$ python3 analysis/run.py oracle
+{"width": "256", "rounds": 10, "traces": 400, "unsat_traces": 0}
+{"width": 256, "mode": "related-refined", "variant": "pi", "rounds": 10, "traces": 400, "unsat_traces": 0}
+{"width": "256", "rounds": 10, "traces": 400, "unsat_traces": 0}
+{"width": 256, "mode": "related-refined", "variant": "shift", "rounds": 10, "traces": 400, "unsat_traces": 0}
+{"width": "512", "rounds": 15, "traces": 400, "unsat_traces": 0}
+{"width": "512", "rounds": 15, "traces": 400, "unsat_traces": 0}

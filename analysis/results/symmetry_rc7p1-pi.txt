@@ -1,0 +1,21 @@
+$ python3 analysis/run.py symmetry --rc7p1 pi
+byte permutations tested: 6144; commuting with SB, SR, MC: 4
+per-round maps: candidates commuting with MC 6144; consistent with the Areion-256 round (T^3 = id) 4, with the Areion-512 round (T = id) 4
+   [0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15]
+   [4 5 6 7 8 9 10 11 12 13 14 15 0 1 2 3]
+   [8 9 10 11 12 13 14 15 0 1 2 3 4 5 6 7]
+   [12 13 14 15 0 1 2 3 4 5 6 7 8 9 10 11]
+  [0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15]: zero-constant commute 256=true 512=true; s(RC1_r') == RC2_r exact pairs pi=0 shift=0; best byte agreement pi=1/16 shift=1/16
+  [4 5 6 7 8 9 10 11 12 13 14 15 0 1 2 3]: zero-constant commute 256=true 512=true; s(RC1_r') == RC2_r exact pairs pi=0 shift=0; best byte agreement pi=1/16 shift=1/16
+  [8 9 10 11 12 13 14 15 0 1 2 3 4 5 6 7]: zero-constant commute 256=true 512=true; s(RC1_r') == RC2_r exact pairs pi=0 shift=0; best byte agreement pi=1/16 shift=1/16
+  [12 13 14 15 0 1 2 3 4 5 6 7 8 9 10 11]: zero-constant commute 256=true 512=true; s(RC1_r') == RC2_r exact pairs pi=0 shift=0; best byte agreement pi=2/16 shift=2/16
+control: P_fake(s x) == s P1(x) for fake = s(RC1): true
+column rotation 1: constants of P1 fixed: 0 of 15
+column rotation 1: constants of P2 pi fixed: 0 of 15
+column rotation 1: constants of P2 shift fixed: 0 of 15
+column rotation 2: constants of P1 fixed: 0 of 15
+column rotation 2: constants of P2 pi fixed: 0 of 15
+column rotation 2: constants of P2 shift fixed: 0 of 15
+column rotation 3: constants of P1 fixed: 0 of 15
+column rotation 3: constants of P2 pi fixed: 0 of 15
+column rotation 3: constants of P2 shift fixed: 0 of 15

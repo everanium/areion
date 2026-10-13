@@ -1,0 +1,22 @@
+$ python3 analysis/run.py sbox
+linear maps commuting with S (a, i) for x -> a*x^(2^i): [(1, 0)]
+linear structures (u, a) of the S-box component functions: 0
+dim 1: 255 linear subspaces
+dim 2: 10795 linear subspaces
+dim 3: 97155 linear subspaces
+dim 4: 200787 linear subspaces
+dim 5: 97155 linear subspaces
+dim 6: 10795 linear subspaces
+dim 7: 255 linear subspaces
+dim 2: affine U with S(U) affine: 85 (of which U linear: 85); S(U) = U: 0
+dim 3: affine U with S(U) affine: 0 (of which U linear: 0); S(U) = U: 0
+dim 4: affine U with S(U) affine: 17 (of which U linear: 17); S(U) = U: 0
+    U=[05 0b 0e].. (offset 00) -> S(U) affine
+    U=[07 19 1e].. (offset 00) -> S(U) affine
+    U=[0f 12 1d].. (offset 00) -> S(U) affine
+dim 5: affine U with S(U) affine: 0 (of which U linear: 0); S(U) = U: 0
+dim 6: affine U with S(U) affine: 0 (of which U linear: 0); S(U) = U: 0
+dim 7: affine U with S(U) affine: 0 (of which U linear: 0); S(U) = U: 0
+cycle lengths of S: [87 81 59 27 2]
+F_4: 85 lines; A maps a line onto a line: 0; S maps a line onto a line: 0; S maps a line onto a coset of a line: 0
+F_16: 17 lines; A maps a line onto a line: 0; S maps a line onto a line: 0; S maps a line onto a coset of a line: 0

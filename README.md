@@ -56,6 +56,8 @@ Table 2 is proposed by Andrey Kuvshinov and derived by `scripts/verify_p2_table.
 - Hamming distance between $P_1[i]$ and $P_2[j]$ over all 225 pairs: min 51, mean 63.55.
 - No $P_2$ word has two equal 32-bit columns.
 
+[`analysis/`](analysis/README.md) looks for structure tying $P_2$ to $P_1$ beyond these constant checks: related-constant differential bounds, symmetries, invariant subspaces and nonlinear invariants, impossible differentials, integral sums, and affine equivalence, each within a stated model and for $P_2$'s RC7 both as the plain $\pi$ word and with Table 1's one-nibble shift; $P_1$'s published RC7 can also be replaced by the plain $\pi$ word for comparison.
+
 ---
 
 ## Hardware Acceleration
@@ -173,6 +175,13 @@ AREION_FORCE_TIER=arm64 go test -run '^$' -bench=. -benchmem -benchtime=500ms -c
 ```bash
 python3 scripts/verify_p2_table.py
 ```
+
+### 5. P1 / P2 Analysis
+```bash
+python3 analysis/run.py list
+python3 analysis/run.py all --quick
+```
+See [`analysis/README.md`](analysis/README.md) for each check and its dependencies (`python-sat` among them); `run.py list` prints the full and `--quick` run time of each check.
 
 ---
 

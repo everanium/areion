@@ -1,0 +1,32 @@
+$ python3 analysis/run.py hintegral
+AES-NI permutations match the library on 8 kat lines: yes
+Areion-256 r3 order 4 (blk 1, 0 extra): balanced bytes P1 32 / 32, P2 32 / 32, P1(u)^P2(u^delta) 32 / 32
+Areion-256 r3 order 4 (blk 1, 0 extra): balanced bytes P1 32 / 32, P2 32 / 32, P1(u)^P2(u^delta) 32 / 32
+Areion-256 r3 order 4 (blk 0, 0 extra): balanced bytes P1 0 / 32, P2 0 / 32, P1(u)^P2(u^delta) 0 / 32
+Areion-256 r3 order 4 (blk 1, 0 extra): balanced bytes P1 32 / 32, P2 32 / 32, P1(u)^P2(u^delta) 32 / 32
+Areion-256 r4 order 4 (blk 0, 0 extra): balanced bytes P1 0 / 32, P2 0 / 32, P1(u)^P2(u^delta) 0 / 32
+Areion-256 r4 order 4 (blk 1, 0 extra): balanced bytes P1 0 / 32, P2 0 / 32, P1(u)^P2(u^delta) 0 / 32
+Areion-256 r5 order 4 (blk 0, 0 extra): balanced bytes P1 0 / 32, P2 0 / 32, P1(u)^P2(u^delta) 0 / 32
+Areion-256 r5 order 4 (blk 1, 0 extra): balanced bytes P1 0 / 32, P2 0 / 32, P1(u)^P2(u^delta) 0 / 32
+Areion-512 r5 order 4 (blk 0, 0 extra): balanced bytes P1 0 / 64, P2 0 / 64, P1(u)^P2(u^delta) 0 / 64
+Areion-512 r5 order 4 (blk 1, 0 extra): balanced bytes P1 64 / 64, P2 64 / 64, P1(u)^P2(u^delta) 64 / 64
+Areion-512 r5 order 4 (blk 2, 0 extra): balanced bytes P1 0 / 64, P2 1 / 64, P1(u)^P2(u^delta) 0 / 64
+Areion-512 r5 order 4 (blk 3, 0 extra): balanced bytes P1 40 / 64, P2 40 / 64, P1(u)^P2(u^delta) 40 / 64
+Areion-512 r6 order 4 (blk 0, 0 extra): balanced bytes P1 0 / 64, P2 1 / 64, P1(u)^P2(u^delta) 0 / 64
+Areion-512 r6 order 4 (blk 1, 0 extra): balanced bytes P1 1 / 64, P2 0 / 64, P1(u)^P2(u^delta) 0 / 64
+Areion-512 r6 order 4 (blk 2, 0 extra): balanced bytes P1 1 / 64, P2 0 / 64, P1(u)^P2(u^delta) 1 / 64
+Areion-512 r6 order 4 (blk 3, 0 extra): balanced bytes P1 0 / 64, P2 1 / 64, P1(u)^P2(u^delta) 0 / 64
+Areion-512 r7 order 4 (blk 0, 0 extra): balanced bytes P1 0 / 64, P2 1 / 64, P1(u)^P2(u^delta) 1 / 64
+Areion-512 r7 order 4 (blk 1, 0 extra): balanced bytes P1 0 / 64, P2 0 / 64, P1(u)^P2(u^delta) 1 / 64
+Areion-512 r7 order 4 (blk 2, 0 extra): balanced bytes P1 0 / 64, P2 0 / 64, P1(u)^P2(u^delta) 0 / 64
+Areion-512 r7 order 4 (blk 3, 0 extra): balanced bytes P1 0 / 64, P2 0 / 64, P1(u)^P2(u^delta) 0 / 64
+Areion-512 r8 order 4 (blk 0, 0 extra): balanced bytes P1 0 / 64, P2 0 / 64, P1(u)^P2(u^delta) 1 / 64
+Areion-512 r8 order 4 (blk 1, 0 extra): balanced bytes P1 0 / 64, P2 1 / 64, P1(u)^P2(u^delta) 1 / 64
+Areion-512 r8 order 4 (blk 2, 0 extra): balanced bytes P1 0 / 64, P2 0 / 64, P1(u)^P2(u^delta) 1 / 64
+Areion-512 r8 order 4 (blk 3, 0 extra): balanced bytes P1 0 / 64, P2 1 / 64, P1(u)^P2(u^delta) 0 / 64
+Areion-512 r8 order 4 (blk 0, 0 extra) (P2 shift): balanced bytes P1 0 / 64, P2 0 / 64, P1(u)^P2(u^delta) 1 / 64
+Areion-512 r8 order 4 (blk 1, 0 extra) (P2 shift): balanced bytes P1 0 / 64, P2 1 / 64, P1(u)^P2(u^delta) 1 / 64
+Areion-512 r8 order 4 (blk 2, 0 extra) (P2 shift): balanced bytes P1 0 / 64, P2 0 / 64, P1(u)^P2(u^delta) 1 / 64
+Areion-512 r8 order 4 (blk 3, 0 extra) (P2 shift): balanced bytes P1 0 / 64, P2 1 / 64, P1(u)^P2(u^delta) 0 / 64
+Areion-256 r4 order 5 (blk 1, 1 extra): balanced bytes P1 0 / 32, P2 1 / 32, P1(u)^P2(u^delta) 0 / 32
+Areion-512 r6 order 5 (blk 1, 1 extra): balanced bytes P1 0 / 64, P2 0 / 64, P1(u)^P2(u^delta) 0 / 64

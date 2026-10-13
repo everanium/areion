@@ -1,0 +1,14 @@
+$ python3 analysis/run.py subspace
+affine hull of every derivative image of S and S^-1 is F_2^8: yes
+Areion-256: real differences outside the propagated spaces: 0
+Areion-256: propagated dimension minus rank of real differences, 32 sampled spaces: at most 0
+Areion-512: real differences outside the propagated spaces: 0
+Areion-512: propagated dimension minus rank of real differences, 32 sampled spaces: at most 0
+Areion-256 forward, start in one byte: longest generic subspace trail 2 rounds (start round 0, byte 16); runs reaching the end of the permutation while still below full: up to 2 rounds
+Areion-256 backward, start in one byte: longest generic subspace trail 4 rounds (start round 4, byte 16); runs reaching the end of the permutation while still below full: up to 4 rounds
+Areion-256 forward, start in one bit: longest generic subspace trail 2 rounds (start round 0, byte 16); runs reaching the end of the permutation while still below full: up to 2 rounds
+Areion-256 backward, start in one bit: longest generic subspace trail 4 rounds (start round 4, byte 16); runs reaching the end of the permutation while still below full: up to 4 rounds
+Areion-512 forward, start in one byte: longest generic subspace trail 6 rounds (start round 0, byte 16); runs reaching the end of the permutation while still below full: up to 6 rounds
+Areion-512 backward, start in one byte: longest generic subspace trail 5 rounds (start round 5, byte 0); runs reaching the end of the permutation while still below full: up to 5 rounds
+Areion-512 forward, start in one bit: longest generic subspace trail 6 rounds (start round 0, byte 16); runs reaching the end of the permutation while still below full: up to 6 rounds
+Areion-512 backward, start in one bit: longest generic subspace trail 5 rounds (start round 5, byte 0); runs reaching the end of the permutation while still below full: up to 5 rounds

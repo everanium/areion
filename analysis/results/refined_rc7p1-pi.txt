@@ -1,0 +1,21 @@
+$ python3 analysis/run.py refined --rc7p1 pi
+{"width": 256, "mode": "related-refined", "variant": "pi", "rounds": 1, "min_active_sboxes": 15, "secs": 0.3}
+{"width": 256, "mode": "related-refined", "variant": "pi", "rounds": 2, "min_active_sboxes": 31, "secs": 0.8}
+{"width": 256, "mode": "related-refined", "variant": "pi", "rounds": 3, "min_active_sboxes": 45, "secs": 1.8}
+{"width": 256, "mode": "related-refined", "variant": "pi", "rounds": 4, "min_active_sboxes": 61, "secs": 2.3}
+{"width": 256, "mode": "related-refined", "variant": "pi", "rounds": 5, "min_active_sboxes": 77, "secs": 2.9}
+{"width": 256, "mode": "related-refined", "variant": "pi", "rounds": 6, "min_active_sboxes": 93, "secs": 3.8}
+{"width": 256, "mode": "related-refined", "variant": "pi", "rounds": 7, "min_active_sboxes": 108, "secs": 5.0}
+{"width": 256, "mode": "related-refined", "variant": "pi", "rounds": 8, "min_active_sboxes": 122, "secs": 6.8}
+{"width": 256, "mode": "related-refined", "variant": "pi", "rounds": 9, "min_active_sboxes": 138, "secs": 8.1}
+{"width": 256, "mode": "related-refined", "variant": "pi", "rounds": 10, "min_active_sboxes": 153, "secs": 7.2}
+{"width": 256, "mode": "related-refined", "variant": "shift", "rounds": 1, "min_active_sboxes": 15, "secs": 0.3}
+{"width": 256, "mode": "related-refined", "variant": "shift", "rounds": 2, "min_active_sboxes": 31, "secs": 0.8}
+{"width": 256, "mode": "related-refined", "variant": "shift", "rounds": 3, "min_active_sboxes": 45, "secs": 1.8}
+{"width": 256, "mode": "related-refined", "variant": "shift", "rounds": 4, "min_active_sboxes": 61, "secs": 2.2}
+{"width": 256, "mode": "related-refined", "variant": "shift", "rounds": 5, "min_active_sboxes": 77, "secs": 2.8}
+{"width": 256, "mode": "related-refined", "variant": "shift", "rounds": 6, "min_active_sboxes": 93, "secs": 3.6}
+{"width": 256, "mode": "related-refined", "variant": "shift", "rounds": 7, "min_active_sboxes": 108, "secs": 4.8}
+{"width": 256, "mode": "related-refined", "variant": "shift", "rounds": 8, "min_active_sboxes": 122, "secs": 6.6}
+{"width": 256, "mode": "related-refined", "variant": "shift", "rounds": 9, "min_active_sboxes": 138, "secs": 7.8}
+{"width": 256, "mode": "related-refined", "variant": "shift", "rounds": 10, "min_active_sboxes": 153, "secs": 7.7}

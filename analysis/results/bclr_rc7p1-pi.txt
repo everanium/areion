@@ -1,0 +1,17 @@
+$ python3 analysis/run.py bclr --rc7p1 pi
+direct and layered permutations match the library on kat.txt: True
+control, Areion-256 with one repeated constant: 0 differences; dim W = 0
+Areion-256, P1 alone: 40 differences in 4 groups; dim W = 254 of 256
+Areion-256, P2 pi alone: 40 differences in 4 groups; dim W = 252 of 256
+Areion-256, P2 shift alone: 40 differences in 4 groups; dim W = 254 of 256
+Areion-256, P1 and P2 pi: 180 differences in 4 groups; dim W = 256 of 256
+Areion-256, P1 and P2 shift: 180 differences in 4 groups; dim W = 256 of 256
+Areion-512, P1 alone: 21 differences in 4 groups; dim W = 512 of 512
+Areion-512, P2 pi alone: 21 differences in 4 groups; dim W = 508 of 512
+Areion-512, P2 shift alone: 21 differences in 4 groups; dim W = 512 of 512
+Areion-512, P1 and P2 pi: 99 differences in 4 groups; dim W = 512 of 512
+Areion-512, P1 and P2 shift: 99 differences in 4 groups; dim W = 512 of 512
+Areion-256, P1 alone: codim W = 2; quotient points seen 4 of 4; classes after S-layer edges: 1
+Areion-256, P2 pi alone: codim W = 4; quotient points seen 16 of 16; classes after S-layer edges: 1
+Areion-256, P2 shift alone: codim W = 2; quotient points seen 4 of 4; classes after S-layer edges: 1
+Areion-512, P2 pi alone: codim W = 4; quotient points seen 16 of 16; classes after S-layer edges: 1

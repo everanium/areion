@@ -8,3 +8,7 @@ __pycache__/
 
 # OS
 .DS_Store
+
+# Analysis build products
+analysis/build/
+.venv/
