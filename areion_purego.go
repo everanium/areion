@@ -203,8 +203,8 @@ func areion256PermuteSoftwareRC(state *State256, rcs *[15][16]byte) {
 	}
 }
 
-// areion256InversePermuteSoftware runs 10 inverse rounds of Areion-256 under P1 constants.
-func areion256InversePermuteSoftware(state *State256) {
+// areion256InversePermuteSoftwareRC runs 10 inverse rounds of Areion-256 with the specified round constants.
+func areion256InversePermuteSoftwareRC(state *State256, rcs *[15][16]byte) {
 	x0 := (*Block)(state[0:16])
 	x1 := (*Block)(state[16:32])
 
@@ -212,14 +212,14 @@ func areion256InversePermuteSoftware(state *State256) {
 		invFinalRoundNoKey(x1)
 		temp1 := *x1
 		roundNoKey(&temp1)
-		xorBlock(&temp1, &temp1, &roundConstantsP1[9-i])
+		xorBlock(&temp1, &temp1, &rcs[9-i])
 		roundNoKey(&temp1)
 		xorBlock(x0, x0, &temp1)
 
 		invFinalRoundNoKey(x0)
 		temp0 := *x0
 		roundNoKey(&temp0)
-		xorBlock(&temp0, &temp0, &roundConstantsP1[8-i])
+		xorBlock(&temp0, &temp0, &rcs[8-i])
 		roundNoKey(&temp0)
 		xorBlock(x1, x1, &temp0)
 	}
@@ -267,8 +267,8 @@ func areion512PermuteSoftwareRC(state *State512, rcs *[15][16]byte) {
 	*x1 = temp
 }
 
-// areion512InversePermuteSoftware runs 15 inverse rounds of Areion-512 under P1 constants.
-func areion512InversePermuteSoftware(state *State512) {
+// areion512InversePermuteSoftwareRC runs 15 inverse rounds of Areion-512 with the specified round constants.
+func areion512InversePermuteSoftwareRC(state *State512, rcs *[15][16]byte) {
 	x0 := (*Block)(state[0:16])
 	x1 := (*Block)(state[16:32])
 	x2 := (*Block)(state[32:48])
@@ -298,15 +298,15 @@ func areion512InversePermuteSoftware(state *State512) {
 		xorBlock(d, d, &temp2)
 	}
 
-	areion512InvRound(x2, x3, x0, x1, &roundConstantsP1[14])
-	areion512InvRound(x1, x2, x3, x0, &roundConstantsP1[13])
-	areion512InvRound(x0, x1, x2, x3, &roundConstantsP1[12])
+	areion512InvRound(x2, x3, x0, x1, &rcs[14])
+	areion512InvRound(x1, x2, x3, x0, &rcs[13])
+	areion512InvRound(x0, x1, x2, x3, &rcs[12])
 
 	for i := 0; i < 12; i += 4 {
-		areion512InvRound(x3, x0, x1, x2, &roundConstantsP1[11-i])
-		areion512InvRound(x2, x3, x0, x1, &roundConstantsP1[10-i])
-		areion512InvRound(x1, x2, x3, x0, &roundConstantsP1[9-i])
-		areion512InvRound(x0, x1, x2, x3, &roundConstantsP1[8-i])
+		areion512InvRound(x3, x0, x1, x2, &rcs[11-i])
+		areion512InvRound(x2, x3, x0, x1, &rcs[10-i])
+		areion512InvRound(x1, x2, x3, x0, &rcs[9-i])
+		areion512InvRound(x0, x1, x2, x3, &rcs[8-i])
 	}
 }
 

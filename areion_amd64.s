@@ -67,8 +67,8 @@ next_round:
 	RET
 
 // Areion256 inverse permutation using AES-NI instructions
-// func areion256InversePermuteAsm(state *State256)
-TEXT ·areion256InversePermuteAsm(SB),NOSPLIT,$0-8
+// func areion256InversePermuteRCAsm(state *State256, rc *[15][16]byte)
+TEXT ·areion256InversePermuteRCAsm(SB),NOSPLIT,$0-16
 	MOVQ state+0(FP), AX
 
 	// Load the two blocks
@@ -76,7 +76,7 @@ TEXT ·areion256InversePermuteAsm(SB),NOSPLIT,$0-8
 	MOVOU 16(AX), X1  // x1
 
 	// Load round constants
-	LEAQ ·roundConstantsP1(SB), BX
+	MOVQ rc+8(FP), BX
 	PXOR X15, X15  // X15 = zero block
 
 	MOVQ $0, CX  // i counter (0 to 9, step 2)
@@ -259,8 +259,8 @@ TEXT areion512_round<>(SB),NOSPLIT,$0
 	RET
 
 // Areion512 inverse permutation using AES-NI instructions
-// func areion512InversePermuteAsm(state *State512)
-TEXT ·areion512InversePermuteAsm(SB),NOSPLIT,$0-8
+// func areion512InversePermuteRCAsm(state *State512, rc *[15][16]byte)
+TEXT ·areion512InversePermuteRCAsm(SB),NOSPLIT,$0-16
 	MOVQ state+0(FP), AX
 
 	// Load the four blocks
@@ -278,7 +278,7 @@ TEXT ·areion512InversePermuteAsm(SB),NOSPLIT,$0-8
 	MOVOA X14, X0
 
 	// Load round constants address
-	LEAQ ·roundConstantsP1(SB), BX
+	MOVQ rc+8(FP), BX
 	PXOR X15, X15  // X15 = zero block
 
 	// Last 3 inverse rounds (14, 13, 12)

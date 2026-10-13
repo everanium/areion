@@ -9,10 +9,10 @@ func areion256PermuteRCAsm(state *State256, rc *[15][16]byte)
 func areion512PermuteRCAsm(state *State512, rc *[15][16]byte)
 
 //go:noescape
-func areion256InversePermuteAsm(state *State256)
+func areion256InversePermuteRCAsm(state *State256, rc *[15][16]byte)
 
 //go:noescape
-func areion512InversePermuteAsm(state *State512)
+func areion512InversePermuteRCAsm(state *State512, rc *[15][16]byte)
 
 //go:noescape
 func areion256Permutex4RC(x0, x1 *Block4, rc *[15][16]byte)
@@ -37,11 +37,19 @@ func areion256PermuteP2(state *State256) {
 }
 
 func areion256InversePermute(state *State256) {
+	areion256InversePermuteRC(state, &roundConstantsP1)
+}
+
+func areion256InversePermuteP2(state *State256) {
+	areion256InversePermuteRC(state, &roundConstantsP2)
+}
+
+func areion256InversePermuteRC(state *State256, rc *[15][16]byte) {
 	if hasARMCrypto && TierCode() != TierPureGo {
-		areion256InversePermuteAsm(state)
+		areion256InversePermuteRCAsm(state, rc)
 		return
 	}
-	areion256InversePermuteSoftware(state)
+	areion256InversePermuteSoftwareRC(state, rc)
 }
 
 func areion512Permute(state *State512) {
@@ -61,11 +69,19 @@ func areion512PermuteP2(state *State512) {
 }
 
 func areion512InversePermute(state *State512) {
+	areion512InversePermuteRC(state, &roundConstantsP1)
+}
+
+func areion512InversePermuteP2(state *State512) {
+	areion512InversePermuteRC(state, &roundConstantsP2)
+}
+
+func areion512InversePermuteRC(state *State512, rc *[15][16]byte) {
 	if hasARMCrypto && TierCode() != TierPureGo {
-		areion512InversePermuteAsm(state)
+		areion512InversePermuteRCAsm(state, rc)
 		return
 	}
-	areion512InversePermuteSoftware(state)
+	areion512InversePermuteSoftwareRC(state, rc)
 }
 
 func areionSoEM256(key *[64]byte, m *[32]byte) [32]byte {
@@ -103,26 +119,44 @@ func areionSoEM512(key *[128]byte, m *[64]byte) [64]byte {
 }
 
 func areion256Permutex4(states *[4][32]byte) {
+	areion256Permutex4Table(states, &roundConstantsP1)
+}
+
+func areion256PermuteP2x4(states *[4][32]byte) {
+	areion256Permutex4Table(states, &roundConstantsP2)
+}
+
+// areion256Permutex4Table runs four Areion-256 permutations under one round-constant table.
+func areion256Permutex4Table(states *[4][32]byte, rc *[15][16]byte) {
 	if !hasARMCrypto || TierCode() == TierPureGo {
 		for i := 0; i < 4; i++ {
-			areion256PermuteSoftwareRC(&states[i], &roundConstantsP1)
+			areion256PermuteSoftwareRC(&states[i], rc)
 		}
 		return
 	}
 	b0, b1 := pack256x4SoA(states)
-	areion256Permutex4RC(&b0, &b1, &roundConstantsP1)
+	areion256Permutex4RC(&b0, &b1, rc)
 	unpack256x4SoA(&b0, &b1, states)
 }
 
 func areion512Permutex4(states *[4][64]byte) {
+	areion512Permutex4Table(states, &roundConstantsP1)
+}
+
+func areion512PermuteP2x4(states *[4][64]byte) {
+	areion512Permutex4Table(states, &roundConstantsP2)
+}
+
+// areion512Permutex4Table runs four Areion-512 permutations under one round-constant table.
+func areion512Permutex4Table(states *[4][64]byte, rc *[15][16]byte) {
 	if !hasARMCrypto || TierCode() == TierPureGo {
 		for i := 0; i < 4; i++ {
-			areion512PermuteSoftwareRC(&states[i], &roundConstantsP1)
+			areion512PermuteSoftwareRC(&states[i], rc)
 		}
 		return
 	}
 	b0, b1, b2, b3 := pack512x4SoA(states)
-	areion512Permutex4RC(&b0, &b1, &b2, &b3, &roundConstantsP1)
+	areion512Permutex4RC(&b0, &b1, &b2, &b3, rc)
 	unpack512x4SoA(&b0, &b1, &b2, &b3, states)
 }
 

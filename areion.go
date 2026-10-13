@@ -47,6 +47,11 @@ func InversePermute256(state *State256) {
 	areion256InversePermute(state)
 }
 
+// InversePermute256P2 applies the 10-round inverse Areion-256 permutation P2^{-1} in place.
+func InversePermute256P2(state *State256) {
+	areion256InversePermuteP2(state)
+}
+
 // Permute512 applies the 15-round Areion-512 permutation P1 in place.
 func Permute512(state *State512) {
 	areion512Permute(state)
@@ -60,6 +65,11 @@ func Permute512P2(state *State512) {
 // InversePermute512 applies the 15-round inverse Areion-512 permutation P1^{-1} in place.
 func InversePermute512(state *State512) {
 	areion512InversePermute(state)
+}
+
+// InversePermute512P2 applies the 15-round inverse Areion-512 permutation P2^{-1} in place.
+func InversePermute512P2(state *State512) {
+	areion512InversePermuteP2(state)
 }
 
 // DM256 computes the Davies-Meyer fixed-input compression/hash of a 32-byte input:
@@ -141,4 +151,14 @@ func Permute256x4(states *[4][32]byte) {
 // Permute512x4 evaluates permutation P1 on four 512-bit states in parallel.
 func Permute512x4(states *[4][64]byte) {
 	areion512Permutex4(states)
+}
+
+// Permute256P2x4 evaluates permutation P2 on four 256-bit states in parallel.
+func Permute256P2x4(states *[4][32]byte) {
+	areion256PermuteP2x4(states)
+}
+
+// Permute512P2x4 evaluates permutation P2 on four 512-bit states in parallel.
+func Permute512P2x4(states *[4][64]byte) {
+	areion512PermuteP2x4(states)
 }

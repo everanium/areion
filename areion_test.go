@@ -121,6 +121,57 @@ func TestAreion512Roundtrip(t *testing.T) {
 	}
 }
 
+// TestInversePermuteP2Roundtrip checks P2^-1(P2(x)) = x and P2(P2^-1(x)) = x on every tier,
+// and that P2^-1 differs from P1^-1.
+func TestInversePermuteP2Roundtrip(t *testing.T) {
+	eachTier(t, func(t *testing.T, tier string) {
+		for trial := 0; trial < 100; trial++ {
+			var x256 State256
+			var x512 State512
+			rand.Read(x256[:])
+			rand.Read(x512[:])
+
+			s := x256
+			Permute256P2(&s)
+			InversePermute256P2(&s)
+			if s != x256 {
+				t.Fatalf("Areion-256 P2 forward-inverse roundtrip failed (tier %s, trial %d)", tier, trial)
+			}
+			s = x256
+			InversePermute256P2(&s)
+			Permute256P2(&s)
+			if s != x256 {
+				t.Fatalf("Areion-256 P2 inverse-forward roundtrip failed (tier %s, trial %d)", tier, trial)
+			}
+			a, b := x256, x256
+			InversePermute256(&a)
+			InversePermute256P2(&b)
+			if a == b {
+				t.Fatalf("InversePermute256P2 equals InversePermute256 (tier %s)", tier)
+			}
+
+			u := x512
+			Permute512P2(&u)
+			InversePermute512P2(&u)
+			if u != x512 {
+				t.Fatalf("Areion-512 P2 forward-inverse roundtrip failed (tier %s, trial %d)", tier, trial)
+			}
+			u = x512
+			InversePermute512P2(&u)
+			Permute512P2(&u)
+			if u != x512 {
+				t.Fatalf("Areion-512 P2 inverse-forward roundtrip failed (tier %s, trial %d)", tier, trial)
+			}
+			c, d := x512, x512
+			InversePermute512(&c)
+			InversePermute512P2(&d)
+			if c == d {
+				t.Fatalf("InversePermute512P2 equals InversePermute512 (tier %s)", tier)
+			}
+		}
+	})
+}
+
 func TestDaviesMeyer(t *testing.T) {
 	// DM256: h = P(m) ⊕ m
 	var m256 [32]byte
@@ -259,6 +310,51 @@ func TestPermute512x4Parity(t *testing.T) {
 	}
 }
 
+// TestPermuteP2x4Parity checks the 4-way P2 functions against four single P2 calls on every
+// tier, and against the portable single P2.
+func TestPermuteP2x4Parity(t *testing.T) {
+	var in256 [4][32]byte
+	var in512 [4][64]byte
+	for i := 0; i < 4; i++ {
+		rand.Read(in256[i][:])
+		rand.Read(in512[i][:])
+	}
+	orig := Tier()
+	if err := SetTier("purego"); err != nil {
+		t.Fatal(err)
+	}
+	ref256, ref512 := in256, in512
+	for i := 0; i < 4; i++ {
+		Permute256P2((*State256)(&ref256[i]))
+		Permute512P2((*State512)(&ref512[i]))
+	}
+	_ = SetTier(orig)
+
+	eachTier(t, func(t *testing.T, tier string) {
+		got256, got512 := in256, in512
+		Permute256P2x4(&got256)
+		Permute512P2x4(&got512)
+		single256, single512 := in256, in512
+		for i := 0; i < 4; i++ {
+			Permute256P2((*State256)(&single256[i]))
+			Permute512P2((*State512)(&single512[i]))
+		}
+		p1 := in256
+		Permute256x4(&p1)
+		for i := 0; i < 4; i++ {
+			if !bytes.Equal(got256[i][:], single256[i][:]) || !bytes.Equal(got256[i][:], ref256[i][:]) {
+				t.Fatalf("Permute256P2x4 lane %d tier %s mismatch\nGot:  %x\nWant: %x", i, tier, got256[i][:], ref256[i][:])
+			}
+			if !bytes.Equal(got512[i][:], single512[i][:]) || !bytes.Equal(got512[i][:], ref512[i][:]) {
+				t.Fatalf("Permute512P2x4 lane %d tier %s mismatch\nGot:  %x\nWant: %x", i, tier, got512[i][:], ref512[i][:])
+			}
+			if bytes.Equal(got256[i][:], p1[i][:]) {
+				t.Fatalf("Permute256P2x4 lane %d equals Permute256x4 (tier %s)", i, tier)
+			}
+		}
+	})
+}
+
 // TestSoEMNonSymmetry checks that the single-permutation shift symmetry does not carry over
 // to SoEM22. In single-permutation SoEM with constant d, F(m) == F(m ⊕ k1 ⊕ k2 ⊕ d) for every m
 // (SoEM1, Section 4.1 of Chen, Lambooij, Mennink). With distinct P1 and P2 the identity is not
@@ -302,6 +398,38 @@ func TestSoEMNonSymmetry(t *testing.T) {
 	out512_2 := SoEM512(&key512, &m512Shifted)
 	if bytes.Equal(out512_1[:], out512_2[:]) {
 		t.Fatal("FATAL: SoEM512 exhibits shift symmetry F(m) == F(m ⊕ k1 ⊕ k2)")
+	}
+}
+
+// availableTiers lists the dispatch tiers this host can run.
+func availableTiers() []string {
+	tiers := []string{"purego"}
+	if hasAESNI {
+		tiers = append(tiers, "aesni")
+	}
+	if hasVAESAVX2 {
+		tiers = append(tiers, "vaesavx2")
+	}
+	if hasAVX512 {
+		tiers = append(tiers, "avx512")
+	}
+	if hasARMCrypto {
+		tiers = append(tiers, "arm64")
+	}
+	return tiers
+}
+
+// eachTier runs f under every available tier and restores the original tier.
+func eachTier(t *testing.T, f func(t *testing.T, tier string)) {
+	orig := Tier()
+	defer func() { _ = SetTier(orig) }()
+	for _, tier := range availableTiers() {
+		t.Run("tier="+tier, func(t *testing.T) {
+			if err := SetTier(tier); err != nil {
+				t.Fatalf("SetTier(%s): %v", tier, err)
+			}
+			f(t, tier)
+		})
 	}
 }
 
@@ -470,6 +598,35 @@ func TestCrossTierParity(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestInversePermuteP2CrossTier checks that every tier computes the same P2^-1 as the
+// portable implementation.
+func TestInversePermuteP2CrossTier(t *testing.T) {
+	var x256 State256
+	var x512 State512
+	rand.Read(x256[:])
+	rand.Read(x512[:])
+	orig := Tier()
+	if err := SetTier("purego"); err != nil {
+		t.Fatal(err)
+	}
+	want256, want512 := x256, x512
+	InversePermute256P2(&want256)
+	InversePermute512P2(&want512)
+	_ = SetTier(orig)
+
+	eachTier(t, func(t *testing.T, tier string) {
+		got256, got512 := x256, x512
+		InversePermute256P2(&got256)
+		InversePermute512P2(&got512)
+		if got256 != want256 {
+			t.Fatalf("InversePermute256P2 tier %s differs from purego", tier)
+		}
+		if got512 != want512 {
+			t.Fatalf("InversePermute512P2 tier %s differs from purego", tier)
+		}
+	})
 }
 
 // TestKeySlotSensitivitySoEM256_BitLevel verifies that mutating every single bit

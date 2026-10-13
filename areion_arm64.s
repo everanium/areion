@@ -75,8 +75,8 @@ areion256_next_round:
 	RET
 
 // Areion256 inverse permutation using ARM Crypto extensions
-// func areion256InversePermuteAsm(state *State256)
-TEXT ·areion256InversePermuteAsm(SB),NOSPLIT,$0-8
+// func areion256InversePermuteRCAsm(state *State256, rc *[15][16]byte)
+TEXT ·areion256InversePermuteRCAsm(SB),NOSPLIT,$0-16
 	MOVD state+0(FP), R0
 
 	// Load the two blocks
@@ -85,7 +85,7 @@ TEXT ·areion256InversePermuteAsm(SB),NOSPLIT,$0-8
 	VLD1 (R1), [V1.B16]       // x1
 
 	// Load round constants address
-	MOVD $·roundConstantsP1(SB), R2
+	MOVD rc+8(FP), R2
 	VEOR V15.B16, V15.B16, V15.B16  // V15 = zero block
 
 	MOVD $0, R3  // i counter (0 to 9, step 2)
@@ -281,12 +281,12 @@ TEXT areion512_round<>(SB),NOSPLIT,$0
 	RET
 
 // Areion512 inverse permutation using ARM Crypto extensions
-// func areion512InversePermuteAsm(state *State512)
+// func areion512InversePermuteRCAsm(state *State512, rc *[15][16]byte)
 //
 // Software calls inverse rounds with rotating argument patterns:
 // (x2,x3,x0,x1), (x1,x2,x3,x0), (x0,x1,x2,x3), (x3,x0,x1,x2), ...
 // After reverse rotation and before first inv round, requires V0=x2, V1=x3, V2=x0, V3=x1
-TEXT ·areion512InversePermuteAsm(SB),NOSPLIT,$0-8
+TEXT ·areion512InversePermuteRCAsm(SB),NOSPLIT,$0-16
 	MOVD state+0(FP), R0
 
 	// Load the four blocks
@@ -308,7 +308,7 @@ TEXT ·areion512InversePermuteAsm(SB),NOSPLIT,$0-8
 	// Total rotations so far: 1
 
 	// Load round constants address
-	MOVD $·roundConstantsP1(SB), R2
+	MOVD rc+8(FP), R2
 	VEOR V15.B16, V15.B16, V15.B16  // V15 = zero block
 
 	// Last 3 inverse rounds (14, 13, 12)

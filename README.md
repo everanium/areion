@@ -19,6 +19,8 @@ This library provides:
    - `Permute256x4` / `Permute512x4`: 4-way parallel evaluation of $P_1$.
 2. **Second Permutation ($P_2$)**:
    - `Permute256P2` / `Permute512P2`: the Areion permutation under a second round-constant table (Table 2), the 15 consecutive 128-bit words of $\pi$ that follow those of $P_1$ (words 15..29). Table 2 is proposed by Andrey Kuvshinov and derived by [`scripts/verify_p2_table.py`](scripts/README.md); it is not part of the Areion specification.
+   - `InversePermute256P2` / `InversePermute512P2`: inverse permutations ($P_2^{-1}$).
+   - `Permute256P2x4` / `Permute512P2x4`: 4-way parallel evaluation of $P_2$.
 3. **Davies-Meyer Compression Functions**:
    - `DM256(m)`: 32-byte digest computed as $h = P_1(m) \oplus m$.
    - `DM512(m)`: 32-byte digest $\mathrm{trunc}(P_1(m) \oplus m)$ with the truncation of Section 4.1.1, Eq. (3) of ePrint 2023/794 (32-bit words $x_2 \parallel x_3 \parallel x_6 \parallel x_7 \parallel x_8 \parallel x_9 \parallel x_{12} \parallel x_{13}$).
@@ -72,7 +74,7 @@ The package automatically detects host CPU features:
 | **`arm64`** | ARMv8 with Cryptographic Extension, Apple Silicon, Graviton | `AESE`, `AESMC`, `AESD`, `AESIMC` | 128-bit NEON |
 | **`purego`** | All architectures | Portable pure Go table-based software (not constant-time) | Software scalar fallback |
 
-> **Note on single-block execution:** Single-block functions (`Permute256/512`, `InversePermute256/512`, `DM256/512`, `SoEM256/512`) route to the scalar AES-NI kernel on all x86 hardware tiers; their throughput is therefore identical across `aesni`, `vaesavx2`, and `avx512`. The `vaesavx2` and `avx512` vector tiers accelerate the `x4` batched functions.
+> **Note on single-block execution:** Single-block functions (`Permute256/512`, `InversePermute256/512` and their `P2` forms, `DM256/512`, `SoEM256/512`) route to the scalar AES-NI kernel on all x86 hardware tiers; their throughput is therefore identical across `aesni`, `vaesavx2`, and `avx512`. The `vaesavx2` and `avx512` vector tiers accelerate the `x4` batched functions.
 
 > **Note on VAES detection:** `golang.org/x/sys/cpu` reports VAES only together with AVX-512; the package reads CPUID leaf 7 directly so that VAES+AVX2 hosts (AMD Zen 3, Intel Alder Lake) activate the `vaesavx2` tier.
 
