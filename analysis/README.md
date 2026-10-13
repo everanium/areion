@@ -8,7 +8,7 @@ No finite set of checks establishes that assumption. The checks below look for s
 
 | Claim, within the stated model | `pi` | `shift` | Check |
 |---|---|---|---|
-| Related-constant differential characteristics `P1(u)` vs `P2(u ⊕ δ)`, every `δ` including 0: at least 155 / 154 active S-boxes over the 10 rounds of Areion-256, at least 240 over the 15 rounds of Areion-512 (thresholds for `2^(−2n/3)` at `2^−6` per S-box: 29 and 57) | holds | holds | `related`, `refined` |
+| Related-constant differential characteristics `P1(u)` vs `P2(u ⊕ δ)`, every `δ` including 0: at least 155 / 154 active S-boxes over the 10 rounds of Areion-256, at least 240 over the 15 rounds of Areion-512 (thresholds for `2^(−2n/3)` at `2^−6` per S-box, a heuristic conversion, see section G: 29 and 57) | holds | holds | `related`, `refined` |
 | The byte-activity models (coarse and refined) admit every activity pattern observed on the reference rounds | holds | holds | `oracle` |
 | **A.** No byte-structured linear symmetry of the constant-free round maps the `P1` constants onto the `P2` constants, for any pairing of rounds; no column rotation fixes the constants of either table | holds | holds | `symmetry`, `sbox` |
 | **B1.** The S-box maps an affine subspace of dimension at least 2 onto an affine one only for the λ·F_4- and λ·F_16-lines, never onto itself | holds | holds | `sbox` |
@@ -61,16 +61,18 @@ Chen, Lambooij, and Mennink give birthday-bound attacks when the two permutation
 
 Through an S-box layer followed by MixColumns, the only byte-wise affine map that survives is the identity (all 2040 linear self-equivalences of inversion tested), so a byte-structured equivalence is a byte permutation. A byte permutation `p` applied before an S-box layer and ShiftRows reappears after them as `T(p) = SR ∘ p ∘ SR⁻¹`, so the map may differ from round to round; following the round structure, the map on the F-function input has to satisfy `T³(p) = p` in Areion-256 and `T(p) = p` in Areion-512, with every `T^i(p)` commuting with MixColumns. Of the 6144 candidates exactly the column rotations of section A satisfy either condition (`symmetry`), so per-round maps add nothing. A rotation combined with translations is a related-constant case with `Δ_r = RC1_r ⊕ σ⁻¹(RC2_r)`, which has one zero byte in two of the 15 rounds: 238 for Areion-512 (237 with `--rc7p1 pi` for the `P2` `pi` form, where one rotation gains a third zero byte), and 40 to 44 in the coarse Areion-256 model (45 for one rotation of the `pi` form with `--rc7p1 pi`). No component function of the S-box has a linear structure, the usual condition under which an affine map carrying an S-box layer onto an S-box layer respects the bytes; that step is an argument from the literature, not a proof given here.
 
-### G. Clustering
+### G. From active S-boxes to probabilities
 
-The bounds are on characteristics. Within one round there is no clustering: the round's input and output differences fix every S-box layer's output difference, so a one-round differential has exactly one characteristic, and clustering can only come from summing over the differences between rounds. At `2^−6` per S-box the related-constant bounds give `2^−930` (Areion-256, `pi`; `2^−924` for `shift`) and `2^−1440` (Areion-512) against `2^−171` and `2^−341`: a differential would have to gather about `2^759` (`2^753`) and `2^1099` times the weight of the best characteristic. That is a margin, not a bound on differentials.
+The bounds count active S-boxes. Turning a count into a probability with `2^−6` per active S-box is the usual product rule, which assumes independent S-box transitions; Denis ([ePrint 2026/1935](https://eprint.iacr.org/2026/1935)) shows that for Areion it is not an upper bound. Two S-boxes in series on one byte, `S(S(x) ⊕ c)` in the third function of Areion-512, give `2^−7` jointly instead of `2^−14`, and the coupled bytes of one Areion-256 column give a two-round differential of probability `2^−31` where the product gives `2^−34`. The same note, and Taiyama et al. (Computer Security Symposium 2023) before it, observe that an S-box layer shared by two functions imposes one condition, which the models here respect by counting it once.
+
+Within one round there is no clustering: the round's input and output differences fix every S-box layer's output difference, so a one-round differential has exactly one characteristic, and clustering can only come from summing over the differences between rounds. Under the product rule the related-constant bounds give `2^−930` (Areion-256, `pi`; `2^−924` for `shift`) and `2^−1440` (Areion-512) against `2^−171` and `2^−341`: about `2^759` (`2^753`) and `2^1099` apart. These are margins of a heuristic estimate, not bounds: they show how far the estimate is from the threshold, and they stay large under corrections of the size reported by Denis.
 
 ### Open
 
 - Affine equivalences that are not byte-structured: the reduction to bytes in section F rests on the literature, and equivalences that do not carry S-box layers onto S-box layers are not covered.
 - Weak cosets beyond the byte-structured seeds: byte mixes other than one-dimensional bytes in a column are sampled, not exhausted, and arbitrary cosets give no finite search.
 - Impossible differentials beyond the byte-level models, for one permutation or between `P1` and `P2`.
-- Bounds on differentials rather than characteristics. Linear relations between `P1` and `P2` are argued from the single-permutation case and not quantified here; boomerang-type relations are not examined.
+- Bounds on probabilities: the conversion from active S-boxes is heuristic (section G), and differentials can collect several characteristics. Linear relations between `P1` and `P2` are argued from the single-permutation case and not quantified here; boomerang-type relations are not examined.
 - Integral properties above order 5, including the paper's distinguishers with nearly every byte active.
 - The independence of `P1` and `P2` itself.
 
