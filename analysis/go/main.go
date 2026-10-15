@@ -18,19 +18,21 @@ var usage = `subcommands:
   consts                         round-constant tables as JSON (library P1, P2 in both
                                  RC7 forms, and P1 word 7 in the pi form)
   kat                            random input / output lines of the library permutations
-  trace <256|512> <pi|shift> <rounds> <n>
+  trace <256|512> <shift|pi> <rounds> <n>
                                  oracle activity traces (JSON lines)
   feas                           column feasibility tables of MC(S) ^ Delta (JSON)
   sym | symctl                   symmetries of the constant-free round, and control
   sboxsub                        affine subspaces the S-box maps affinely, cycles
   diag                           exhaustive MixColumns direction check (weak cosets)
   coset2 <256|512> [quick]       weak-coset trails from byte-structured seeds
-  zero [pi|shift]                zero-byte frequency of P1_r(x) ^ P2_r(x ^ delta)
-  uniform <256|512> <maxrounds> [pi|shift]
+  zero [shift|pi]                zero-byte frequency of P1_r(x) ^ P2_r(x ^ delta)
+  uniform <256|512> <maxrounds> [shift|pi]
                                  per-byte value histograms of the same
-  integral <256|512> <maxrounds> [maxorder [pi|shift]]
+  integral <256|512> <maxrounds> [maxorder [shift|pi]]
                                  Lambda-set sums of order 1..maxorder (default 3)
-The optional pi|shift selects the RC7 form of P2 (default pi).
+  chain                          exact correlations and probabilities of the S-box
+                                 chain of F3 in Areion-512, over every constant byte
+The optional shift|pi selects the RC7 form of P2 (default shift, the library's).
 
 AREION_RC7P1=pi switches P1 to the pi form of RC7 for every subcommand
 except check, kat and consts.
@@ -78,6 +80,8 @@ func main() {
 		uniformMain()
 	case "integral":
 		integralMain()
+	case "chain":
+		chainMain()
 	default:
 		fmt.Fprint(os.Stderr, usage)
 		os.Exit(2)

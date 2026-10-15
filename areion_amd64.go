@@ -2,7 +2,10 @@
 
 package areion
 
-import "unsafe"
+import (
+	"runtime"
+	"unsafe"
+)
 
 //go:noescape
 func areion256PermuteRCAsm(state *State256, rc *[15][16]byte)
@@ -124,6 +127,9 @@ func areionSoEM256(key *[64]byte, m *[32]byte) [32]byte {
 	for i := 0; i < 32; i++ {
 		state1[i] ^= state2[i] ^ key[i] ^ key[32+i]
 	}
+	// state2 holds P2(m ⊕ k2), from which k2 follows; zero it.
+	clear(state2[:])
+	runtime.KeepAlive(&state2)
 	return state1
 }
 
@@ -141,6 +147,9 @@ func areionSoEM512(key *[128]byte, m *[64]byte) [64]byte {
 	for i := 0; i < 64; i++ {
 		state1[i] ^= state2[i] ^ key[i] ^ key[64+i]
 	}
+	// state2 holds P2(m ⊕ k2), from which k2 follows; zero it.
+	clear(state2[:])
+	runtime.KeepAlive(&state2)
 	return state1
 }
 
@@ -162,7 +171,8 @@ func areion256Permutex4Tables(states *[4][32]byte, rc *[15][16]byte, rc4 *[15 * 
 		}
 		return
 	}
-	b0, b1 := pack256x4SoA(states)
+	var b0, b1 Block4
+	pack256x4SoAInto(states, &b0, &b1)
 	if hasAVX512 && hasVAESAVX2 && tier >= TierAVX512 {
 		areion256Permutex4RC(&b0, &b1, rc4)
 	} else if hasVAESAVX2 && tier >= TierVAESAVX2 {
@@ -171,6 +181,11 @@ func areion256Permutex4Tables(states *[4][32]byte, rc *[15][16]byte, rc4 *[15 * 
 		areion256Permutex4AesNiRC(&b0, &b1, rc4)
 	}
 	unpack256x4SoA(&b0, &b1, states)
+	// the lanes may carry key-whitened state; zero the packed copy
+	clear(b0[:])
+	clear(b1[:])
+	runtime.KeepAlive(&b0)
+	runtime.KeepAlive(&b1)
 }
 
 func areion512Permutex4(states *[4][64]byte) {
@@ -191,7 +206,8 @@ func areion512Permutex4Tables(states *[4][64]byte, rc *[15][16]byte, rc4 *[15 * 
 		}
 		return
 	}
-	b0, b1, b2, b3 := pack512x4SoA(states)
+	var b0, b1, b2, b3 Block4
+	pack512x4SoAInto(states, &b0, &b1, &b2, &b3)
 	if hasAVX512 && hasVAESAVX2 && tier >= TierAVX512 {
 		areion512Permutex4RC(&b0, &b1, &b2, &b3, rc4)
 	} else if hasVAESAVX2 && tier >= TierVAESAVX2 {
@@ -200,6 +216,15 @@ func areion512Permutex4Tables(states *[4][64]byte, rc *[15][16]byte, rc4 *[15 * 
 		areion512Permutex4AesNiRC(&b0, &b1, &b2, &b3, rc4)
 	}
 	unpack512x4SoA(&b0, &b1, &b2, &b3, states)
+	// the lanes may carry key-whitened state; zero the packed copy
+	clear(b0[:])
+	clear(b1[:])
+	clear(b2[:])
+	clear(b3[:])
+	runtime.KeepAlive(&b0)
+	runtime.KeepAlive(&b1)
+	runtime.KeepAlive(&b2)
+	runtime.KeepAlive(&b3)
 }
 
 func areionSoEM256x4(keys *[4][64]byte, inputs *[4][32]byte) [4][32]byte {
@@ -259,6 +284,17 @@ func areionSoEM256x4(keys *[4][64]byte, inputs *[4][32]byte) [4][32]byte {
 		outU64[2] = s1b1U64[0] ^ k[2] ^ k[6]
 		outU64[3] = s1b1U64[1] ^ k[3] ^ k[7]
 	}
+	// The SoA blocks hold the key-whitened inputs, then P2(m ⊕ k2) and
+	// the sum P1(m ⊕ k1) ⊕ P2(m ⊕ k2), from which the subkeys follow;
+	// zero them once the output is built.
+	clear(s1b0[:])
+	clear(s1b1[:])
+	clear(s2b0[:])
+	clear(s2b1[:])
+	runtime.KeepAlive(&s1b0)
+	runtime.KeepAlive(&s1b1)
+	runtime.KeepAlive(&s2b0)
+	runtime.KeepAlive(&s2b1)
 	return out
 }
 
@@ -340,5 +376,24 @@ func areionSoEM512x4(keys *[4][128]byte, inputs *[4][64]byte) [4][64]byte {
 		outU64[6] = d1U64[0] ^ k[6] ^ k[14]
 		outU64[7] = d1U64[1] ^ k[7] ^ k[15]
 	}
+	// The SoA blocks hold the key-whitened inputs, then P2(m ⊕ k2) and
+	// the sum P1(m ⊕ k1) ⊕ P2(m ⊕ k2), from which the subkeys follow;
+	// zero them once the output is built.
+	clear(a1[:])
+	clear(b1[:])
+	clear(c1[:])
+	clear(d1[:])
+	clear(a2[:])
+	clear(b2[:])
+	clear(c2[:])
+	clear(d2[:])
+	runtime.KeepAlive(&a1)
+	runtime.KeepAlive(&b1)
+	runtime.KeepAlive(&c1)
+	runtime.KeepAlive(&d1)
+	runtime.KeepAlive(&a2)
+	runtime.KeepAlive(&b2)
+	runtime.KeepAlive(&c2)
+	runtime.KeepAlive(&d2)
 	return out
 }

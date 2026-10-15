@@ -45,9 +45,9 @@ func TestReferenceMatchesLibrary(t *testing.T) {
 	}
 }
 
-// TestShiftVariant checks that the alternative RC7 form differs from the
+// TestPiVariant checks that the alternative RC7 form differs from the
 // library table in word 7 only.
-func TestShiftVariant(t *testing.T) {
+func TestPiVariant(t *testing.T) {
 	pi, sh := p2Table("pi"), p2Table("shift")
 	for r := 0; r < 15; r++ {
 		if (pi[r] != sh[r]) != (r == 7) {

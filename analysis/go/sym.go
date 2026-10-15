@@ -173,7 +173,7 @@ func symMain() {
 		// best byte agreement between s(RC1_r') and RC2_r over all (r, r')
 		best := map[string]int{}
 		exact := map[string]int{}
-		for name, rc2 := range map[string][15][16]byte{"pi": roundConstantsP2, "shift": shift} {
+		for name, rc2 := range map[string][15][16]byte{"pi": *p2Table("pi"), "shift": shift} {
 			for r := 0; r < 15; r++ {
 				for r2 := 0; r2 < 15; r2++ {
 					img := p.apply(&roundConstantsP1[r2])

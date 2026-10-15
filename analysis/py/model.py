@@ -24,6 +24,11 @@ class Model:
         self.nv = 0
         self.cl = []
         self.sboxes = []
+        self.rounds = [[]]   # S-box literals per round (closed by mark()), for bounds.py
+
+    def mark(self):
+        """Close the current round's S-box list."""
+        self.rounds.append([])
 
     def new(self, n=16):
         v = list(range(self.nv + 1, self.nv + 1 + n))
@@ -64,6 +69,7 @@ class Model:
 
     def count(self, w):
         self.sboxes += w
+        self.rounds[-1] += w
 
 
 def build_aes(rounds):
@@ -75,6 +81,7 @@ def build_aes(rounds):
         m.count(x)
         rec.append({"X": x})
         x = m.mc(m.sr(x))
+        m.mark()
     return m, rec
 
 
@@ -94,6 +101,7 @@ def build_256(rounds, deltas):
         nb = m.xor(W, B)
         rec.append({"A": A, "B": B, "T1": T1, "T2": T2, "W": W})
         x[ai], x[bi] = S, nb
+        m.mark()
     rec.append({"x0": x[0], "x1": x[1]})
     return m, rec
 
@@ -119,6 +127,7 @@ def build_512(rounds, deltas):
         cf = m.mc(m.sr(c2))
         rec.append({"a": a, "b": b, "c": c, "d": d, "t1": t1, "t2": t2, "c1": c1, "c2": c2, "cf": cf})
         x[ia], x[ib], x[ic], x[id_] = na, nb, cf, nd
+        m.mark()
     rec.append({"x0": x[0], "x1": x[1], "x2": x[2], "x3": x[3]})  # state before the final word rotation (a renaming)
     return m, rec
 

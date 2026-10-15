@@ -1,0 +1,25 @@
+$ python3 analysis/run.py linear --rounds 8
+{"width": "aes", "mode": "linear", "rounds": 4, "min_active_sboxes": 25, "secs": 2.6}
+{"kind": "linear", "width": "512", "rounds": 5, "min_active_sboxes": 24, "lower_bound_from_windows": 0, "windows": 0, "cubes": 0, "witness": [3, 4, 0, 5, 12], "secs": 39.6}
+{"kind": "linear", "width": "512", "rounds": 5, "min_active_sboxes": 24, "lower_bound_from_windows": 11, "windows": 9, "cubes": 0, "witness": [3, 4, 0, 5, 12], "secs": 61.8}
+{"kind": "linear", "width": "512", "rounds": 5, "min_active_sboxes": 24, "lower_bound_from_windows": 11, "windows": 9, "cubes": 33, "cube_rounds": [2], "jobs": 14, "witness": [3, 4, 0, 5, 12], "secs": 367.8}
+{"kind": "linear", "width": "256", "rounds": 1, "min_active_sboxes": 1, "cached": true}
+{"kind": "linear", "width": "256", "rounds": 2, "min_active_sboxes": 5, "cached": true}
+{"kind": "linear", "width": "256", "rounds": 3, "min_active_sboxes": 10, "cached": true}
+{"kind": "linear", "width": "256", "rounds": 4, "min_active_sboxes": 21, "cached": true}
+{"kind": "linear", "width": "256", "rounds": 5, "min_active_sboxes": 30, "cached": true}
+{"kind": "linear", "width": "256", "rounds": 6, "min_active_sboxes": 35, "cached": true}
+{"kind": "linear", "width": "256", "rounds": 7, "min_active_sboxes": 40, "cached": true}
+{"kind": "linear", "width": "256", "rounds": 8, "min_active_sboxes": 54, "cached": true}
+{"kind": "linear", "width": "256", "rounds": 9, "min_active_sboxes": 60, "cached": true}
+{"kind": "linear", "width": "256", "rounds": 10, "min_active_sboxes": 65, "cached": true}
+{"kind": "linear", "width": "512", "rounds": 1, "min_active_sboxes": 0, "cached": true}
+{"kind": "linear", "width": "512", "rounds": 2, "min_active_sboxes": 2, "cached": true}
+{"kind": "linear", "width": "512", "rounds": 3, "min_active_sboxes": 6, "cached": true}
+{"kind": "linear", "width": "512", "rounds": 4, "min_active_sboxes": 11, "cached": true}
+{"kind": "linear", "width": "512", "rounds": 5, "min_active_sboxes": 24, "cached": true}
+{"kind": "linear", "width": "512", "rounds": 6, "min_active_sboxes": 31, "cached": true}
+{"kind": "linear", "width": "512", "rounds": 7, "min_active_sboxes": 44, "cached": true}
+{"kind": "linear", "width": "512", "rounds": 8, "min_active_sboxes": 57, "cached": true}
+== linear Areion-512, minima per round count (h: HiGHS): 1:0 2:2 3:6 4:11 5:24 6:31 7:44 8:57
+== linear Areion-512, 15 rounds: at least 101 active S-boxes (windows of the round counts above)

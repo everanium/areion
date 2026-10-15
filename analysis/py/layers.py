@@ -130,17 +130,17 @@ def run_steps(st, steps, nb, lin):
 
 if __name__ == '__main__':
     # the library uses the published P1, whatever AREION_RC7P1 selects
-    P1, P2pi, _ = constants(library=True)
+    P1, _, P2lib = constants(library=True)    # the library's P2 is the shift form
     ok = True
     for line in open(BUILD / 'kat.txt'):
         w, i, o1, o2 = line.split()
         i, o1, o2 = (list(bytes.fromhex(v)) for v in (i, o1, o2))
         if w == '256':
-            for rc, o in ((P1, o1), (P2pi, o2)):
+            for rc, o in ((P1, o1), (P2lib, o2)):
                 ok &= perm256(i, rc) == o
                 ok &= run_steps(i, steps256(rc), 2, lin256) == o
         else:
-            for rc, o in ((P1, o1), (P2pi, o2)):
+            for rc, o in ((P1, o1), (P2lib, o2)):
                 ok &= perm512(i, rc) == o
                 ok &= run_steps(i, steps512(rc), 4, lin512) == o
     print('direct and layered permutations match the library on kat.txt:', ok)

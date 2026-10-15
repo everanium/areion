@@ -1,0 +1,167 @@
+$ python3 analysis/run.py boomerang --rounds 7
+{"kind": "single", "width": "256", "rounds": 1, "min_active_sboxes": 0, "cached": true}
+{"kind": "single", "width": "256", "rounds": 2, "min_active_sboxes": 5, "cached": true}
+{"kind": "single", "width": "256", "rounds": 3, "min_active_sboxes": 10, "cached": true}
+{"kind": "single", "width": "256", "rounds": 4, "min_active_sboxes": 25, "cached": true}
+{"kind": "single", "width": "256", "rounds": 5, "min_active_sboxes": 30, "lower_bound_from_windows": 25, "windows": 9, "cubes": 0, "witness": [0, 20, 5, 0, 5], "secs": 5.5}
+{"kind": "single", "width": "256", "rounds": 6, "min_active_sboxes": 35, "lower_bound_from_windows": 30, "windows": 12, "cubes": 0, "witness": [5, 0, 10, 15, 5, 0], "secs": 15.8}
+{"kind": "single", "width": "256", "rounds": 7, "min_active_sboxes": 40, "lower_bound_from_windows": 35, "windows": 15, "cubes": 0, "witness": [5, 0, 5, 20, 5, 0, 5], "secs": 16.7}
+{"kind": "single", "width": "256", "rounds": 9, "min_active_sboxes": 60, "lower_bound_from_windows": 50, "windows": 21, "cubes": 0, "witness": [5, 0, 5, 20, 5, 0, 5, 20, 0], "secs": 64.0}
+{"kind": "single", "width": "256", "rounds": 8, "min_active_sboxes": 55, "lower_bound_from_windows": 50, "windows": 18, "cubes": 0, "witness": [0, 5, 20, 0, 20, 5, 0, 5], "secs": 69.6}
+{"kind": "single", "width": "512", "rounds": 1, "min_active_sboxes": 0, "cached": true}
+{"kind": "single", "width": "512", "rounds": 2, "min_active_sboxes": 1, "cached": true}
+{"kind": "single", "width": "512", "rounds": 3, "min_active_sboxes": 3, "cached": true}
+{"kind": "single", "width": "512", "rounds": 4, "min_active_sboxes": 5, "cached": true}
+{"kind": "single", "width": "512", "rounds": 5, "min_active_sboxes": 13, "lower_bound_from_windows": 5, "windows": 9, "cubes": 0, "witness": [3, 4, 2, 0, 4], "secs": 1.3}
+{"kind": "single", "width": "512", "rounds": 6, "min_active_sboxes": 21, "lower_bound_from_windows": 6, "windows": 12, "cubes": 0, "witness": [3, 6, 3, 1, 2, 6], "secs": 13.5}
+{"kind": "single", "width": "512", "rounds": 7, "min_active_sboxes": 36, "lower_bound_from_windows": 8, "windows": 15, "cubes": 0, "witness": [4, 11, 6, 6, 3, 0, 6], "secs": 6188.2}
+{"kind": "related", "width": "256", "rounds": 1, "min_active_sboxes": 4, "cached": true}
+{"kind": "related", "width": "256", "rounds": 2, "min_active_sboxes": 8, "cached": true}
+{"kind": "related", "width": "256", "rounds": 3, "min_active_sboxes": 12, "cached": true}
+{"kind": "related", "width": "256", "rounds": 4, "min_active_sboxes": 16, "cached": true}
+{"kind": "related", "width": "256", "rounds": 5, "min_active_sboxes": 20, "lower_bound_from_windows": 20, "windows": 14, "cubes": 0, "witness": [4, 4, 4, 4, 4], "secs": 1.3}
+{"kind": "related", "width": "256", "rounds": 6, "min_active_sboxes": 24, "lower_bound_from_windows": 24, "windows": 18, "cubes": 0, "witness": [4, 4, 4, 4, 4, 4], "secs": 1.2}
+{"kind": "related", "width": "256", "rounds": 7, "min_active_sboxes": 28, "lower_bound_from_windows": 28, "windows": 22, "cubes": 0, "witness": [4, 4, 4, 4, 4, 4, 4], "secs": 2.7}
+{"kind": "related", "width": "256", "rounds": 8, "min_active_sboxes": 32, "lower_bound_from_windows": 32, "windows": 26, "cubes": 0, "witness": [4, 4, 4, 4, 4, 4, 4, 4], "secs": 3.5}
+{"kind": "related", "width": "256", "rounds": 9, "min_active_sboxes": 36, "lower_bound_from_windows": 36, "windows": 30, "cubes": 0, "witness": [4, 4, 4, 4, 4, 4, 4, 4, 4], "secs": 3.3}
+{"kind": "related", "width": "512", "rounds": 1, "min_active_sboxes": 16, "cached": true}
+{"kind": "related", "width": "512", "rounds": 2, "min_active_sboxes": 32, "cached": true}
+{"kind": "related", "width": "512", "rounds": 3, "min_active_sboxes": 48, "cached": true}
+{"kind": "related", "width": "512", "rounds": 4, "min_active_sboxes": 64, "cached": true}
+{"kind": "related", "width": "512", "rounds": 5, "min_active_sboxes": 80, "lower_bound_from_windows": 80, "windows": 14, "cubes": 0, "witness": [16, 16, 16, 16, 16], "secs": 13.1}
+{"kind": "related", "width": "512", "rounds": 6, "min_active_sboxes": 96, "lower_bound_from_windows": 96, "windows": 18, "cubes": 0, "witness": [16, 16, 16, 16, 16, 16], "secs": 21.5}
+{"kind": "related", "width": "512", "rounds": 7, "min_active_sboxes": 112, "lower_bound_from_windows": 112, "windows": 22, "cubes": 0, "witness": [16, 16, 16, 16, 16, 16, 16], "secs": 28.8}
+== Areion-256, related halves refined, RC7 of P2 pi
+   top / bottom         R    strict    split    1 free    split    2 free    split
+   single / single      2      2^-0   (1, 1)         -        -         -        -
+   single / single      3     2^-60   (1, 2)      2^-0   (1, 1)         -        -
+   single / single      4    2^-120   (1, 3)     2^-60   (1, 2)      2^-0   (1, 1)
+   single / single      5    2^-180   (2, 3)    2^-120   (1, 3)     2^-60   (1, 2)
+   single / single      6    2^-240   (3, 3)    2^-180   (2, 3)    2^-120   (1, 3)
+   single / single      7    2^-420   (1, 6)    2^-240   (3, 3)    2^-180   (2, 3)
+   single / single      8    2^-480   (1, 7)    2^-420   (1, 6)    2^-240   (3, 3)
+   single / single      9    2^-540   (2, 7)    2^-480   (1, 7)    2^-420   (1, 6)
+   single / single     10    2^-600   (3, 7)    2^-540   (2, 7)    2^-480   (1, 7)
+   single / related     2    2^-192   (1, 1)         -        -         -        -
+   single / related     3    2^-228   (2, 1)    2^-168   (1, 1)         -        -
+   single / related     4    2^-312   (3, 1)    2^-252   (2, 1)    2^-192   (1, 1)
+   single / related     5    2^-492   (4, 1)    2^-312   (3, 1)    2^-252   (2, 1)
+   single / related     6    2^-552   (5, 1)    2^-492   (4, 1)    2^-312   (3, 1)
+   single / related     7    2^-600   (6, 1)    2^-540   (5, 1)    2^-480   (4, 1)
+   single / related     8    2^-672   (7, 1)    2^-612   (6, 1)    2^-552   (5, 1)
+   single / related     9    2^-852   (8, 1)    2^-672   (7, 1)    2^-612   (6, 1)
+   single / related    10    2^-900   (9, 1)    2^-840   (8, 1)    2^-660   (7, 1)
+   related / single     2    2^-180   (1, 1)         -        -         -        -
+   related / single     3    2^-240   (1, 2)    2^-180   (1, 1)         -        -
+   related / single     4    2^-300   (1, 3)    2^-240   (1, 2)    2^-180   (1, 1)
+   related / single     5    2^-480   (1, 4)    2^-300   (1, 3)    2^-240   (1, 2)
+   related / single     6    2^-540   (1, 5)    2^-480   (1, 4)    2^-300   (1, 3)
+   related / single     7    2^-600   (1, 6)    2^-540   (1, 5)    2^-480   (1, 4)
+   related / single     8    2^-660   (1, 7)    2^-600   (1, 6)    2^-540   (1, 5)
+   related / single     9    2^-840   (1, 8)    2^-660   (1, 7)    2^-600   (1, 6)
+   related / single    10    2^-900   (1, 9)    2^-840   (1, 8)    2^-660   (1, 7)
+   related / related    2    2^-372   (1, 1)         -        -         -        -
+   related / related    3    2^-540   (1, 2)    2^-348   (1, 1)         -        -
+   related / related    4    2^-732   (1, 3)    2^-540   (1, 2)    2^-372   (1, 1)
+   related / related    5    2^-924   (1, 4)    2^-732   (1, 3)    2^-564   (1, 2)
+   related / related    6   2^-1116   (1, 5)    2^-924   (1, 4)    2^-732   (3, 1)
+   related / related    7   2^-1296   (1, 6)   2^-1104   (1, 5)    2^-912   (3, 2)
+   related / related    8   2^-1488   (1, 7)   2^-1296   (1, 6)   2^-1104   (3, 3)
+   related / related    9   2^-1680   (1, 8)   2^-1488   (1, 7)   2^-1296   (3, 4)
+   related / related   10   2^-1860   (1, 9)   2^-1668   (1, 8)   2^-1476   (3, 5)
+== Areion-256, related halves refined, RC7 of P2 shift
+   top / bottom         R    strict    split    1 free    split    2 free    split
+   single / single      2      2^-0   (1, 1)         -        -         -        -
+   single / single      3     2^-60   (1, 2)      2^-0   (1, 1)         -        -
+   single / single      4    2^-120   (1, 3)     2^-60   (1, 2)      2^-0   (1, 1)
+   single / single      5    2^-180   (2, 3)    2^-120   (1, 3)     2^-60   (1, 2)
+   single / single      6    2^-240   (3, 3)    2^-180   (2, 3)    2^-120   (1, 3)
+   single / single      7    2^-420   (1, 6)    2^-240   (3, 3)    2^-180   (2, 3)
+   single / single      8    2^-480   (1, 7)    2^-420   (1, 6)    2^-240   (3, 3)
+   single / single      9    2^-540   (2, 7)    2^-480   (1, 7)    2^-420   (1, 6)
+   single / single     10    2^-600   (3, 7)    2^-540   (2, 7)    2^-480   (1, 7)
+   single / related     2    2^-192   (1, 1)         -        -         -        -
+   single / related     3    2^-228   (2, 1)    2^-168   (1, 1)         -        -
+   single / related     4    2^-312   (3, 1)    2^-252   (2, 1)    2^-192   (1, 1)
+   single / related     5    2^-492   (4, 1)    2^-312   (3, 1)    2^-252   (2, 1)
+   single / related     6    2^-552   (5, 1)    2^-492   (4, 1)    2^-312   (3, 1)
+   single / related     7    2^-600   (6, 1)    2^-540   (5, 1)    2^-480   (4, 1)
+   single / related     8    2^-660   (7, 1)    2^-600   (6, 1)    2^-540   (5, 1)
+   single / related     9    2^-852   (7, 2)    2^-672   (7, 1)    2^-612   (6, 1)
+   single / related    10    2^-900   (9, 1)    2^-840   (8, 1)    2^-660   (7, 1)
+   related / single     2    2^-180   (1, 1)         -        -         -        -
+   related / single     3    2^-240   (1, 2)    2^-180   (1, 1)         -        -
+   related / single     4    2^-300   (1, 3)    2^-240   (1, 2)    2^-180   (1, 1)
+   related / single     5    2^-480   (1, 4)    2^-300   (1, 3)    2^-240   (1, 2)
+   related / single     6    2^-540   (1, 5)    2^-480   (1, 4)    2^-300   (1, 3)
+   related / single     7    2^-600   (1, 6)    2^-540   (1, 5)    2^-480   (1, 4)
+   related / single     8    2^-660   (1, 7)    2^-600   (1, 6)    2^-540   (1, 5)
+   related / single     9    2^-840   (1, 8)    2^-660   (1, 7)    2^-600   (1, 6)
+   related / single    10    2^-900   (1, 9)    2^-840   (1, 8)    2^-660   (1, 7)
+   related / related    2    2^-372   (1, 1)         -        -         -        -
+   related / related    3    2^-540   (1, 2)    2^-348   (1, 1)         -        -
+   related / related    4    2^-732   (1, 3)    2^-540   (1, 2)    2^-372   (1, 1)
+   related / related    5    2^-924   (1, 4)    2^-732   (1, 3)    2^-564   (1, 2)
+   related / related    6   2^-1116   (1, 5)    2^-924   (1, 4)    2^-732   (3, 1)
+   related / related    7   2^-1296   (1, 6)   2^-1104   (1, 5)    2^-912   (3, 2)
+   related / related    8   2^-1476   (1, 7)   2^-1284   (1, 6)   2^-1092   (3, 3)
+   related / related    9   2^-1668   (1, 8)   2^-1476   (1, 7)   2^-1284   (3, 4)
+   related / related   10   2^-1848   (1, 9)   2^-1656   (1, 8)   2^-1464   (3, 5)
+== Areion-512
+   top / bottom         R    strict    split    1 free    split    2 free    split
+   single / single      2      2^-0   (1, 1)         -        -         -        -
+   single / single      3     2^-12   (1, 2)      2^-0   (1, 1)         -        -
+   single / single      4     2^-24   (2, 2)     2^-12   (1, 2)      2^-0   (1, 1)
+   single / single      5     2^-48   (2, 3)     2^-24   (2, 2)     2^-12   (1, 2)
+   single / single      6     2^-72   (2, 4)     2^-48   (2, 3)     2^-24   (2, 2)
+   single / single      7     2^-96   (3, 4)     2^-72   (2, 4)     2^-48   (2, 3)
+   single / single      8    2^-120   (4, 4)     2^-96   (3, 4)     2^-72   (2, 4)
+   single / single      9    2^-216   (4, 5)    2^-120   (4, 4)     2^-96   (3, 4)
+   single / single     10    2^-312   (4, 6)    2^-216   (4, 5)    2^-120   (4, 4)
+   single / single     11    2^-408   (5, 6)    2^-312   (4, 6)    2^-216   (4, 5)
+   single / single     12   2^-480*  (2, 10)    2^-408   (5, 6)    2^-312   (4, 6)
+   single / single     13   2^-504*  (2, 11)   2^-480*  (2, 10)    2^-408   (5, 6)
+   single / single     14   2^-528*  (3, 11)   2^-504*  (2, 11)   2^-480*  (2, 10)
+   single / single     15   2^-552*  (4, 11)   2^-528*  (3, 11)   2^-504*  (2, 11)
+   single / related     2    2^-192   (1, 1)         -        -         -        -
+   single / related     3    2^-204   (2, 1)    2^-192   (1, 1)         -        -
+   single / related     4    2^-228   (3, 1)    2^-204   (2, 1)    2^-192   (1, 1)
+   single / related     5    2^-252   (4, 1)    2^-228   (3, 1)    2^-204   (2, 1)
+   single / related     6    2^-348   (5, 1)    2^-252   (4, 1)    2^-228   (3, 1)
+   single / related     7    2^-444   (6, 1)    2^-348   (5, 1)    2^-252   (4, 1)
+   single / related     8    2^-624   (7, 1)    2^-444   (6, 1)    2^-348   (5, 1)
+   single / related     9   2^-624*   (8, 1)    2^-624   (7, 1)    2^-444   (6, 1)
+   single / related    10   2^-636*   (9, 1)   2^-624*   (8, 1)    2^-624   (7, 1)
+   single / related    11   2^-660*  (10, 1)   2^-636*   (9, 1)   2^-624*   (8, 1)
+   single / related    12   2^-684*  (11, 1)   2^-660*  (10, 1)   2^-636*   (9, 1)
+   single / related    13   2^-780*  (12, 1)   2^-684*  (11, 1)   2^-660*  (10, 1)
+   single / related    14   2^-876*  (13, 1)   2^-780*  (12, 1)   2^-684*  (11, 1)
+   single / related    15  2^-1056*  (14, 1)   2^-876*  (13, 1)   2^-780*  (12, 1)
+   related / single     2    2^-192   (1, 1)         -        -         -        -
+   related / single     3    2^-204   (1, 2)    2^-192   (1, 1)         -        -
+   related / single     4    2^-228   (1, 3)    2^-204   (1, 2)    2^-192   (1, 1)
+   related / single     5    2^-252   (1, 4)    2^-228   (1, 3)    2^-204   (1, 2)
+   related / single     6    2^-348   (1, 5)    2^-252   (1, 4)    2^-228   (1, 3)
+   related / single     7    2^-444   (1, 6)    2^-348   (1, 5)    2^-252   (1, 4)
+   related / single     8    2^-624   (1, 7)    2^-444   (1, 6)    2^-348   (1, 5)
+   related / single     9   2^-624*   (1, 8)    2^-624   (1, 7)    2^-444   (1, 6)
+   related / single    10   2^-636*   (1, 9)   2^-624*   (1, 8)    2^-624   (1, 7)
+   related / single    11   2^-660*  (1, 10)   2^-636*   (1, 9)   2^-624*   (1, 8)
+   related / single    12   2^-684*  (1, 11)   2^-660*  (1, 10)   2^-636*   (1, 9)
+   related / single    13   2^-780*  (1, 12)   2^-684*  (1, 11)   2^-660*  (1, 10)
+   related / single    14   2^-876*  (1, 13)   2^-780*  (1, 12)   2^-684*  (1, 11)
+   related / single    15  2^-1056*  (1, 14)   2^-876*  (1, 13)   2^-780*  (1, 12)
+   related / related    2    2^-384   (1, 1)         -        -         -        -
+   related / related    3    2^-576   (1, 2)    2^-384   (1, 1)         -        -
+   related / related    4    2^-768   (1, 3)    2^-576   (1, 2)    2^-384   (1, 1)
+   related / related    5    2^-960   (1, 4)    2^-768   (1, 3)    2^-576   (1, 2)
+   related / related    6   2^-1152   (1, 5)    2^-960   (1, 4)    2^-768   (1, 3)
+   related / related    7   2^-1344   (1, 6)   2^-1152   (1, 5)    2^-960   (1, 4)
+   related / related    8   2^-1536   (1, 7)   2^-1344   (1, 6)   2^-1152   (1, 5)
+   related / related    9  2^-1728*   (1, 8)   2^-1536   (1, 7)   2^-1344   (1, 6)
+   related / related   10  2^-1920*   (1, 9)  2^-1728*   (1, 8)   2^-1536   (1, 7)
+   related / related   11  2^-2112*  (1, 10)  2^-1920*   (1, 9)  2^-1728*   (1, 8)
+   related / related   12  2^-2304*  (1, 11)  2^-2112*  (1, 10)  2^-1920*   (1, 9)
+   related / related   13  2^-2496*  (1, 12)  2^-2304*  (1, 11)  2^-2112*  (1, 10)
+   related / related   14  2^-2688*  (1, 13)  2^-2496*  (1, 12)  2^-2304*  (1, 11)
+   related / related   15  2^-2880*  (1, 14)  2^-2688*  (1, 13)  2^-2496*  (1, 12)

@@ -2,16 +2,18 @@
 """Runs the P1 / P2 analysis of Areion under its two round-constant
 tables. Every check prints its result to stdout; with --record the
 output is also written to analysis/results/<check>.txt
-(with _quick, _rc7p2-shift or _rc7p1-pi added for those options), headed
-by the command that produced it.
+(with _quick, _rc7p2-pi, _rc7p1-pi or _highs added for those options),
+headed by the command that produced it.
 
     python3 analysis/run.py list
-    python3 analysis/run.py <check> [--quick] [--record] [--rc7p1 shift|pi] [--rc7p2 pi|shift]
+    python3 analysis/run.py <check> [--quick] [--record] [--rc7p1 shift|pi] [--rc7p2 shift|pi]
+    python3 analysis/run.py linear|boomerang|weighted [--jobs N] [--rounds R]
+    python3 analysis/run.py linear|weighted --solver highs [--rounds R] [--linear-rounds R]
     python3 analysis/run.py all --quick
 
 Requirements: Go (the module's own version), Python 3.9 or later with
-python-sat, and for the hintegral check a C compiler, make and an x86-64
-CPU with AES-NI.
+python-sat (and highspy for --solver highs), and for the hintegral check
+a C compiler, make and an x86-64 CPU with AES-NI.
 """
 import argparse
 import hashlib
@@ -31,8 +33,12 @@ PY = HERE / "py"
 RESULTS = HERE / "results"
 GOBIN = BUILD / "analysis"
 CBIN = BUILD / "integral"
-RC7P2 = "pi"  # RC7 form of P2 for the checks that run one table; set by --rc7p2
+RC7P2 = "shift"  # RC7 form of P2 for the checks that run one table (the library's); set by --rc7p2
 RC7P1 = "shift"  # RC7 form of P1 (the library's is the published shift form); set by --rc7p1
+JOBS = max(1, (os.cpu_count() or 2) - 2)  # processes for the SAT bounds; set by --jobs
+ROUNDS = None  # cap on the round counts of the Areion-512 bounds tables; set by --rounds
+LINEAR_ROUNDS = None  # weighted: separate cap on the weighted linear table; set by --linear-rounds
+SOLVER = "sat"  # solver of the Areion-512 tables of linear / weighted (sat or highs); set by --solver
 
 
 def sh(cmd, out, stdin=None, env=None):
@@ -209,8 +215,8 @@ def c_values(q, out):
         sh(go("uniform", 256, 2, RC7P2), out)
     else:
         sh(go("zero", RC7P2), out)
-        if RC7P2 == "pi":
-            sh(go("zero", "shift"), out)  # full rounds reach word 7, where the two forms differ
+        if RC7P2 == "shift":
+            sh(go("zero", "pi"), out)  # full rounds reach word 7, where the two forms differ
         sh(go("uniform", 256, 4, RC7P2), out)
         sh(go("uniform", 512, 6, RC7P2), out)
 
@@ -239,9 +245,9 @@ def c_hintegral(q, out):
     for r in (5, 6, 7, 8):
         for b_ in range(4):
             sh([str(CBIN), "sum", 512, r, 4, b_, 0, t, r * 10 + b_, RC7P2], out)
-    if RC7P2 == "pi":
+    if RC7P2 == "shift":
         for b_ in range(4):  # round 8 is the first to use word 7, where the two forms differ
-            sh([str(CBIN), "sum", 512, 8, 4, b_, 0, t, 80 + b_, "shift"], out)
+            sh([str(CBIN), "sum", 512, 8, 4, b_, 0, t, 80 + b_, "pi"], out)
     sh([str(CBIN), "sum", 256, 4, 5, 1, 1, t, 451, RC7P2], out)
     sh([str(CBIN), "sum", 512, 6, 5, 1, 1, t, 651, RC7P2], out)
 
@@ -251,6 +257,152 @@ def c_affine(q, out):
     sh(py("affeq_rel.py", 256), out)
     if not q:
         sh(py("affeq_rel.py", 512), out)
+
+
+def model_hash():
+    """Digest of the trail models, so tables built by older models are not
+    reused. The search code (bounds.py) is left out: it finds the minima
+    of the models but does not define them, so it can change without
+    discarding the tables."""
+    h = hashlib.sha256()
+    for name in ("model.py", "linear.py", "trails.py"):
+        h.update(name.encode() + (PY / name).read_bytes())
+    return h.hexdigest()[:12]
+
+
+def table_prefix():
+    return BUILD / f"bounds_{model_hash()}_"
+
+
+def fill(kind, width, upto, out):
+    """Fill the cached table of minima for 1 .. upto rounds (resumes where it stopped).
+    --rounds caps the Areion-512 tables only: the Areion-256 ones are cheap."""
+    if ROUNDS is not None and width == 512:
+        upto = min(upto, ROUNDS)
+    path = f"{table_prefix()}{kind}_{width}.json"
+    if SOLVER == "highs" and width == 512 and kind == "linear":
+        # rounds missing from the SAT table, by the MILP solver, in a table of their own
+        sh(py("milp.py", kind, "--upto", upto, "--table", f"{table_prefix()}{kind}_{width}_milp.json",
+              "--sat-table", path), out)
+        return
+    sh(py("bounds.py", kind, width, "--upto", upto, "--table", path, "--rounds-at-once", JOBS,
+          "--quiet"), out)
+
+
+def c_linear(q, out):
+    sh(py("linear.py", "aes", 4), out)          # 4 AES rounds: 25, as for differences
+    # the three search paths agree: one solver without windows, with windows, cube-and-conquer
+    t = BUILD / f"bounds_check_{os.getpid()}.json"
+    t.write_text('{"1": 0, "2": 2, "3": 6, "4": 11}')   # linear Areion-512 r1..4
+    try:
+        res = []
+        for extra in (["--no-windows"], [], ["--jobs", max(2, JOBS), "--cubes-only"]):
+            line = sh(py("bounds.py", "linear", 512, 5, "--table", t, "--quiet", *extra), out)
+            res.append(json.loads(line.strip().splitlines()[-1])["min_active_sboxes"])
+    finally:
+        t.unlink()
+    if len(set(res)) != 1:
+        raise SystemExit(f"search paths disagree on linear Areion-512, 5 rounds: {res}")
+    if q:
+        return
+    fill("linear", 256, 10, out)
+    fill("linear", 512, 15, out)
+    # the Areion-512 table as computed (SAT, and HiGHS where --solver highs filled it)
+    # and its window bound over the 15 rounds
+    sat = read_table(f"{table_prefix()}linear_512.json")
+    milp = read_table(f"{table_prefix()}linear_512_milp.json") if SOLVER == "highs" else {}
+    table = {**milp, **sat}
+    row = " ".join(f"{r}:{v}{'' if r in sat else 'h'}" for r, v in sorted(table.items()))
+    note(f"== linear Areion-512, minima per round count (h: HiGHS): {row}", out)
+    note(f"== linear Areion-512, 15 rounds: at least {window_bound(15, table)} active S-boxes "
+         f"(windows of the round counts above)", out)
+
+
+def read_table(path):
+    return {int(k): v for k, v in json.load(open(path)).items()} if os.path.exists(path) else {}
+
+
+def window_bound(rounds, table):
+    """Largest sum of known minima over a split of the rounds into shorter windows (bounds.py)."""
+    best = [0] * (rounds + 1)
+    for r in range(1, rounds + 1):
+        best[r] = max([best[r - w] + table[w] for w in range(1, r + 1) if w < rounds and w in table] + [0])
+    return best[rounds]
+
+
+def note(line, out):
+    out.append(line + "\n")
+    print(line, flush=True)
+
+
+def c_boomerang(q, out):
+    r256, r512 = (4, 4) if q else (9, 14)
+    for kind in ("single", "related"):
+        fill(kind, 256, r256, out)
+        fill(kind, 512, r512, out)
+    sh(py("boomerang.py", "--prefix", table_prefix(), *([] if q else ["--refined"])), out)
+
+
+def weighted_tables():
+    """The chain weights and the path prefix of the weighted tables."""
+    chain = BUILD / f"chain_{source_hash()}.json"
+    generate(chain, [str(GOBIN), "chain"],
+             note="exact weights of the S-box chain of F3 (once per program version; about 2 min on 16 cores)")
+    # tables keyed by the trail models, the weighted models and the weights (not the search)
+    h = hashlib.sha256()
+    h.update(model_hash().encode() + (PY / "wmodel.py").read_bytes() + chain.read_bytes())
+    return chain, BUILD / f"weighted_{h.hexdigest()[:12]}_"
+
+
+def c_weighted(q, out):
+    chain, prefix = weighted_tables()
+    lin, single, related = (4, 4, 4) if q else (15, 14, 14)
+    if ROUNDS is not None:
+        lin, single = min(lin, ROUNDS), min(single, ROUNDS)  # the related table ignores the cap
+    if LINEAR_ROUNDS is not None:
+        lin = min(lin, LINEAR_ROUNDS)
+    if SOLVER == "highs":
+        # linear and single by the MILP solver (tables <kind>_milp.json); related stays on
+        # SAT, whose window bound settles every round count at once
+        for kind, upto in (("linear", lin), ("single", single)):
+            sh(py("milp.py", kind, "--upto", upto, "--weights", chain, "--table", f"{prefix}{kind}_milp.json",
+                  "--sat-table", f"{prefix}{kind}.json"), out)
+        lin = single = 0
+    sh(py("weighted.py", "--weights", chain, "--prefix", prefix, "--plain-prefix", table_prefix(),
+          "--linear", lin, "--single", single, "--related", related, "--quiet"), out)
+
+
+def c_solvers(q, out):
+    """HiGHS alone, from an empty table, against the SAT tables of linear,
+    single and weighted, on every round count the SAT tables hold."""
+    chain, wprefix = weighted_tables()
+    upto = 4 if q else 15
+    cases = (("linear", None, f"{table_prefix()}linear_512.json"),
+             ("single", None, f"{table_prefix()}single_512.json"),
+             ("linear", chain, f"{wprefix}linear.json"),
+             ("single", chain, f"{wprefix}single.json"))
+    bad = []
+    for kind, weights, sat_path in cases:
+        sat = read_table(sat_path)
+        n = min(upto, max((r for r in range(1, upto + 1) if all(k in sat for k in range(1, r + 1))), default=0))
+        if n == 0:
+            note(f"== {kind}{' weighted' if weights else ''}: no SAT table yet; run linear / boomerang / weighted first", out)
+            continue
+        t = BUILD / f"solvers_check_{os.getpid()}.json"
+        try:
+            sh(py("milp.py", kind, "--upto", n, "--table", t, *(["--weights", weights] if weights else [])), out)
+            mine = read_table(t)
+        finally:
+            if t.exists():
+                t.unlink()
+        name = f"{kind}{' weighted' if weights else ''} Areion-512"
+        rows = " ".join(f"{r}:{sat[r]}/{mine.get(r)}" for r in range(1, n + 1))
+        same = all(sat[r] == mine.get(r) for r in range(1, n + 1))
+        note(f"== {name}, rounds 1..{n} (SAT/HiGHS): {rows} -> {'same' if same else 'DIFFERENT'}", out)
+        if not same:
+            bad.append(name)
+    if bad:
+        raise SystemExit(f"SAT and HiGHS disagree: {', '.join(bad)}")
 
 
 CHECKS = {
@@ -269,12 +421,27 @@ CHECKS = {
     "integral": (c_integral, False, False, "Lambda-set sums of order 1..3 (D)", "about 30 min", "seconds"),
     "hintegral": (c_hintegral, False, True, "Lambda-set sums of order 4 and 5, AES-NI (D)", "about 4 h", "seconds"),
     "affine": (c_affine, False, False, "byte-structured affine equivalence (F)", "minutes", "seconds"),
+    "linear": (c_linear, False, False, "linear trail bounds, one table for P1, P2 and both RC7 forms (H)",
+               "--rounds 7: about 5 h; --solver highs --rounds 10: about 1 h; resumes", "a few minutes"),
+    "boomerang": (c_boomerang, True, False, "boomerang estimates, four assignments of the two tables (I)",
+                  "--rounds 7: about 2 h; uncapped: open-ended; resumes", "a few minutes"),
+    "weighted": (c_weighted, False, False, "Areion-512 bounds, the S-box chain of F3 at its exact maximum over the constants (H, I)",
+                 "--solver highs --rounds 10 --linear-rounds 8: about 20 h; resumes", "a few minutes"),
+    "solvers": (c_solvers, False, False, "SAT and HiGHS minima agree on the round counts both reach (H, I)",
+                "about 15 min (more as the SAT tables grow)", "a few minutes"),
 }
+HEAVY = ("linear", "boomerang", "weighted")  # skipped by 'all' without --quick: run them on their own
 
 
 def run(name, quick, record):
     fn, feas, c, desc, _, _ = CHECKS[name]
-    form = ("" if RC7P2 == "pi" else f" --rc7p2 {RC7P2}") + ("" if RC7P1 == "shift" else f" --rc7p1 {RC7P1}")
+    form = ("" if RC7P2 == "shift" else f" --rc7p2 {RC7P2}") + ("" if RC7P1 == "shift" else f" --rc7p1 {RC7P1}")
+    if name in HEAVY and ROUNDS is not None:
+        form += f" --rounds {ROUNDS}"
+    if name == "weighted" and LINEAR_ROUNDS is not None:
+        form += f" --linear-rounds {LINEAR_ROUNDS}"
+    if name in ("linear", "weighted") and SOLVER != "sat":
+        form += f" --solver {SOLVER}"
     header = f"$ python3 analysis/run.py {name}{' --quick' if quick else ''}{form}\n"
     print(f"== {name}: {desc}", flush=True)
     prepare(need_feas=feas, need_c=c)
@@ -284,25 +451,33 @@ def run(name, quick, record):
     print(f"== {name}: done in {time.time() - t0:.0f} s", flush=True)
     if record:
         RESULTS.mkdir(exist_ok=True)
-        suffix = (("_quick" if quick else "") + ("" if RC7P2 == "pi" else "_rc7p2-" + RC7P2)
-                  + ("" if RC7P1 == "shift" else "_rc7p1-" + RC7P1))
+        suffix = (("_quick" if quick else "") + ("" if RC7P2 == "shift" else "_rc7p2-" + RC7P2)
+                  + ("" if RC7P1 == "shift" else "_rc7p1-" + RC7P1)
+                  + ("_" + SOLVER if name in ("linear", "weighted") and SOLVER != "sat" else ""))
         (RESULTS / f"{name}{suffix}.txt").write_text(header + "".join(out))
 
 
 def main():
+    global RC7P2, RC7P1, JOBS, ROUNDS, LINEAR_ROUNDS, SOLVER
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("check", help="'list', 'all', 'clean' or a check name")
     ap.add_argument("--quick", action="store_true", help="reduced rounds / orders / seeds")
     ap.add_argument("--record", action="store_true",
-                    help="write analysis/results/<check>.txt (with _quick, _rc7p2-shift or _rc7p1-pi added for those options)")
+                    help="write analysis/results/<check>.txt (with _quick, _rc7p2-pi, _rc7p1-pi or _highs added for those options)")
     ap.add_argument("--rc7p1", choices=("shift", "pi"), default="shift",
                     help="RC7 form of P1 for every check except ref, never in comparisons with the library: shift (published) or pi (plain pi word 7)")
-    ap.add_argument("--rc7p2", choices=("pi", "shift"), default="pi",
+    ap.add_argument("--jobs", type=int, default=JOBS,
+                    help=f"processes for the SAT bounds: table rounds searched at once (default {JOBS})")
+    ap.add_argument("--rounds", type=int, help="cap the Areion-512 round counts of the linear / boomerang / weighted tables")
+    ap.add_argument("--linear-rounds", type=int, help="weighted: cap the weighted linear table separately (default: --rounds)")
+    ap.add_argument("--solver", choices=("sat", "highs"), default="sat",
+                    help="linear / weighted: fill the Areion-512 tables with the MILP solver HiGHS")
+    ap.add_argument("--rc7p2", choices=("shift", "pi"), default="shift",
                     help="RC7 form of P2 for values, integral and hintegral; the other checks that depend on P2 run both forms")
     a = ap.parse_args()
-    global RC7P2, RC7P1
     RC7P2 = a.rc7p2
     RC7P1 = a.rc7p1
+    JOBS, ROUNDS, LINEAR_ROUNDS, SOLVER = max(1, a.jobs), a.rounds, a.linear_rounds, a.solver
     os.environ["AREION_RC7P1"] = RC7P1  # read by the Go, Python and C programs
     if a.check == "list":
         for k, (_, _, _, d, full, quick) in CHECKS.items():
@@ -314,6 +489,9 @@ def main():
     elif a.check == "all":
         failed = []
         for k in CHECKS:
+            if k in HEAVY and not a.quick:
+                print(f"== {k}: skipped by 'all' (open-ended); run it on its own with --rounds", flush=True)
+                continue
             if k == "hintegral" and not have_aesni():
                 print("== hintegral: skipped (needs an x86-64 CPU with AES-NI)", flush=True)
                 continue

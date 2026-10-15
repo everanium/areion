@@ -9,7 +9,8 @@ Context:
   Where:
     - P1 uses the published Areion constants (pi-derived words 0..14; Isobe et al., TCHES 2023,
       Table 1 and Appendix A.1 of the extended version, IACR ePrint 2023/794).
-    - P2 is instantiated with the subsequent consecutive 15 128-bit words of pi (words 15..29).
+    - P2 is instantiated with the subsequent consecutive 15 128-bit words of pi (words 15..29),
+      with RC7 (pi word 22) taking the same one-nibble shift as the published RC7 of P1.
 
   Table 2 (P2) is proposed by Andrey Kuvshinov. The SoEM22 bound is proven for two independent
   random permutations; treating the two Areion instances as independent is an assumption about
@@ -18,13 +19,14 @@ Context:
 This script performs verification of these constants:
   1. High-precision derivation from the fractional digits of pi (Machin series).
   2. Byte-level layout and endianness formatting.
-  3. Pairwise distinctness (internal and cross-table).
-  4. Hamming weight distributions vs. binomial expectation B(128, 0.5).
-  5. Cross-permutation difference space (Delta_r = RC_r^(1) ^ RC_r^(2)) uniqueness and ranks.
-  6. Cross-table distinctness (all 225 pairs of P1 x P2).
-  7. AES 32-bit column equality checks.
-  8. Linear independence over GF(2) (matrix ranks of P1, P2, [P1; P2], and Deltas).
-  9. Formatted C source declarations.
+  3. RC7 shift (both tables; words 7 and 22 the only leading-zero words among 0..29).
+  4. Pairwise distinctness (internal and cross-table).
+  5. Hamming weight distributions vs. binomial expectation B(128, 0.5).
+  6. Cross-permutation difference space (Delta_r = RC_r^(1) ^ RC_r^(2)) uniqueness and ranks.
+  7. Cross-table distinctness (all 225 pairs of P1 x P2).
+  8. AES 32-bit column equality checks.
+  9. Linear independence over GF(2) (matrix ranks of P1, P2, [P1; P2], and Deltas).
+  10. Formatted C source declarations.
 """
 
 import math
@@ -153,8 +155,25 @@ def main():
     p1_published = list(p1_pi)
     p1_published[7] = 0x801f2e2858efc16636920d871574e690
 
-    # P2 constants (Rounds 0..14) -> exactly words 15..29 of pi
-    p2_words = raw_words[15:30]
+    # P2 constants (Rounds 0..14) -> words 15..29 of pi
+    # Note on Round 7: pi word 22 takes the same one-nibble shift as the published RC7 of P1:
+    #   pi fraction: 0x0f6d6ff383f442392e0b4482a4842004
+    #   Table 2:     0xf6d6ff383f442392e0b4482a48420040
+    # Words 7 and 22 are the only words among 0..29 that begin with a zero nibble.
+    p2_pi = raw_words[15:30]
+    p2_words = list(p2_pi)
+    p2_words[7] = 0xf6d6ff383f442392e0b4482a48420040
+
+    def shift_nibble(w):
+        return (w << 4) & ((1 << 128) - 1)
+
+    leading_zero = [i for i, w in enumerate(raw_words) if w >> 124 == 0]
+    if leading_zero == [7, 22] and p1_published[7] == shift_nibble(p1_pi[7]) and p2_words[7] == shift_nibble(p2_pi[7]):
+        print("[PASS] RC7 of both tables: the pi word shifted by one nibble; words 7 and 22 are the only")
+        print("       words among 0..29 that begin with a zero nibble.")
+    else:
+        print(f"[FAIL] RC7 shift check: words with a leading zero nibble {leading_zero}")
+        failures += 1
 
     # Verify matching constants.go
     if verify_constants_go(p1_published, p2_words):
@@ -185,7 +204,9 @@ def main():
 
     print("-" * 86)
     print(" * Note: Round 7 in Table 1 reflects the published TCHES 2023 constant (0x801f...e690).")
-    print("   Unshifted pi word 7 is 0x0801f2e2858efc16636920d871574e69 (HW=57, Delta_HW=63).")
+    print("   Unshifted pi word 7 is 0x0801f2e2858efc16636920d871574e69.")
+    print(" * Note: Round 7 in Table 2 takes the same one-nibble shift (0xf6d6...0040).")
+    print("   Unshifted pi word 22 is 0x0f6d6ff383f442392e0b4482a4842004.")
 
     # -------------------------------------------------------------------------
     # SECTION 2: STATISTICAL & WEIGHT PROPERTIES
@@ -331,7 +352,7 @@ def main():
     print("-" * 86)
     print("/*")
     print(" * Areion-SoEM22 Table 2 Round Constants (P2)")
-    print(" * Derived from 128-bit words 15..29 of fractional pi.")
+    print(" * Derived from 128-bit words 15..29 of fractional pi; RC7 (word 22) shifted by one nibble as in Table 1.")
     print(" * Format: 15 rounds x 4 uint32_t words, matching Appendix A.1 of Isobe et al. (ePrint 2023/794).")
     print(" * Loaded via: #define RC2_0(i) _mm_setr_epi32(RC2[(i)*4+3], RC2[(i)*4+2], RC2[(i)*4+1], RC2[(i)*4+0])")
     print(" */")

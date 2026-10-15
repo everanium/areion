@@ -37,7 +37,7 @@ func symCtl() {
 		}
 	}
 	fmt.Println("control: P_fake(s x) == s P1(x) for fake = s(RC1):", ok)
-	shift := *p2Table("shift")
+	pi, shift := *p2Table("pi"), *p2Table("shift")
 	for _, rot := range []int{1, 2, 3} {
 		var p perm
 		for i := 0; i < 16; i++ {
@@ -46,7 +46,7 @@ func symCtl() {
 		for _, nt := range []struct {
 			name string
 			t    [15][16]byte
-		}{{"P1", roundConstantsP1}, {"P2 pi", roundConstantsP2}, {"P2 shift", shift}} {
+		}{{"P1", roundConstantsP1}, {"P2 pi", pi}, {"P2 shift", shift}} {
 			name, t := nt.name, nt.t
 			fixed := 0
 			for r := 0; r < 15; r++ {

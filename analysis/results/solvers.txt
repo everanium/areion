@@ -1,0 +1,37 @@
+$ python3 analysis/run.py solvers
+{"solver": "highs", "highspy": "1.15.1"}
+{"kind": "linear", "width": "512", "rounds": 1, "min_active_sboxes": 0, "solver": "highs", "lower_bound_from_windows": 0, "secs": 0.0}
+{"kind": "linear", "width": "512", "rounds": 2, "min_active_sboxes": 2, "solver": "highs", "lower_bound_from_windows": 0, "secs": 0.2}
+{"kind": "linear", "width": "512", "rounds": 3, "min_active_sboxes": 6, "solver": "highs", "lower_bound_from_windows": 2, "secs": 0.5}
+{"kind": "linear", "width": "512", "rounds": 4, "min_active_sboxes": 11, "solver": "highs", "lower_bound_from_windows": 6, "secs": 1.6}
+{"kind": "linear", "width": "512", "rounds": 5, "min_active_sboxes": 24, "solver": "highs", "lower_bound_from_windows": 11, "secs": 2.6}
+{"kind": "linear", "width": "512", "rounds": 6, "min_active_sboxes": 31, "solver": "highs", "lower_bound_from_windows": 24, "secs": 22.1}
+{"kind": "linear", "width": "512", "rounds": 7, "min_active_sboxes": 44, "solver": "highs", "lower_bound_from_windows": 31, "secs": 35.5}
+{"kind": "linear", "width": "512", "rounds": 8, "min_active_sboxes": 57, "solver": "highs", "lower_bound_from_windows": 44, "secs": 348.7}
+== linear Areion-512, rounds 1..8 (SAT/HiGHS): 1:0/0 2:2/2 3:6/6 4:11/11 5:24/24 6:31/31 7:44/44 8:57/57 -> same
+{"solver": "highs", "highspy": "1.15.1"}
+{"kind": "single", "width": "512", "rounds": 1, "min_active_sboxes": 0, "solver": "highs", "lower_bound_from_windows": 0, "secs": 0.0}
+{"kind": "single", "width": "512", "rounds": 2, "min_active_sboxes": 1, "solver": "highs", "lower_bound_from_windows": 0, "secs": 0.0}
+{"kind": "single", "width": "512", "rounds": 3, "min_active_sboxes": 3, "solver": "highs", "lower_bound_from_windows": 1, "secs": 0.7}
+{"kind": "single", "width": "512", "rounds": 4, "min_active_sboxes": 5, "solver": "highs", "lower_bound_from_windows": 3, "secs": 1.8}
+{"kind": "single", "width": "512", "rounds": 5, "min_active_sboxes": 13, "solver": "highs", "lower_bound_from_windows": 5, "secs": 3.0}
+{"kind": "single", "width": "512", "rounds": 6, "min_active_sboxes": 21, "solver": "highs", "lower_bound_from_windows": 13, "secs": 19.4}
+{"kind": "single", "width": "512", "rounds": 7, "min_active_sboxes": 36, "solver": "highs", "lower_bound_from_windows": 21, "secs": 134.3}
+== single Areion-512, rounds 1..7 (SAT/HiGHS): 1:0/0 2:1/1 3:3/3 4:5/5 5:13/13 6:21/21 7:36/36 -> same
+{"solver": "highs", "highspy": "1.15.1"}
+{"kind": "linear", "width": "512", "rounds": 1, "min_bits": 0, "solver": "highs", "lower_bound_from_windows": 0, "secs": 0.0}
+{"kind": "linear", "width": "512", "rounds": 2, "min_bits": 1, "solver": "highs", "lower_bound_from_windows": 0, "secs": 0.4}
+{"kind": "linear", "width": "512", "rounds": 3, "min_bits": 7, "solver": "highs", "lower_bound_from_windows": 1, "secs": 0.6}
+{"kind": "linear", "width": "512", "rounds": 4, "min_bits": 23, "solver": "highs", "lower_bound_from_windows": 7, "secs": 10.9}
+{"kind": "linear", "width": "512", "rounds": 5, "min_bits": 36, "solver": "highs", "lower_bound_from_windows": 23, "secs": 10.5}
+{"kind": "linear", "width": "512", "rounds": 6, "min_bits": 48, "solver": "highs", "lower_bound_from_windows": 36, "secs": 15.3}
+{"kind": "linear", "width": "512", "rounds": 7, "min_bits": 70, "solver": "highs", "lower_bound_from_windows": 48, "secs": 226.3}
+== linear weighted Areion-512, rounds 1..7 (SAT/HiGHS): 1:0/0 2:1/1 3:7/7 4:23/23 5:36/36 6:48/48 7:70/70 -> same
+{"solver": "highs", "highspy": "1.15.1"}
+{"kind": "single", "width": "512", "rounds": 1, "min_bits": 0, "solver": "highs", "lower_bound_from_windows": 0, "secs": 0.0}
+{"kind": "single", "width": "512", "rounds": 2, "min_bits": 6, "solver": "highs", "lower_bound_from_windows": 0, "secs": 0.0}
+{"kind": "single", "width": "512", "rounds": 3, "min_bits": 13, "solver": "highs", "lower_bound_from_windows": 6, "secs": 0.3}
+{"kind": "single", "width": "512", "rounds": 4, "min_bits": 20, "solver": "highs", "lower_bound_from_windows": 13, "secs": 1.1}
+{"kind": "single", "width": "512", "rounds": 5, "min_bits": 48, "solver": "highs", "lower_bound_from_windows": 20, "secs": 1.3}
+{"kind": "single", "width": "512", "rounds": 6, "min_bits": 96, "solver": "highs", "lower_bound_from_windows": 48, "secs": 18.6}
+== single weighted Areion-512, rounds 1..6 (SAT/HiGHS): 1:0/0 2:6/6 3:13/13 4:20/20 5:48/48 6:96/96 -> same

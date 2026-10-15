@@ -1,16 +1,16 @@
 $ python3 analysis/run.py values
 Areion-256 r2: zero count per byte min 4004 max 4195 (expected 4096)
 Areion-256 r3: zero count per byte min 3962 max 4246 (expected 4096)
-Areion-256 r10: zero count per byte min 3957 max 4157 (expected 4096)
+Areion-256 r10: zero count per byte min 3988 max 4204 (expected 4096)
 Areion-512 r2: zero count per byte min 3955 max 4257 (expected 4096)
 Areion-512 r3: zero count per byte min 3968 max 4276 (expected 4096)
-Areion-512 r15: zero count per byte min 3969 max 4231 (expected 4096)
-Areion-256 r2 (P2 shift): zero count per byte min 4004 max 4195 (expected 4096)
-Areion-256 r3 (P2 shift): zero count per byte min 3962 max 4246 (expected 4096)
-Areion-256 r10 (P2 shift): zero count per byte min 3988 max 4204 (expected 4096)
-Areion-512 r2 (P2 shift): zero count per byte min 3955 max 4257 (expected 4096)
-Areion-512 r3 (P2 shift): zero count per byte min 3968 max 4276 (expected 4096)
-Areion-512 r15 (P2 shift): zero count per byte min 3940 max 4261 (expected 4096)
+Areion-512 r15: zero count per byte min 3940 max 4261 (expected 4096)
+Areion-256 r2 (P2 pi): zero count per byte min 4004 max 4195 (expected 4096)
+Areion-256 r3 (P2 pi): zero count per byte min 3962 max 4246 (expected 4096)
+Areion-256 r10 (P2 pi): zero count per byte min 3957 max 4157 (expected 4096)
+Areion-512 r2 (P2 pi): zero count per byte min 3955 max 4257 (expected 4096)
+Areion-512 r3 (P2 pi): zero count per byte min 3968 max 4276 (expected 4096)
+Areion-512 r15 (P2 pi): zero count per byte min 3969 max 4231 (expected 4096)
 Areion-256 r1 random delta: max chi-square over 32 bytes 17307704.7; byte values never seen: 2064
 Areion-256 r2 random delta: max chi-square over 32 bytes 292.1; byte values never seen: 0
 Areion-256 r3 random delta: max chi-square over 32 bytes 304.2; byte values never seen: 0

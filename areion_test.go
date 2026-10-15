@@ -58,7 +58,7 @@ func TestPermute512KnownAnswer(t *testing.T) {
 func TestPermute256P2KnownAnswer(t *testing.T) {
 	var state State256
 	Permute256P2(&state)
-	expected, _ := hex.DecodeString("c9270896dbbf80b79db9975ca9f5ca83e5dfd3af48ac201800e5be74f767be2a")
+	expected, _ := hex.DecodeString("9459ad09732a12df686326cdb291bd021239b6ec01df49d7018902ea09473284")
 	if !bytes.Equal(state[:], expected) {
 		t.Fatalf("Permute256P2 zeros mismatch\nGot:      %x\nExpected: %x", state[:], expected)
 	}
@@ -67,7 +67,7 @@ func TestPermute256P2KnownAnswer(t *testing.T) {
 		state[i] = byte(i)
 	}
 	Permute256P2(&state)
-	expected, _ = hex.DecodeString("2a105b2728271062195d5711cbfc592cafbe71252fb872fcdfd5b91b668be331")
+	expected, _ = hex.DecodeString("b59b22ce1537d50db949a4222621e9171525fcd650cae441a7c66162675e65e6")
 	if !bytes.Equal(state[:], expected) {
 		t.Fatalf("Permute256P2 sequential mismatch\nGot:      %x\nExpected: %x", state[:], expected)
 	}
@@ -76,7 +76,7 @@ func TestPermute256P2KnownAnswer(t *testing.T) {
 func TestPermute512P2KnownAnswer(t *testing.T) {
 	var state State512
 	Permute512P2(&state)
-	expected, _ := hex.DecodeString("f86bac361148ca71fb964680acdfe5dcedd597156b35a419cf8eb80d931b05f53223d4ac16f37d7492212fde03f81294ed8d974cd94c47751945be2edab7a952")
+	expected, _ := hex.DecodeString("eab2b67d13b277251c1b37b267f6e095ede50316c32346e27f9244df531f91541dfecdf5c6e45292bd10b12a077e08130ae3726f1e23fd48eb87d39db305eee8")
 	if !bytes.Equal(state[:], expected) {
 		t.Fatalf("Permute512P2 zeros mismatch\nGot:      %x\nExpected: %x", state[:], expected)
 	}
@@ -85,7 +85,7 @@ func TestPermute512P2KnownAnswer(t *testing.T) {
 		state[i] = byte(i)
 	}
 	Permute512P2(&state)
-	expected, _ = hex.DecodeString("d2581b6f5b464de84bb66ce14f1310f38de46e1781633cd4fcbcc6c49e26fcf4e90764efc7e9fddf4083c1aafa5017c45dd2d429de57bbbf6df5e82934458645")
+	expected, _ = hex.DecodeString("bad430e7c4a11e8cfec7cc58a45915da0e88f49615200c41a45fea75e1725fb9f59818f3a300cb89abd6ed7e50ba5cc5b8c78e5240faeff2aed7233682bc296d")
 	if !bytes.Equal(state[:], expected) {
 		t.Fatalf("Permute512P2 sequential mismatch\nGot:      %x\nExpected: %x", state[:], expected)
 	}

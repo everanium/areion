@@ -3,11 +3,11 @@
  * T(u) = P1(u) ^ P2(u ^ delta).
  *
  *   ./integral kat                       check full rounds against kat.txt lines on stdin
- *   ./integral sum W R ORDER BLK EXTRA THREADS SEED [pi|shift]
+ *   ./integral sum W R ORDER BLK EXTRA THREADS SEED [shift|pi]
  *       W = 256 | 512, R rounds, ORDER active bytes (diagonal of block
  *       BLK first, then EXTRA bytes of the next diagonal), prints the
  *       number of balanced output bytes for P1, P2 and T; the last
- *       argument selects the RC7 form of P2 (default pi), and
+ *       argument selects the RC7 form of P2 (default shift, the library's), and
  *       AREION_RC7P1=pi switches P1 to the pi form of RC7. */
 #include <immintrin.h>
 #include <pthread.h>
@@ -137,7 +137,7 @@ static uint64_t rnd(void) {
 int main(int argc, char **argv) {
 	for (int r = 0; r < 15; r++) {
 		rc1[r] = _mm_loadu_si128((void *)RC1[r]);
-		rc2[r] = _mm_loadu_si128((void *)RC2PI[r]);
+		rc2[r] = _mm_loadu_si128((void *)RC2SH[r]);
 	}
 	if (argc >= 2 && strcmp(argv[1], "kat") == 0) {
 		char w[8], hin[260], h1[260], h2[260];
@@ -156,9 +156,9 @@ int main(int argc, char **argv) {
 		return ok ? 0 : 1;
 	}
 	if (argc < 9) { fprintf(stderr, "usage\n"); return 2; }
-	int shift = argc > 9 && strcmp(argv[9], "shift") == 0;
-	if (shift)
-		for (int r = 0; r < 15; r++) rc2[r] = _mm_loadu_si128((void *)RC2SH[r]);
+	int pi = argc > 9 && strcmp(argv[9], "pi") == 0;
+	if (pi)
+		for (int r = 0; r < 15; r++) rc2[r] = _mm_loadu_si128((void *)RC2PI[r]);
 	const char *p1form = getenv("AREION_RC7P1");
 	int p1pi = p1form && strcmp(p1form, "pi") == 0;
 	if (p1pi) rc1[7] = _mm_loadu_si128((void *)RC7P1PI); /* P1 word 7 in the pi form */
@@ -191,7 +191,7 @@ int main(int argc, char **argv) {
 	int z1 = 0, z2 = 0, zt = 0;
 	for (int i = 0; i < proto.nb; i++) { z1 += s1[i] == 0; z2 += s2[i] == 0; zt += (s1[i] ^ s2[i]) == 0; }
 	printf("Areion-%d r%d order %d (blk %d, %d extra)%s%s: balanced bytes P1 %d / %d, P2 %d / %d, P1(u)^P2(u^delta) %d / %d\n",
-	       proto.w, proto.rounds, proto.order, blk, extra, shift ? " (P2 shift)" : "", p1pi ? " (P1 pi)" : "",
+	       proto.w, proto.rounds, proto.order, blk, extra, pi ? " (P2 pi)" : "", p1pi ? " (P1 pi)" : "",
 	       z1, proto.nb, z2, proto.nb, zt, proto.nb);
 	return 0;
 }

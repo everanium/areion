@@ -1,0 +1,98 @@
+$ python3 analysis/run.py weighted --rounds 10 --linear-rounds 8 --solver highs
+{"solver": "highs", "highspy": "1.15.1"}
+{"kind": "linear", "width": "512", "rounds": 1, "min_bits": 0, "solver": "sat", "cached": true}
+{"kind": "linear", "width": "512", "rounds": 2, "min_bits": 1, "solver": "sat", "cached": true}
+{"kind": "linear", "width": "512", "rounds": 3, "min_bits": 7, "solver": "sat", "cached": true}
+{"kind": "linear", "width": "512", "rounds": 4, "min_bits": 23, "solver": "sat", "cached": true}
+{"kind": "linear", "width": "512", "rounds": 5, "min_bits": 36, "solver": "sat", "cached": true}
+{"kind": "linear", "width": "512", "rounds": 6, "min_bits": 48, "solver": "sat", "cached": true}
+{"kind": "linear", "width": "512", "rounds": 7, "min_bits": 70, "solver": "sat", "cached": true}
+{"kind": "linear", "width": "512", "rounds": 8, "min_bits": 94, "solver": "highs", "cached": true}
+{"solver": "highs", "highspy": "1.15.1"}
+{"kind": "single", "width": "512", "rounds": 1, "min_bits": 0, "solver": "sat", "cached": true}
+{"kind": "single", "width": "512", "rounds": 2, "min_bits": 6, "solver": "sat", "cached": true}
+{"kind": "single", "width": "512", "rounds": 3, "min_bits": 13, "solver": "sat", "cached": true}
+{"kind": "single", "width": "512", "rounds": 4, "min_bits": 20, "solver": "sat", "cached": true}
+{"kind": "single", "width": "512", "rounds": 5, "min_bits": 48, "solver": "sat", "cached": true}
+{"kind": "single", "width": "512", "rounds": 6, "min_bits": 96, "solver": "sat", "cached": true}
+{"kind": "single", "width": "512", "rounds": 7, "min_bits": 166, "solver": "highs", "cached": true}
+{"kind": "single", "width": "512", "rounds": 8, "min_bits": 197, "solver": "highs", "cached": true}
+{"kind": "single", "width": "512", "rounds": 9, "min_bits": 238, "solver": "highs", "cached": true}
+{"kind": "single", "width": "512", "rounds": 10, "min_bits": 283, "solver": "highs", "cached": true}
+{"weights_bits": {"linear": {"a": 3, "single": 3, "pair": 1}, "single": {"a": 6, "chain": 7}, "related": {"a": 6, "chain": 6}}}
+== weighted linear, Areion-512, bits per round count (m: HiGHS): 1:0 2:1 3:7 4:23 5:36 6:48 7:70 8:94m
+== weighted single, Areion-512, bits per round count (m: HiGHS): 1:0 2:6 3:13 4:20 5:48 6:96 7:166m 8:197m 9:238m 10:283m
+{"kind": "related", "width": "512", "rounds": 1, "min_bits": 96, "cached": true}
+{"kind": "related", "width": "512", "rounds": 2, "min_bits": 192, "cached": true}
+{"kind": "related", "width": "512", "rounds": 3, "min_bits": 288, "cached": true}
+{"kind": "related", "width": "512", "rounds": 4, "min_bits": 384, "cached": true}
+{"kind": "related", "width": "512", "rounds": 5, "min_bits": 480, "cached": true}
+{"kind": "related", "width": "512", "rounds": 6, "min_bits": 576, "cached": true}
+{"kind": "related", "width": "512", "rounds": 7, "min_bits": 672, "cached": true}
+{"kind": "related", "width": "512", "rounds": 8, "min_bits": 768, "cached": true}
+{"kind": "related", "width": "512", "rounds": 9, "min_bits": 864, "cached": true}
+{"kind": "related", "width": "512", "rounds": 10, "min_bits": 960, "cached": true}
+{"kind": "related", "width": "512", "rounds": 11, "min_bits": 1056, "cached": true}
+{"kind": "related", "width": "512", "rounds": 12, "min_bits": 1152, "cached": true}
+{"kind": "related", "width": "512", "rounds": 13, "min_bits": 1248, "cached": true}
+{"kind": "related", "width": "512", "rounds": 14, "min_bits": 1344, "cached": true}
+== weighted related, Areion-512, bits per round count (m: HiGHS): 1:96 2:192 3:288 4:384 5:480 6:576 7:672 8:768 9:864 10:960 11:1056 12:1152 13:1248 14:1344
+== linear, Areion-512, 15 rounds: at least 164* bits per permutation; no term of a linear relation between P1 and P2 (one trail through each) exceeds 2^-328 (threshold 2^-171, the correlation 2^341 known inputs detect)
+== boomerang estimates, Areion-512, weighted halves (threshold 2^-341)
+   top / bottom         R    strict    split    1 free    split    2 free    split
+   single / single      2      2^-0   (1, 1)         -        -         -        -
+   single / single      3     2^-12   (1, 2)      2^-0   (1, 1)         -        -
+   single / single      4     2^-24   (2, 2)     2^-12   (1, 2)      2^-0   (1, 1)
+   single / single      5     2^-38   (2, 3)     2^-24   (2, 2)     2^-12   (1, 2)
+   single / single      6     2^-52   (2, 4)     2^-38   (2, 3)     2^-24   (2, 2)
+   single / single      7     2^-66   (3, 4)     2^-52   (2, 4)     2^-38   (2, 3)
+   single / single      8     2^-80   (4, 4)     2^-66   (3, 4)     2^-52   (2, 4)
+   single / single      9    2^-136   (4, 5)     2^-80   (4, 4)     2^-66   (3, 4)
+   single / single     10    2^-192   (5, 5)    2^-136   (4, 5)     2^-80   (4, 4)
+   single / single     11    2^-288   (5, 6)    2^-192   (5, 5)    2^-136   (4, 5)
+   single / single     12    2^-384   (6, 6)    2^-288   (5, 6)    2^-192   (5, 5)
+   single / single     13    2^-490   (5, 8)    2^-384   (6, 6)    2^-288   (5, 6)
+   single / single     14    2^-572   (5, 9)    2^-490   (5, 8)    2^-384   (6, 6)
+   single / single     15   2^-604*  (2, 13)    2^-572   (5, 9)    2^-490   (5, 8)
+   single / related     2    2^-192   (1, 1)         -        -         -        -
+   single / related     3    2^-204   (2, 1)    2^-192   (1, 1)         -        -
+   single / related     4    2^-218   (3, 1)    2^-204   (2, 1)    2^-192   (1, 1)
+   single / related     5    2^-232   (4, 1)    2^-218   (3, 1)    2^-204   (2, 1)
+   single / related     6    2^-288   (5, 1)    2^-232   (4, 1)    2^-218   (3, 1)
+   single / related     7    2^-384   (6, 1)    2^-288   (5, 1)    2^-232   (4, 1)
+   single / related     8    2^-524   (7, 1)    2^-384   (6, 1)    2^-288   (5, 1)
+   single / related     9    2^-586   (8, 1)    2^-524   (7, 1)    2^-384   (6, 1)
+   single / related    10    2^-668   (9, 1)    2^-586   (8, 1)    2^-524   (7, 1)
+   single / related    11    2^-758  (10, 1)    2^-668   (9, 1)    2^-586   (8, 1)
+   single / related    12   2^-758*  (11, 1)    2^-758  (10, 1)    2^-668   (9, 1)
+   single / related    13   2^-770*  (12, 1)   2^-758*  (11, 1)    2^-758  (10, 1)
+   single / related    14   2^-784*  (13, 1)   2^-770*  (12, 1)   2^-758*  (11, 1)
+   single / related    15   2^-856*  (14, 1)   2^-784*  (13, 1)   2^-770*  (12, 1)
+   related / single     2    2^-192   (1, 1)         -        -         -        -
+   related / single     3    2^-204   (1, 2)    2^-192   (1, 1)         -        -
+   related / single     4    2^-218   (1, 3)    2^-204   (1, 2)    2^-192   (1, 1)
+   related / single     5    2^-232   (1, 4)    2^-218   (1, 3)    2^-204   (1, 2)
+   related / single     6    2^-288   (1, 5)    2^-232   (1, 4)    2^-218   (1, 3)
+   related / single     7    2^-384   (1, 6)    2^-288   (1, 5)    2^-232   (1, 4)
+   related / single     8    2^-524   (1, 7)    2^-384   (1, 6)    2^-288   (1, 5)
+   related / single     9    2^-586   (1, 8)    2^-524   (1, 7)    2^-384   (1, 6)
+   related / single    10    2^-668   (1, 9)    2^-586   (1, 8)    2^-524   (1, 7)
+   related / single    11    2^-758  (1, 10)    2^-668   (1, 9)    2^-586   (1, 8)
+   related / single    12   2^-758*  (1, 11)    2^-758  (1, 10)    2^-668   (1, 9)
+   related / single    13   2^-770*  (1, 12)   2^-758*  (1, 11)    2^-758  (1, 10)
+   related / single    14   2^-784*  (1, 13)   2^-770*  (1, 12)   2^-758*  (1, 11)
+   related / single    15   2^-856*  (1, 14)   2^-784*  (1, 13)   2^-770*  (1, 12)
+   related / related    2    2^-384   (1, 1)         -        -         -        -
+   related / related    3    2^-576   (1, 2)    2^-384   (1, 1)         -        -
+   related / related    4    2^-768   (1, 3)    2^-576   (1, 2)    2^-384   (1, 1)
+   related / related    5    2^-960   (1, 4)    2^-768   (1, 3)    2^-576   (1, 2)
+   related / related    6   2^-1152   (1, 5)    2^-960   (1, 4)    2^-768   (1, 3)
+   related / related    7   2^-1344   (1, 6)   2^-1152   (1, 5)    2^-960   (1, 4)
+   related / related    8   2^-1536   (1, 7)   2^-1344   (1, 6)   2^-1152   (1, 5)
+   related / related    9   2^-1728   (1, 8)   2^-1536   (1, 7)   2^-1344   (1, 6)
+   related / related   10   2^-1920   (1, 9)   2^-1728   (1, 8)   2^-1536   (1, 7)
+   related / related   11   2^-2112  (1, 10)   2^-1920   (1, 9)   2^-1728   (1, 8)
+   related / related   12   2^-2304  (1, 11)   2^-2112  (1, 10)   2^-1920   (1, 9)
+   related / related   13   2^-2496  (1, 12)   2^-2304  (1, 11)   2^-2112  (1, 10)
+   related / related   14   2^-2688  (1, 13)   2^-2496  (1, 12)   2^-2304  (1, 11)
+   related / related   15   2^-2880  (1, 14)   2^-2688  (1, 13)   2^-2496  (1, 12)

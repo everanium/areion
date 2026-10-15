@@ -140,13 +140,13 @@ func coset2Main() {
 			rand1[r][i] = byte(rngT.Uint32())
 		}
 	}
-	shift := *p2Table("shift")
+	pi, shift := *p2Table("pi"), *p2Table("shift")
 	sym1 := symTable(&roundConstantsP1, 1)
 	sym2 := symTable(&roundConstantsP1, 2)
 	tables := []struct {
 		name string
 		t    *[15][16]byte
-	}{{"P1", &roundConstantsP1}, {"P2 pi", &roundConstantsP2}, {"P2 shift", &shift}, {"random", &rand1},
+	}{{"P1", &roundConstantsP1}, {"P2 pi", &pi}, {"P2 shift", &shift}, {"random", &rand1},
 		{"zero", &zero}, {"control sym1", &sym1}, {"control sym2", &sym2}}
 	bases := []int{0, 1}
 	if len(os.Args) > 3 && os.Args[3] == "quick" {
@@ -154,7 +154,7 @@ func coset2Main() {
 		tables = []struct {
 			name string
 			t    *[15][16]byte
-		}{{"P1", &roundConstantsP1}, {"P2 pi", &roundConstantsP2}, {"control sym1", &sym1}}
+		}{{"P1", &roundConstantsP1}, {"P2 pi", &pi}, {"control sym1", &sym1}}
 		bases = []int{0}
 	}
 	lines := lineBases()

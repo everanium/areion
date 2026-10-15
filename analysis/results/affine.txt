@@ -1,19 +1,19 @@
 $ python3 analysis/run.py affine
 (a, i) with M_out linear part a field scalar: [(1, 0, 1, 0)]
 (a, i) with M_in commuting with multiplication by 2: 255 (all with i = 0)
-{"width": 256, "P2": "pi", "rotation": 0, "rounds": 10, "zero bytes in Delta": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "min_active_sboxes": 40, "secs": 0.2}
-{"width": 256, "P2": "pi", "rotation": 1, "rounds": 10, "zero bytes in Delta": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0], "min_active_sboxes": 44, "secs": 0.8}
-{"width": 256, "P2": "pi", "rotation": 2, "rounds": 10, "zero bytes in Delta": [0, 1, 0, 0, 0, 0, 0, 0, 0, 0], "min_active_sboxes": 43, "secs": 0.4}
-{"width": 256, "P2": "pi", "rotation": 3, "rounds": 10, "zero bytes in Delta": [0, 0, 0, 0, 0, 0, 0, 0, 0, 1], "min_active_sboxes": 41, "secs": 0.4}
-{"width": 256, "P2": "shift", "rotation": 0, "rounds": 10, "zero bytes in Delta": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "min_active_sboxes": 40, "secs": 0.3}
-{"width": 256, "P2": "shift", "rotation": 1, "rounds": 10, "zero bytes in Delta": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0], "min_active_sboxes": 44, "secs": 0.8}
-{"width": 256, "P2": "shift", "rotation": 2, "rounds": 10, "zero bytes in Delta": [0, 1, 0, 0, 0, 0, 0, 0, 0, 0], "min_active_sboxes": 43, "secs": 0.4}
-{"width": 256, "P2": "shift", "rotation": 3, "rounds": 10, "zero bytes in Delta": [0, 0, 0, 0, 0, 0, 0, 0, 0, 1], "min_active_sboxes": 41, "secs": 0.4}
-{"width": 512, "P2": "pi", "rotation": 0, "rounds": 15, "zero bytes in Delta": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "min_active_sboxes": 240, "secs": 25.8}
-{"width": 512, "P2": "pi", "rotation": 1, "rounds": 15, "zero bytes in Delta": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0], "min_active_sboxes": 238, "secs": 21.5}
-{"width": 512, "P2": "pi", "rotation": 2, "rounds": 15, "zero bytes in Delta": [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], "min_active_sboxes": 238, "secs": 25.4}
-{"width": 512, "P2": "pi", "rotation": 3, "rounds": 15, "zero bytes in Delta": [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0], "min_active_sboxes": 238, "secs": 25.2}
-{"width": 512, "P2": "shift", "rotation": 0, "rounds": 15, "zero bytes in Delta": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "min_active_sboxes": 240, "secs": 25.3}
-{"width": 512, "P2": "shift", "rotation": 1, "rounds": 15, "zero bytes in Delta": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0], "min_active_sboxes": 238, "secs": 21.3}
-{"width": 512, "P2": "shift", "rotation": 2, "rounds": 15, "zero bytes in Delta": [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], "min_active_sboxes": 238, "secs": 25.6}
-{"width": 512, "P2": "shift", "rotation": 3, "rounds": 15, "zero bytes in Delta": [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0], "min_active_sboxes": 238, "secs": 25.8}
+{"width": 256, "P2": "pi", "rotation": 0, "rounds": 10, "zero bytes in Delta": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "min_active_sboxes": 40, "secs": 0.4}
+{"width": 256, "P2": "pi", "rotation": 1, "rounds": 10, "zero bytes in Delta": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0], "min_active_sboxes": 44, "secs": 1.0}
+{"width": 256, "P2": "pi", "rotation": 2, "rounds": 10, "zero bytes in Delta": [0, 1, 0, 0, 0, 0, 0, 0, 0, 0], "min_active_sboxes": 43, "secs": 0.6}
+{"width": 256, "P2": "pi", "rotation": 3, "rounds": 10, "zero bytes in Delta": [0, 0, 0, 0, 0, 0, 0, 0, 0, 1], "min_active_sboxes": 41, "secs": 0.5}
+{"width": 256, "P2": "shift", "rotation": 0, "rounds": 10, "zero bytes in Delta": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "min_active_sboxes": 40, "secs": 0.4}
+{"width": 256, "P2": "shift", "rotation": 1, "rounds": 10, "zero bytes in Delta": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0], "min_active_sboxes": 44, "secs": 1.1}
+{"width": 256, "P2": "shift", "rotation": 2, "rounds": 10, "zero bytes in Delta": [0, 1, 0, 0, 0, 0, 0, 0, 0, 0], "min_active_sboxes": 43, "secs": 0.6}
+{"width": 256, "P2": "shift", "rotation": 3, "rounds": 10, "zero bytes in Delta": [0, 0, 0, 0, 0, 0, 0, 0, 0, 1], "min_active_sboxes": 41, "secs": 0.5}
+{"width": 512, "P2": "pi", "rotation": 0, "rounds": 15, "zero bytes in Delta": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "min_active_sboxes": 240, "secs": 38.0}
+{"width": 512, "P2": "pi", "rotation": 1, "rounds": 15, "zero bytes in Delta": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0], "min_active_sboxes": 238, "secs": 32.0}
+{"width": 512, "P2": "pi", "rotation": 2, "rounds": 15, "zero bytes in Delta": [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], "min_active_sboxes": 238, "secs": 39.6}
+{"width": 512, "P2": "pi", "rotation": 3, "rounds": 15, "zero bytes in Delta": [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0], "min_active_sboxes": 238, "secs": 36.3}
+{"width": 512, "P2": "shift", "rotation": 0, "rounds": 15, "zero bytes in Delta": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "min_active_sboxes": 240, "secs": 34.8}
+{"width": 512, "P2": "shift", "rotation": 1, "rounds": 15, "zero bytes in Delta": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0], "min_active_sboxes": 238, "secs": 30.6}
+{"width": 512, "P2": "shift", "rotation": 2, "rounds": 15, "zero bytes in Delta": [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], "min_active_sboxes": 238, "secs": 36.0}
+{"width": 512, "P2": "shift", "rotation": 3, "rounds": 15, "zero bytes in Delta": [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0], "min_active_sboxes": 238, "secs": 35.1}

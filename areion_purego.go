@@ -1,6 +1,9 @@
 package areion
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+	"runtime"
+)
 
 // Software AES S-box and inverse S-box for scalar/purego fallback.
 var sbox = [256]byte{
@@ -179,9 +182,9 @@ func areion256PermuteSoftwareRC(state *State256, rcs *[15][16]byte) {
 	x0 := (*Block)(state[0:16])
 	x1 := (*Block)(state[16:32])
 
+	var temp Block
 	for r := 0; r < 10; r++ {
 		rc := &rcs[r]
-		var temp Block
 
 		if r%2 == 0 {
 			temp = *x0
@@ -201,6 +204,9 @@ func areion256PermuteSoftwareRC(state *State256, rcs *[15][16]byte) {
 			*x0 = temp
 		}
 	}
+	// temp holds a round state of the input, which may be key-whitened; zero it.
+	clear(temp[:])
+	runtime.KeepAlive(&temp)
 }
 
 // areion256InversePermuteSoftwareRC runs 10 inverse rounds of Areion-256 with the specified round constants.
@@ -208,21 +214,27 @@ func areion256InversePermuteSoftwareRC(state *State256, rcs *[15][16]byte) {
 	x0 := (*Block)(state[0:16])
 	x1 := (*Block)(state[16:32])
 
+	var temp0, temp1 Block
 	for i := 0; i < 10; i += 2 {
 		invFinalRoundNoKey(x1)
-		temp1 := *x1
+		temp1 = *x1
 		roundNoKey(&temp1)
 		xorBlock(&temp1, &temp1, &rcs[9-i])
 		roundNoKey(&temp1)
 		xorBlock(x0, x0, &temp1)
 
 		invFinalRoundNoKey(x0)
-		temp0 := *x0
+		temp0 = *x0
 		roundNoKey(&temp0)
 		xorBlock(&temp0, &temp0, &rcs[8-i])
 		roundNoKey(&temp0)
 		xorBlock(x1, x1, &temp0)
 	}
+	// temp0 / temp1 hold round states of the input; zero them.
+	clear(temp0[:])
+	clear(temp1[:])
+	runtime.KeepAlive(&temp0)
+	runtime.KeepAlive(&temp1)
 }
 
 func areion512Round(a, b, c, d *Block, rc *Block) {
@@ -239,6 +251,13 @@ func areion512Round(a, b, c, d *Block, rc *Block) {
 	finalRoundNoKey(c)
 	xorBlock(c, c, rc)
 	roundNoKey(c)
+
+	// temp1 / temp2 hold round states of the input, which may be
+	// key-whitened; zero them.
+	clear(temp1[:])
+	clear(temp2[:])
+	runtime.KeepAlive(&temp1)
+	runtime.KeepAlive(&temp2)
 }
 
 // areion512PermuteSoftwareRC runs 15 rounds of Areion-512 with the specified round constants.
@@ -265,6 +284,9 @@ func areion512PermuteSoftwareRC(state *State512, rcs *[15][16]byte) {
 	*x3 = *x2
 	*x2 = *x1
 	*x1 = temp
+	// temp holds a block of the permutation output; zero it.
+	clear(temp[:])
+	runtime.KeepAlive(&temp)
 }
 
 // areion512InversePermuteSoftwareRC runs 15 inverse rounds of Areion-512 with the specified round constants.
@@ -280,6 +302,9 @@ func areion512InversePermuteSoftwareRC(state *State512, rcs *[15][16]byte) {
 	*x1 = *x2
 	*x2 = *x3
 	*x3 = temp
+	// temp holds a block of the permutation input; zero it.
+	clear(temp[:])
+	runtime.KeepAlive(&temp)
 
 	areion512InvRound := func(a, b, c, d *Block, rc *Block) {
 		invFinalRoundNoKey(a)
@@ -296,6 +321,12 @@ func areion512InversePermuteSoftwareRC(state *State512, rcs *[15][16]byte) {
 		temp2 = *c
 		roundNoKey(&temp2)
 		xorBlock(d, d, &temp2)
+
+		// temp1 / temp2 hold round states of the input; zero them.
+		clear(temp1[:])
+		clear(temp2[:])
+		runtime.KeepAlive(&temp1)
+		runtime.KeepAlive(&temp2)
 	}
 
 	areion512InvRound(x2, x3, x0, x1, &rcs[14])
@@ -322,6 +353,9 @@ func soem256Software(key *[64]byte, input *[32]byte) [32]byte {
 	for i := 0; i < 32; i++ {
 		state1[i] ^= state2[i] ^ key[i] ^ key[32+i]
 	}
+	// state2 holds P2(m ⊕ k2), from which k2 follows; zero it.
+	clear(state2[:])
+	runtime.KeepAlive(&state2)
 	return state1
 }
 
@@ -337,5 +371,8 @@ func soem512Software(key *[128]byte, input *[64]byte) [64]byte {
 	for i := 0; i < 64; i++ {
 		state1[i] ^= state2[i] ^ key[i] ^ key[64+i]
 	}
+	// state2 holds P2(m ⊕ k2), from which k2 follows; zero it.
+	clear(state2[:])
+	runtime.KeepAlive(&state2)
 	return state1
 }

@@ -2,6 +2,8 @@
 
 package areion
 
+import "runtime"
+
 //go:noescape
 func areion256PermuteRCAsm(state *State256, rc *[15][16]byte)
 
@@ -98,6 +100,9 @@ func areionSoEM256(key *[64]byte, m *[32]byte) [32]byte {
 	for i := 0; i < 32; i++ {
 		state1[i] ^= state2[i] ^ key[i] ^ key[32+i]
 	}
+	// state2 holds P2(m ⊕ k2), from which k2 follows; zero it.
+	clear(state2[:])
+	runtime.KeepAlive(&state2)
 	return state1
 }
 
@@ -115,6 +120,9 @@ func areionSoEM512(key *[128]byte, m *[64]byte) [64]byte {
 	for i := 0; i < 64; i++ {
 		state1[i] ^= state2[i] ^ key[i] ^ key[64+i]
 	}
+	// state2 holds P2(m ⊕ k2), from which k2 follows; zero it.
+	clear(state2[:])
+	runtime.KeepAlive(&state2)
 	return state1
 }
 
@@ -134,9 +142,15 @@ func areion256Permutex4Table(states *[4][32]byte, rc *[15][16]byte) {
 		}
 		return
 	}
-	b0, b1 := pack256x4SoA(states)
+	var b0, b1 Block4
+	pack256x4SoAInto(states, &b0, &b1)
 	areion256Permutex4RC(&b0, &b1, rc)
 	unpack256x4SoA(&b0, &b1, states)
+	// the lanes may carry key-whitened state; zero the packed copy
+	clear(b0[:])
+	clear(b1[:])
+	runtime.KeepAlive(&b0)
+	runtime.KeepAlive(&b1)
 }
 
 func areion512Permutex4(states *[4][64]byte) {
@@ -155,9 +169,19 @@ func areion512Permutex4Table(states *[4][64]byte, rc *[15][16]byte) {
 		}
 		return
 	}
-	b0, b1, b2, b3 := pack512x4SoA(states)
+	var b0, b1, b2, b3 Block4
+	pack512x4SoAInto(states, &b0, &b1, &b2, &b3)
 	areion512Permutex4RC(&b0, &b1, &b2, &b3, rc)
 	unpack512x4SoA(&b0, &b1, &b2, &b3, states)
+	// the lanes may carry key-whitened state; zero the packed copy
+	clear(b0[:])
+	clear(b1[:])
+	clear(b2[:])
+	clear(b3[:])
+	runtime.KeepAlive(&b0)
+	runtime.KeepAlive(&b1)
+	runtime.KeepAlive(&b2)
+	runtime.KeepAlive(&b3)
 }
 
 func areionSoEM256x4(keys *[4][64]byte, inputs *[4][32]byte) [4][32]byte {
@@ -175,8 +199,9 @@ func areionSoEM256x4(keys *[4][64]byte, inputs *[4][32]byte) [4][32]byte {
 			s2[lane][i] = inputs[lane][i] ^ keys[lane][32+i]
 		}
 	}
-	b0, b1 := pack256x4SoA(&s1)
-	b2, b3 := pack256x4SoA(&s2)
+	var b0, b1, b2, b3 Block4
+	pack256x4SoAInto(&s1, &b0, &b1)
+	pack256x4SoAInto(&s2, &b2, &b3)
 	areion256Permutex4RC(&b0, &b1, &roundConstantsP1)
 	areion256Permutex4RC(&b2, &b3, &roundConstantsP2)
 	unpack256x4SoA(&b0, &b1, &s1)
@@ -187,6 +212,21 @@ func areionSoEM256x4(keys *[4][64]byte, inputs *[4][32]byte) [4][32]byte {
 			out[lane][i] = s1[lane][i] ^ s2[lane][i] ^ keys[lane][i] ^ keys[lane][32+i]
 		}
 	}
+	// s1 / s2 and the SoA blocks hold the key-whitened inputs and
+	// P1(m ⊕ k1) / P2(m ⊕ k2), from which the subkeys follow; zero them
+	// once the output is built.
+	clear(s1[:])
+	clear(s2[:])
+	clear(b0[:])
+	clear(b1[:])
+	clear(b2[:])
+	clear(b3[:])
+	runtime.KeepAlive(&s1)
+	runtime.KeepAlive(&s2)
+	runtime.KeepAlive(&b0)
+	runtime.KeepAlive(&b1)
+	runtime.KeepAlive(&b2)
+	runtime.KeepAlive(&b3)
 	return out
 }
 
@@ -205,8 +245,9 @@ func areionSoEM512x4(keys *[4][128]byte, inputs *[4][64]byte) [4][64]byte {
 			s2[lane][i] = inputs[lane][i] ^ keys[lane][64+i]
 		}
 	}
-	a1, b1, c1, d1 := pack512x4SoA(&s1)
-	a2, b2, c2, d2 := pack512x4SoA(&s2)
+	var a1, b1, c1, d1, a2, b2, c2, d2 Block4
+	pack512x4SoAInto(&s1, &a1, &b1, &c1, &d1)
+	pack512x4SoAInto(&s2, &a2, &b2, &c2, &d2)
 	areion512Permutex4RC(&a1, &b1, &c1, &d1, &roundConstantsP1)
 	areion512Permutex4RC(&a2, &b2, &c2, &d2, &roundConstantsP2)
 	unpack512x4SoA(&a1, &b1, &c1, &d1, &s1)
@@ -217,5 +258,28 @@ func areionSoEM512x4(keys *[4][128]byte, inputs *[4][64]byte) [4][64]byte {
 			out[lane][i] = s1[lane][i] ^ s2[lane][i] ^ keys[lane][i] ^ keys[lane][64+i]
 		}
 	}
+	// s1 / s2 and the SoA blocks hold the key-whitened inputs and
+	// P1(m ⊕ k1) / P2(m ⊕ k2), from which the subkeys follow; zero them
+	// once the output is built.
+	clear(s1[:])
+	clear(s2[:])
+	clear(a1[:])
+	clear(b1[:])
+	clear(c1[:])
+	clear(d1[:])
+	clear(a2[:])
+	clear(b2[:])
+	clear(c2[:])
+	clear(d2[:])
+	runtime.KeepAlive(&s1)
+	runtime.KeepAlive(&s2)
+	runtime.KeepAlive(&a1)
+	runtime.KeepAlive(&b1)
+	runtime.KeepAlive(&c1)
+	runtime.KeepAlive(&d1)
+	runtime.KeepAlive(&a2)
+	runtime.KeepAlive(&b2)
+	runtime.KeepAlive(&c2)
+	runtime.KeepAlive(&d2)
 	return out
 }

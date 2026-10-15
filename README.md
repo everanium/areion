@@ -50,15 +50,16 @@ This library instantiates $P_1$ and $P_2$ as the Areion permutation under two di
 ### Table 2 Round Constants ($P_2$)
 Table 2 is proposed by Andrey Kuvshinov and derived by `scripts/verify_p2_table.py`. Following the Nothing-Up-My-Sleeve (NUMS) methodology of the original Areion paper, it continues the same stream of $\pi$ words:
 - **Table 1 ($P_1$)**: Words 0..14 of the fractional part of $\pi$ (Table 1 and Appendix A.1 of ePrint 2023/794); RC7 is kept as published, `0x801f2e2858efc16636920d871574e690`, a one-nibble shift from $\pi$ word 7.
-- **Table 2 ($P_2$)**: Words 15..29 of the fractional part of $\pi$ (15 consecutive 128-bit words).
+- **Table 2 ($P_2$)**: Words 15..29 of the fractional part of $\pi$ (15 consecutive 128-bit words); RC7, $\pi$ word 22, takes the same one-nibble shift, `0xf6d6ff383f442392e0b4482a48420040`, in agreement with the Areion authors. Words 7 and 22 are the only words among 0..29 that begin with a zero nibble, so the shift falls on RC7 in both tables. The shift is a matter of consistency with Table 1: every claim of [`analysis/`](analysis/README.md) holds for both forms of this word.
 
 [`scripts/verify_p2_table.py`](scripts/README.md) checks:
 - All 30 constants are distinct ($|P_1 \cap P_2| = 0$).
 - Combined matrix $[P_1; P_2]$ has full rank 30 over $\mathrm{GF}(2)$.
-- Hamming distance between $P_1[i]$ and $P_2[j]$ over all 225 pairs: min 51, mean 63.55.
+- Hamming distance between $P_1[i]$ and $P_2[j]$ over all 225 pairs: min 50, mean 63.73.
+- RC7 of both tables is the $\pi$ word shifted by one nibble.
 - No $P_2$ word has two equal 32-bit columns.
 
-[`analysis/`](analysis/README.md) looks for structure tying $P_2$ to $P_1$ beyond these constant checks: related-constant differential bounds, symmetries, invariant subspaces and nonlinear invariants, impossible differentials, integral sums, and affine equivalence, each within a stated model and for $P_2$'s RC7 both as the plain $\pi$ word and with Table 1's one-nibble shift; $P_1$'s published RC7 can also be replaced by the plain $\pi$ word for comparison.
+[`analysis/`](analysis/README.md) looks for structure tying $P_2$ to $P_1$ beyond these constant checks: related-constant differential bounds, linear trail bounds, boomerang estimates, symmetries, invariant subspaces and nonlinear invariants, impossible differentials, integral sums, and affine equivalence, each within a stated model; the checks that depend on $P_2$ also cover the plain $\pi$ word 22 as its RC7, and $P_1$'s published RC7 can likewise be replaced by the plain $\pi$ word for comparison.
 
 ---
 
@@ -183,7 +184,7 @@ python3 scripts/verify_p2_table.py
 python3 analysis/run.py list
 python3 analysis/run.py all --quick
 ```
-See [`analysis/README.md`](analysis/README.md) for each check and its dependencies (`python-sat` among them); `run.py list` prints the full and `--quick` run time of each check.
+See [`analysis/README.md`](analysis/README.md) for each check and its dependencies (`python-sat` and `highspy` among them); `run.py list` prints the full and `--quick` run time of each check.
 
 ---
 

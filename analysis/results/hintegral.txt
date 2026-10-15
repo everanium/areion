@@ -24,9 +24,9 @@ Areion-512 r8 order 4 (blk 0, 0 extra): balanced bytes P1 0 / 64, P2 0 / 64, P1(
 Areion-512 r8 order 4 (blk 1, 0 extra): balanced bytes P1 0 / 64, P2 1 / 64, P1(u)^P2(u^delta) 1 / 64
 Areion-512 r8 order 4 (blk 2, 0 extra): balanced bytes P1 0 / 64, P2 0 / 64, P1(u)^P2(u^delta) 1 / 64
 Areion-512 r8 order 4 (blk 3, 0 extra): balanced bytes P1 0 / 64, P2 1 / 64, P1(u)^P2(u^delta) 0 / 64
-Areion-512 r8 order 4 (blk 0, 0 extra) (P2 shift): balanced bytes P1 0 / 64, P2 0 / 64, P1(u)^P2(u^delta) 1 / 64
-Areion-512 r8 order 4 (blk 1, 0 extra) (P2 shift): balanced bytes P1 0 / 64, P2 1 / 64, P1(u)^P2(u^delta) 1 / 64
-Areion-512 r8 order 4 (blk 2, 0 extra) (P2 shift): balanced bytes P1 0 / 64, P2 0 / 64, P1(u)^P2(u^delta) 1 / 64
-Areion-512 r8 order 4 (blk 3, 0 extra) (P2 shift): balanced bytes P1 0 / 64, P2 1 / 64, P1(u)^P2(u^delta) 0 / 64
+Areion-512 r8 order 4 (blk 0, 0 extra) (P2 pi): balanced bytes P1 0 / 64, P2 0 / 64, P1(u)^P2(u^delta) 1 / 64
+Areion-512 r8 order 4 (blk 1, 0 extra) (P2 pi): balanced bytes P1 0 / 64, P2 1 / 64, P1(u)^P2(u^delta) 1 / 64
+Areion-512 r8 order 4 (blk 2, 0 extra) (P2 pi): balanced bytes P1 0 / 64, P2 0 / 64, P1(u)^P2(u^delta) 1 / 64
+Areion-512 r8 order 4 (blk 3, 0 extra) (P2 pi): balanced bytes P1 0 / 64, P2 1 / 64, P1(u)^P2(u^delta) 0 / 64
 Areion-256 r4 order 5 (blk 1, 1 extra): balanced bytes P1 0 / 32, P2 1 / 32, P1(u)^P2(u^delta) 0 / 32
 Areion-512 r6 order 5 (blk 1, 1 extra): balanced bytes P1 0 / 64, P2 0 / 64, P1(u)^P2(u^delta) 0 / 64
