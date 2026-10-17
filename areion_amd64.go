@@ -8,34 +8,142 @@ import (
 )
 
 //go:noescape
+func aesRoundAsm(block, roundKey *Block)
+
+//go:noescape
+func aesRoundVexAsm(block, roundKey *Block)
+
+//go:noescape
+func aesFinalRoundAsm(block, roundKey *Block)
+
+//go:noescape
+func aesFinalRoundVexAsm(block, roundKey *Block)
+
+//go:noescape
+func aesRound4ZmmAsm(blocks, roundKeys *Block4)
+
+//go:noescape
+func aesFinalRound4ZmmAsm(blocks, roundKeys *Block4)
+
+//go:noescape
+func aesRound4YmmAsm(blocks, roundKeys *Block4)
+
+//go:noescape
+func aesFinalRound4YmmAsm(blocks, roundKeys *Block4)
+
+//go:noescape
+func aesRound4VexAsm(blocks, roundKeys *Block4)
+
+//go:noescape
+func aesFinalRound4VexAsm(blocks, roundKeys *Block4)
+
+//go:noescape
+func aesRound4AesNiAsm(blocks, roundKeys *Block4)
+
+//go:noescape
+func aesFinalRound4AesNiAsm(blocks, roundKeys *Block4)
+
+//go:noescape
+func aes128EncryptBlockAsm(rk *[11][16]byte, dst, src *[16]byte)
+
+//go:noescape
+func aes128EncryptBlockVexAsm(rk *[11][16]byte, dst, src *[16]byte)
+
+//go:noescape
+func aes128Encrypt4BlocksZmmAsm(rk *[11][16]byte, dst, src *[64]byte)
+
+//go:noescape
+func aes128Encrypt4BlocksYmmAsm(rk *[11][16]byte, dst, src *[64]byte)
+
+//go:noescape
+func aes128Encrypt4BlocksVexAsm(rk *[11][16]byte, dst, src *[64]byte)
+
+//go:noescape
+func aes128Encrypt4BlocksAesNiAsm(rk *[11][16]byte, dst, src *[64]byte)
+
+//go:noescape
 func areion256PermuteRCAsm(state *State256, rc *[15][16]byte)
+
+//go:noescape
+func areion256PermuteVexRCAsm(state *State256, rc *[15][16]byte)
 
 //go:noescape
 func areion512PermuteRCAsm(state *State512, rc *[15][16]byte)
 
 //go:noescape
+func areion512PermuteVexRCAsm(state *State512, rc *[15][16]byte)
+
+//go:noescape
 func areion256InversePermuteRCAsm(state *State256, rc *[15][16]byte)
+
+//go:noescape
+func areion256InversePermuteVexRCAsm(state *State256, rc *[15][16]byte)
 
 //go:noescape
 func areion512InversePermuteRCAsm(state *State512, rc *[15][16]byte)
 
 //go:noescape
+func areion512InversePermuteVexRCAsm(state *State512, rc *[15][16]byte)
+
+//go:noescape
+func areionSoEM256Asm(out *[32]byte, key *[64]byte, m *[32]byte)
+
+//go:noescape
+func areionSoEM256VexAsm(out *[32]byte, key *[64]byte, m *[32]byte)
+
+//go:noescape
+func areionSoEM512Asm(out *[64]byte, key *[128]byte, m *[64]byte)
+
+//go:noescape
+func areionSoEM512VexAsm(out *[64]byte, key *[128]byte, m *[64]byte)
+
+//go:noescape
 func areion256Permutex4RC(x0, x1 *Block4, rc *[15 * 64]byte)
+
+//go:noescape
+func areion256InversePermutex4RC(x0, x1 *Block4, rc *[15 * 64]byte)
 
 //go:noescape
 func areion512Permutex4RC(x0, x1, x2, x3 *Block4, rc *[15 * 64]byte)
 
 //go:noescape
+func areion512InversePermutex4RC(x0, x1, x2, x3 *Block4, rc *[15 * 64]byte)
+
+//go:noescape
 func areion256Permutex4Avx2RC(x0, x1 *Block4, rc *[15 * 64]byte)
+
+//go:noescape
+func areion256InversePermutex4Avx2RC(x0, x1 *Block4, rc *[15 * 64]byte)
 
 //go:noescape
 func areion512Permutex4Avx2RC(x0, x1, x2, x3 *Block4, rc *[15 * 64]byte)
 
 //go:noescape
+func areion512InversePermutex4Avx2RC(x0, x1, x2, x3 *Block4, rc *[15 * 64]byte)
+
+//go:noescape
+func areion256Permutex4VexRC(x0, x1 *Block4, rc *[15 * 64]byte)
+
+//go:noescape
+func areion256InversePermutex4VexRC(x0, x1 *Block4, rc *[15 * 64]byte)
+
+//go:noescape
+func areion512Permutex4VexRC(x0, x1, x2, x3 *Block4, rc *[15 * 64]byte)
+
+//go:noescape
+func areion512InversePermutex4VexRC(x0, x1, x2, x3 *Block4, rc *[15 * 64]byte)
+
+//go:noescape
 func areion256Permutex4AesNiRC(x0, x1 *Block4, rc *[15 * 64]byte)
 
 //go:noescape
+func areion256InversePermutex4AesNiRC(x0, x1 *Block4, rc *[15 * 64]byte)
+
+//go:noescape
 func areion512Permutex4AesNiRC(x0, x1, x2, x3 *Block4, rc *[15 * 64]byte)
+
+//go:noescape
+func areion512InversePermutex4AesNiRC(x0, x1, x2, x3 *Block4, rc *[15 * 64]byte)
 
 //go:noescape
 func areion256SoEMPermutex4Interleaved(s1b0, s1b1, s2b0, s2b1 *Block4)
@@ -44,25 +152,129 @@ func areion256SoEMPermutex4Interleaved(s1b0, s1b1, s2b0, s2b1 *Block4)
 func areion512SoEMPermutex4Interleaved(a1, b1, c1, d1, a2, b2, c2, d2 *Block4)
 
 //go:noescape
+func areion256SoEMPermutex4VaesAvx2(s1b0, s1b1, s2b0, s2b1 *Block4)
+
+//go:noescape
+func areion512SoEMPermutex4VaesAvx2(a1, b1, c1, d1, a2, b2, c2, d2 *Block4)
+
+//go:noescape
+func areion256SoEMPermutex4Vex(s1b0, s1b1, s2b0, s2b1 *Block4)
+
+//go:noescape
+func areion512SoEMPermutex4Vex(a1, b1, c1, d1, a2, b2, c2, d2 *Block4)
+
+//go:noescape
 func areion256SoEMPermutex4AesNi(s1b0, s1b1, s2b0, s2b1 *Block4)
 
 //go:noescape
 func areion512SoEMPermutex4AesNi(a1, b1, c1, d1, a2, b2, c2, d2 *Block4)
 
-func areion256Permute(state *State256) {
-	if hasAESNI && TierCode() != TierPureGo {
-		areion256PermuteRCAsm(state, &roundConstantsP1)
+func aesRoundHW(block, roundKey *Block) {
+	tier := TierCode()
+	if hasVEX && tier >= TierVEX {
+		aesRoundVexAsm(block, roundKey)
 		return
 	}
-	areion256PermuteSoftwareRC(state, &roundConstantsP1)
+	if hasAESNI && tier >= TierAESNI {
+		aesRoundAsm(block, roundKey)
+		return
+	}
+	Round(block, roundKey)
+}
+
+func aesFinalRoundHW(block, roundKey *Block) {
+	tier := TierCode()
+	if hasVEX && tier >= TierVEX {
+		aesFinalRoundVexAsm(block, roundKey)
+		return
+	}
+	if hasAESNI && tier >= TierAESNI {
+		aesFinalRoundAsm(block, roundKey)
+		return
+	}
+	FinalRound(block, roundKey)
+}
+
+func aesRound4HW(blocks, roundKeys *Block4) {
+	tier := TierCode()
+	switch {
+	case hasAVX512 && hasVAESAVX2 && tier >= TierAVX512:
+		aesRound4ZmmAsm(blocks, roundKeys)
+	case hasVAESAVX2 && tier >= TierVAESAVX2:
+		aesRound4YmmAsm(blocks, roundKeys)
+	case hasVEX && tier >= TierVEX:
+		aesRound4VexAsm(blocks, roundKeys)
+	case hasAESNI && tier >= TierAESNI:
+		aesRound4AesNiAsm(blocks, roundKeys)
+	default:
+		aesRound4Software(blocks, roundKeys)
+	}
+}
+
+func aesFinalRound4HW(blocks, roundKeys *Block4) {
+	tier := TierCode()
+	switch {
+	case hasAVX512 && hasVAESAVX2 && tier >= TierAVX512:
+		aesFinalRound4ZmmAsm(blocks, roundKeys)
+	case hasVAESAVX2 && tier >= TierVAESAVX2:
+		aesFinalRound4YmmAsm(blocks, roundKeys)
+	case hasVEX && tier >= TierVEX:
+		aesFinalRound4VexAsm(blocks, roundKeys)
+	case hasAESNI && tier >= TierAESNI:
+		aesFinalRound4AesNiAsm(blocks, roundKeys)
+	default:
+		aesFinalRound4Software(blocks, roundKeys)
+	}
+}
+
+func aes128EncryptBlock(rk *[11][16]byte, dst, src *[16]byte) {
+	tier := TierCode()
+	if hasVEX && tier >= TierVEX {
+		aes128EncryptBlockVexAsm(rk, dst, src)
+		return
+	}
+	if hasAESNI && tier >= TierAESNI {
+		aes128EncryptBlockAsm(rk, dst, src)
+		return
+	}
+	aes128EncryptBlockSoftware(rk, dst, src)
+}
+
+func aes128Encrypt4Blocks(rk *[11][16]byte, dst, src *[64]byte) {
+	tier := TierCode()
+	switch {
+	case hasAVX512 && hasVAESAVX2 && tier >= TierAVX512:
+		aes128Encrypt4BlocksZmmAsm(rk, dst, src)
+	case hasVAESAVX2 && tier >= TierVAESAVX2:
+		aes128Encrypt4BlocksYmmAsm(rk, dst, src)
+	case hasVEX && tier >= TierVEX:
+		aes128Encrypt4BlocksVexAsm(rk, dst, src)
+	case hasAESNI && tier >= TierAESNI:
+		aes128Encrypt4BlocksAesNiAsm(rk, dst, src)
+	default:
+		aes128Encrypt4BlocksSoftware(rk, dst, src)
+	}
+}
+
+func areion256Permute(state *State256) {
+	areion256PermuteRC(state, &roundConstantsP1)
 }
 
 func areion256PermuteP2(state *State256) {
-	if hasAESNI && TierCode() != TierPureGo {
-		areion256PermuteRCAsm(state, &roundConstantsP2)
+	areion256PermuteRC(state, &roundConstantsP2)
+}
+
+func areion256PermuteRC(state *State256, rc *[15][16]byte) {
+	tier := TierCode()
+	if hasVEX && tier >= TierVEX {
+		areion256PermuteVexRCAsm(state, rc)
 		return
 	}
-	areion256PermuteSoftwareRC(state, &roundConstantsP2)
+	if hasAESNI && tier >= TierAESNI {
+		areion256PermuteRCAsm(state, rc)
+		return
+	}
+	areion256PermuteSoftwareRC(state, rc)
 }
 
 func areion256InversePermute(state *State256) {
@@ -74,7 +286,12 @@ func areion256InversePermuteP2(state *State256) {
 }
 
 func areion256InversePermuteRC(state *State256, rc *[15][16]byte) {
-	if hasAESNI && TierCode() != TierPureGo {
+	tier := TierCode()
+	if hasVEX && tier >= TierVEX {
+		areion256InversePermuteVexRCAsm(state, rc)
+		return
+	}
+	if hasAESNI && tier >= TierAESNI {
 		areion256InversePermuteRCAsm(state, rc)
 		return
 	}
@@ -82,19 +299,24 @@ func areion256InversePermuteRC(state *State256, rc *[15][16]byte) {
 }
 
 func areion512Permute(state *State512) {
-	if hasAESNI && TierCode() != TierPureGo {
-		areion512PermuteRCAsm(state, &roundConstantsP1)
-		return
-	}
-	areion512PermuteSoftwareRC(state, &roundConstantsP1)
+	areion512PermuteRC(state, &roundConstantsP1)
 }
 
 func areion512PermuteP2(state *State512) {
-	if hasAESNI && TierCode() != TierPureGo {
-		areion512PermuteRCAsm(state, &roundConstantsP2)
+	areion512PermuteRC(state, &roundConstantsP2)
+}
+
+func areion512PermuteRC(state *State512, rc *[15][16]byte) {
+	tier := TierCode()
+	if hasVEX && tier >= TierVEX {
+		areion512PermuteVexRCAsm(state, rc)
 		return
 	}
-	areion512PermuteSoftwareRC(state, &roundConstantsP2)
+	if hasAESNI && tier >= TierAESNI {
+		areion512PermuteRCAsm(state, rc)
+		return
+	}
+	areion512PermuteSoftwareRC(state, rc)
 }
 
 func areion512InversePermute(state *State512) {
@@ -106,7 +328,12 @@ func areion512InversePermuteP2(state *State512) {
 }
 
 func areion512InversePermuteRC(state *State512, rc *[15][16]byte) {
-	if hasAESNI && TierCode() != TierPureGo {
+	tier := TierCode()
+	if hasVEX && tier >= TierVEX {
+		areion512InversePermuteVexRCAsm(state, rc)
+		return
+	}
+	if hasAESNI && tier >= TierAESNI {
 		areion512InversePermuteRCAsm(state, rc)
 		return
 	}
@@ -114,43 +341,31 @@ func areion512InversePermuteRC(state *State512, rc *[15][16]byte) {
 }
 
 func areionSoEM256(key *[64]byte, m *[32]byte) [32]byte {
-	if !hasAESNI || TierCode() == TierPureGo {
+	tier := TierCode()
+	if tier == TierPureGo || !hasAESNI {
 		return soem256Software(key, m)
 	}
-	var state1, state2 State256
-	for i := 0; i < 32; i++ {
-		state1[i] = m[i] ^ key[i]
-		state2[i] = m[i] ^ key[32+i]
+	var out [32]byte
+	if hasVEX && tier >= TierVEX {
+		areionSoEM256VexAsm(&out, key, m)
+	} else {
+		areionSoEM256Asm(&out, key, m)
 	}
-	areion256PermuteRCAsm(&state1, &roundConstantsP1)
-	areion256PermuteRCAsm(&state2, &roundConstantsP2)
-	for i := 0; i < 32; i++ {
-		state1[i] ^= state2[i] ^ key[i] ^ key[32+i]
-	}
-	// state2 holds P2(m ⊕ k2), from which k2 follows; zero it.
-	clear(state2[:])
-	runtime.KeepAlive(&state2)
-	return state1
+	return out
 }
 
 func areionSoEM512(key *[128]byte, m *[64]byte) [64]byte {
-	if !hasAESNI || TierCode() == TierPureGo {
+	tier := TierCode()
+	if tier == TierPureGo || !hasAESNI {
 		return soem512Software(key, m)
 	}
-	var state1, state2 State512
-	for i := 0; i < 64; i++ {
-		state1[i] = m[i] ^ key[i]
-		state2[i] = m[i] ^ key[64+i]
+	var out [64]byte
+	if hasVEX && tier >= TierVEX {
+		areionSoEM512VexAsm(&out, key, m)
+	} else {
+		areionSoEM512Asm(&out, key, m)
 	}
-	areion512PermuteRCAsm(&state1, &roundConstantsP1)
-	areion512PermuteRCAsm(&state2, &roundConstantsP2)
-	for i := 0; i < 64; i++ {
-		state1[i] ^= state2[i] ^ key[i] ^ key[64+i]
-	}
-	// state2 holds P2(m ⊕ k2), from which k2 follows; zero it.
-	clear(state2[:])
-	runtime.KeepAlive(&state2)
-	return state1
+	return out
 }
 
 func areion256Permutex4(states *[4][32]byte) {
@@ -161,14 +376,10 @@ func areion256PermuteP2x4(states *[4][32]byte) {
 	areion256Permutex4Tables(states, &roundConstantsP2, &areionRC4x2)
 }
 
-// areion256Permutex4Tables runs four Areion-256 permutations under one round-constant
-// table, given both as rows (rc) and broadcast to four lanes (rc4).
 func areion256Permutex4Tables(states *[4][32]byte, rc *[15][16]byte, rc4 *[15 * 64]byte) {
 	tier := TierCode()
 	if tier == TierPureGo || !hasAESNI {
-		for i := 0; i < 4; i++ {
-			areion256PermuteSoftwareRC(&states[i], rc)
-		}
+		areion256Permutex4SoftwareRC(states, rc)
 		return
 	}
 	var b0, b1 Block4
@@ -177,11 +388,44 @@ func areion256Permutex4Tables(states *[4][32]byte, rc *[15][16]byte, rc4 *[15 * 
 		areion256Permutex4RC(&b0, &b1, rc4)
 	} else if hasVAESAVX2 && tier >= TierVAESAVX2 {
 		areion256Permutex4Avx2RC(&b0, &b1, rc4)
+	} else if hasVEX && tier >= TierVEX {
+		areion256Permutex4VexRC(&b0, &b1, rc4)
 	} else {
 		areion256Permutex4AesNiRC(&b0, &b1, rc4)
 	}
 	unpack256x4SoA(&b0, &b1, states)
-	// the lanes may carry key-whitened state; zero the packed copy
+	clear(b0[:])
+	clear(b1[:])
+	runtime.KeepAlive(&b0)
+	runtime.KeepAlive(&b1)
+}
+
+func areion256InversePermutex4(states *[4][32]byte) {
+	areion256InversePermutex4Tables(states, &roundConstantsP1, &areionRC4x)
+}
+
+func areion256InversePermuteP2x4(states *[4][32]byte) {
+	areion256InversePermutex4Tables(states, &roundConstantsP2, &areionRC4x2)
+}
+
+func areion256InversePermutex4Tables(states *[4][32]byte, rc *[15][16]byte, rc4 *[15 * 64]byte) {
+	tier := TierCode()
+	if tier == TierPureGo || !hasAESNI {
+		areion256InversePermutex4SoftwareRC(states, rc)
+		return
+	}
+	var b0, b1 Block4
+	pack256x4SoAInto(states, &b0, &b1)
+	if hasAVX512 && hasVAESAVX2 && tier >= TierAVX512 {
+		areion256InversePermutex4RC(&b0, &b1, rc4)
+	} else if hasVAESAVX2 && tier >= TierVAESAVX2 {
+		areion256InversePermutex4Avx2RC(&b0, &b1, rc4)
+	} else if hasVEX && tier >= TierVEX {
+		areion256InversePermutex4VexRC(&b0, &b1, rc4)
+	} else {
+		areion256InversePermutex4AesNiRC(&b0, &b1, rc4)
+	}
+	unpack256x4SoA(&b0, &b1, states)
 	clear(b0[:])
 	clear(b1[:])
 	runtime.KeepAlive(&b0)
@@ -196,14 +440,10 @@ func areion512PermuteP2x4(states *[4][64]byte) {
 	areion512Permutex4Tables(states, &roundConstantsP2, &areionRC4x2)
 }
 
-// areion512Permutex4Tables runs four Areion-512 permutations under one round-constant
-// table, given both as rows (rc) and broadcast to four lanes (rc4).
 func areion512Permutex4Tables(states *[4][64]byte, rc *[15][16]byte, rc4 *[15 * 64]byte) {
 	tier := TierCode()
 	if tier == TierPureGo || !hasAESNI {
-		for i := 0; i < 4; i++ {
-			areion512PermuteSoftwareRC(&states[i], rc)
-		}
+		areion512Permutex4SoftwareRC(states, rc)
 		return
 	}
 	var b0, b1, b2, b3 Block4
@@ -212,11 +452,48 @@ func areion512Permutex4Tables(states *[4][64]byte, rc *[15][16]byte, rc4 *[15 * 
 		areion512Permutex4RC(&b0, &b1, &b2, &b3, rc4)
 	} else if hasVAESAVX2 && tier >= TierVAESAVX2 {
 		areion512Permutex4Avx2RC(&b0, &b1, &b2, &b3, rc4)
+	} else if hasVEX && tier >= TierVEX {
+		areion512Permutex4VexRC(&b0, &b1, &b2, &b3, rc4)
 	} else {
 		areion512Permutex4AesNiRC(&b0, &b1, &b2, &b3, rc4)
 	}
 	unpack512x4SoA(&b0, &b1, &b2, &b3, states)
-	// the lanes may carry key-whitened state; zero the packed copy
+	clear(b0[:])
+	clear(b1[:])
+	clear(b2[:])
+	clear(b3[:])
+	runtime.KeepAlive(&b0)
+	runtime.KeepAlive(&b1)
+	runtime.KeepAlive(&b2)
+	runtime.KeepAlive(&b3)
+}
+
+func areion512InversePermutex4(states *[4][64]byte) {
+	areion512InversePermutex4Tables(states, &roundConstantsP1, &areionRC4x)
+}
+
+func areion512InversePermuteP2x4(states *[4][64]byte) {
+	areion512InversePermutex4Tables(states, &roundConstantsP2, &areionRC4x2)
+}
+
+func areion512InversePermutex4Tables(states *[4][64]byte, rc *[15][16]byte, rc4 *[15 * 64]byte) {
+	tier := TierCode()
+	if tier == TierPureGo || !hasAESNI {
+		areion512InversePermutex4SoftwareRC(states, rc)
+		return
+	}
+	var b0, b1, b2, b3 Block4
+	pack512x4SoAInto(states, &b0, &b1, &b2, &b3)
+	if hasAVX512 && hasVAESAVX2 && tier >= TierAVX512 {
+		areion512InversePermutex4RC(&b0, &b1, &b2, &b3, rc4)
+	} else if hasVAESAVX2 && tier >= TierVAESAVX2 {
+		areion512InversePermutex4Avx2RC(&b0, &b1, &b2, &b3, rc4)
+	} else if hasVEX && tier >= TierVEX {
+		areion512InversePermutex4VexRC(&b0, &b1, &b2, &b3, rc4)
+	} else {
+		areion512InversePermutex4AesNiRC(&b0, &b1, &b2, &b3, rc4)
+	}
+	unpack512x4SoA(&b0, &b1, &b2, &b3, states)
 	clear(b0[:])
 	clear(b1[:])
 	clear(b2[:])
@@ -230,11 +507,7 @@ func areion512Permutex4Tables(states *[4][64]byte, rc *[15][16]byte, rc4 *[15 * 
 func areionSoEM256x4(keys *[4][64]byte, inputs *[4][32]byte) [4][32]byte {
 	tier := TierCode()
 	if tier == TierPureGo || !hasAESNI {
-		var out [4][32]byte
-		for i := 0; i < 4; i++ {
-			out[i] = soem256Software(&keys[i], &inputs[i])
-		}
-		return out
+		return soem256x4Software(keys, inputs)
 	}
 
 	keysU64 := (*[4][8]uint64)(unsafe.Pointer(keys))
@@ -262,12 +535,9 @@ func areionSoEM256x4(keys *[4][64]byte, inputs *[4][32]byte) [4][32]byte {
 	case hasAVX512 && hasVAESAVX2 && tier >= TierAVX512:
 		areion256SoEMPermutex4Interleaved(&s1b0, &s1b1, &s2b0, &s2b1)
 	case hasVAESAVX2 && tier >= TierVAESAVX2:
-		areion256Permutex4Avx2RC(&s1b0, &s1b1, &areionRC4x)
-		areion256Permutex4Avx2RC(&s2b0, &s2b1, &areionRC4x2)
-		for i := 0; i < 64; i++ {
-			s1b0[i] ^= s2b0[i]
-			s1b1[i] ^= s2b1[i]
-		}
+		areion256SoEMPermutex4VaesAvx2(&s1b0, &s1b1, &s2b0, &s2b1)
+	case hasVEX && tier >= TierVEX:
+		areion256SoEMPermutex4Vex(&s1b0, &s1b1, &s2b0, &s2b1)
 	default:
 		areion256SoEMPermutex4AesNi(&s1b0, &s1b1, &s2b0, &s2b1)
 	}
@@ -284,9 +554,6 @@ func areionSoEM256x4(keys *[4][64]byte, inputs *[4][32]byte) [4][32]byte {
 		outU64[2] = s1b1U64[0] ^ k[2] ^ k[6]
 		outU64[3] = s1b1U64[1] ^ k[3] ^ k[7]
 	}
-	// The SoA blocks hold the key-whitened inputs, then P2(m ⊕ k2) and
-	// the sum P1(m ⊕ k1) ⊕ P2(m ⊕ k2), from which the subkeys follow;
-	// zero them once the output is built.
 	clear(s1b0[:])
 	clear(s1b1[:])
 	clear(s2b0[:])
@@ -301,11 +568,7 @@ func areionSoEM256x4(keys *[4][64]byte, inputs *[4][32]byte) [4][32]byte {
 func areionSoEM512x4(keys *[4][128]byte, inputs *[4][64]byte) [4][64]byte {
 	tier := TierCode()
 	if tier == TierPureGo || !hasAESNI {
-		var out [4][64]byte
-		for i := 0; i < 4; i++ {
-			out[i] = soem512Software(&keys[i], &inputs[i])
-		}
-		return out
+		return soem512x4Software(keys, inputs)
 	}
 
 	keysU64 := (*[4][16]uint64)(unsafe.Pointer(keys))
@@ -346,14 +609,9 @@ func areionSoEM512x4(keys *[4][128]byte, inputs *[4][64]byte) [4][64]byte {
 	case hasAVX512 && hasVAESAVX2 && tier >= TierAVX512:
 		areion512SoEMPermutex4Interleaved(&a1, &b1, &c1, &d1, &a2, &b2, &c2, &d2)
 	case hasVAESAVX2 && tier >= TierVAESAVX2:
-		areion512Permutex4Avx2RC(&a1, &b1, &c1, &d1, &areionRC4x)
-		areion512Permutex4Avx2RC(&a2, &b2, &c2, &d2, &areionRC4x2)
-		for i := 0; i < 64; i++ {
-			a1[i] ^= a2[i]
-			b1[i] ^= b2[i]
-			c1[i] ^= c2[i]
-			d1[i] ^= d2[i]
-		}
+		areion512SoEMPermutex4VaesAvx2(&a1, &b1, &c1, &d1, &a2, &b2, &c2, &d2)
+	case hasVEX && tier >= TierVEX:
+		areion512SoEMPermutex4Vex(&a1, &b1, &c1, &d1, &a2, &b2, &c2, &d2)
 	default:
 		areion512SoEMPermutex4AesNi(&a1, &b1, &c1, &d1, &a2, &b2, &c2, &d2)
 	}
@@ -376,9 +634,6 @@ func areionSoEM512x4(keys *[4][128]byte, inputs *[4][64]byte) [4][64]byte {
 		outU64[6] = d1U64[0] ^ k[6] ^ k[14]
 		outU64[7] = d1U64[1] ^ k[7] ^ k[15]
 	}
-	// The SoA blocks hold the key-whitened inputs, then P2(m ⊕ k2) and
-	// the sum P1(m ⊕ k1) ⊕ P2(m ⊕ k2), from which the subkeys follow;
-	// zero them once the output is built.
 	clear(a1[:])
 	clear(b1[:])
 	clear(c1[:])

@@ -18,6 +18,8 @@
 // treating P1 and P2 as independent is an assumption about this instantiation, not a proven property.
 package areion
 
+import "runtime"
+
 // State256 represents a 256-bit (32-byte) state for the Areion-256 permutation.
 type State256 = [32]byte
 
@@ -29,6 +31,9 @@ type Block = [16]byte
 
 // Block4 represents four 128-bit AES blocks (64 bytes total), matching a 512-bit vector register.
 type Block4 = [64]byte
+
+// Key4 represents four 128-bit AES round keys (64 bytes total) for 4-way parallel round operations.
+type Key4 = [64]byte
 
 // Permute256 applies the 10-round Areion-256 permutation P1 in place.
 // Automatically leverages hardware acceleration (AES-NI or ARMv8 Cryptographic
@@ -105,6 +110,8 @@ func DM512(m *[64]byte) [32]byte {
 	copy(out[8:16], state[24:32])
 	copy(out[16:24], state[32:40])
 	copy(out[24:32], state[48:56])
+	clear(state[:])
+	runtime.KeepAlive(&state)
 	return out
 }
 
@@ -161,4 +168,112 @@ func Permute256P2x4(states *[4][32]byte) {
 // Permute512P2x4 evaluates permutation P2 on four 512-bit states in parallel.
 func Permute512P2x4(states *[4][64]byte) {
 	areion512PermuteP2x4(states)
+}
+
+// InversePermute256x4 evaluates inverse permutation P1^{-1} on four 256-bit states in parallel.
+func InversePermute256x4(states *[4][32]byte) {
+	areion256InversePermutex4(states)
+}
+
+// InversePermute512x4 evaluates inverse permutation P1^{-1} on four 512-bit states in parallel.
+func InversePermute512x4(states *[4][64]byte) {
+	areion512InversePermutex4(states)
+}
+
+// InversePermute256P2x4 evaluates inverse permutation P2^{-1} on four 256-bit states in parallel.
+func InversePermute256P2x4(states *[4][32]byte) {
+	areion256InversePermuteP2x4(states)
+}
+
+// InversePermute512P2x4 evaluates inverse permutation P2^{-1} on four 512-bit states in parallel.
+func InversePermute512P2x4(states *[4][64]byte) {
+	areion512InversePermuteP2x4(states)
+}
+
+// Round performs one standard AES encryption round (SubBytes, ShiftRows, MixColumns, AddRoundKey)
+// in portable pure Go software.
+func Round(block, roundKey *Block) {
+	roundNoKey(block)
+	xorBlock(block, block, roundKey)
+}
+
+// FinalRound performs one final AES encryption round (SubBytes, ShiftRows, AddRoundKey, no MixColumns)
+// in portable pure Go software.
+func FinalRound(block, roundKey *Block) {
+	finalRoundNoKey(block)
+	xorBlock(block, block, roundKey)
+}
+
+// RoundHW performs one standard AES encryption round (SubBytes, ShiftRows, MixColumns, AddRoundKey),
+// using hardware acceleration (AES-NI, VEX, or ARMv8 Cryptographic Extension) when available and enabled.
+func RoundHW(block, roundKey *Block) {
+	aesRoundHW(block, roundKey)
+}
+
+// FinalRoundHW performs one final AES encryption round (SubBytes, ShiftRows, AddRoundKey, no MixColumns),
+// using hardware acceleration (AES-NI, VEX, or ARMv8 Cryptographic Extension) when available and enabled.
+func FinalRoundHW(block, roundKey *Block) {
+	aesFinalRoundHW(block, roundKey)
+}
+
+// AES128Round performs one standard AES encryption round (SubBytes, ShiftRows, MixColumns, AddRoundKey),
+// using hardware acceleration when available and enabled.
+func AES128Round(block, roundKey *Block) {
+	aesRoundHW(block, roundKey)
+}
+
+// AES128FinalRound performs one final AES encryption round (SubBytes, ShiftRows, AddRoundKey, no MixColumns),
+// using hardware acceleration when available and enabled.
+func AES128FinalRound(block, roundKey *Block) {
+	aesFinalRoundHW(block, roundKey)
+}
+
+// AES128Round4 performs one standard AES encryption round on four 16-byte blocks in parallel,
+// each with its corresponding 16-byte round key in roundKeys, using hardware acceleration when available.
+func AES128Round4(blocks, roundKeys *Block4) {
+	aesRound4HW(blocks, roundKeys)
+}
+
+// AES128FinalRound4 performs one final AES encryption round (no MixColumns) on four 16-byte blocks in parallel,
+// each with its corresponding 16-byte round key in roundKeys, using hardware acceleration when available.
+func AES128FinalRound4(blocks, roundKeys *Block4) {
+	aesFinalRound4HW(blocks, roundKeys)
+}
+
+// Round4HW is an alias for AES128Round4.
+func Round4HW(blocks, roundKeys *Block4) {
+	aesRound4HW(blocks, roundKeys)
+}
+
+// FinalRound4HW is an alias for AES128FinalRound4.
+func FinalRound4HW(blocks, roundKeys *Block4) {
+	aesFinalRound4HW(blocks, roundKeys)
+}
+
+// XorBlock sets dst = a ⊕ b on 16-byte blocks.
+func XorBlock(dst, a, b *Block) {
+	xorBlock(dst, a, b)
+}
+
+// XorBlock4 sets dst = a ⊕ b on 64-byte (4-block) vectors.
+func XorBlock4(dst, a, b *Block4) {
+	xorBlock4(dst, a, b)
+}
+
+// ExpandKey128 expands a 16-byte AES-128 key into 11 16-byte round keys (FIPS 197 §5.2).
+// Uses the hardware AES S-box when hardware acceleration is enabled.
+func ExpandKey128(key *[16]byte, rk *[11][16]byte) {
+	expandKey128(key, rk)
+}
+
+// AES128EncryptBlock encrypts one 16-byte block under the 11 expanded AES-128 round keys rk.
+// dst and src may alias.
+func AES128EncryptBlock(rk *[11][16]byte, dst, src *[16]byte) {
+	aes128EncryptBlock(rk, dst, src)
+}
+
+// AES128Encrypt4Blocks encrypts four 16-byte blocks in parallel under the shared 11 expanded
+// AES-128 round keys rk. dst and src may alias.
+func AES128Encrypt4Blocks(rk *[11][16]byte, dst, src *[64]byte) {
+	aes128Encrypt4Blocks(rk, dst, src)
 }

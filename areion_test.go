@@ -2,6 +2,7 @@ package areion
 
 import (
 	"bytes"
+	"crypto/aes"
 	"crypto/rand"
 	"encoding/hex"
 	"math/bits"
@@ -101,7 +102,15 @@ func TestAreion256Roundtrip(t *testing.T) {
 		InversePermute256(&state)
 
 		if !bytes.Equal(state[:], original[:]) {
-			t.Fatalf("Areion256 roundtrip failed (trial %d)\nGot:      %x\nOriginal: %x", trial, state[:], original[:])
+			t.Fatalf("Areion256 forward-inverse roundtrip failed (trial %d)\nGot:      %x\nOriginal: %x", trial, state[:], original[:])
+		}
+
+		state = original
+		InversePermute256(&state)
+		Permute256(&state)
+
+		if !bytes.Equal(state[:], original[:]) {
+			t.Fatalf("Areion256 inverse-forward roundtrip failed (trial %d)\nGot:      %x\nOriginal: %x", trial, state[:], original[:])
 		}
 	}
 }
@@ -116,7 +125,15 @@ func TestAreion512Roundtrip(t *testing.T) {
 		InversePermute512(&state)
 
 		if !bytes.Equal(state[:], original[:]) {
-			t.Fatalf("Areion512 roundtrip failed (trial %d)\nGot:      %x\nOriginal: %x", trial, state[:], original[:])
+			t.Fatalf("Areion512 forward-inverse roundtrip failed (trial %d)\nGot:      %x\nOriginal: %x", trial, state[:], original[:])
+		}
+
+		state = original
+		InversePermute512(&state)
+		Permute512(&state)
+
+		if !bytes.Equal(state[:], original[:]) {
+			t.Fatalf("Areion512 inverse-forward roundtrip failed (trial %d)\nGot:      %x\nOriginal: %x", trial, state[:], original[:])
 		}
 	}
 }
@@ -276,6 +293,7 @@ func TestPermute256x4Parity(t *testing.T) {
 		rand.Read(states[i][:])
 	}
 
+	initial := states
 	expected := states
 	for i := 0; i < 4; i++ {
 		Permute256(&expected[i])
@@ -284,6 +302,9 @@ func TestPermute256x4Parity(t *testing.T) {
 	Permute256x4(&states)
 
 	for i := 0; i < 4; i++ {
+		if states[i] == initial[i] {
+			t.Fatalf("Permute256x4 lane %d is identity on input", i)
+		}
 		if !bytes.Equal(states[i][:], expected[i][:]) {
 			t.Fatalf("Permute256x4 lane %d mismatch\nGot:  %x\nWant: %x", i, states[i][:], expected[i][:])
 		}
@@ -296,6 +317,7 @@ func TestPermute512x4Parity(t *testing.T) {
 		rand.Read(states[i][:])
 	}
 
+	initial := states
 	expected := states
 	for i := 0; i < 4; i++ {
 		Permute512(&expected[i])
@@ -304,6 +326,9 @@ func TestPermute512x4Parity(t *testing.T) {
 	Permute512x4(&states)
 
 	for i := 0; i < 4; i++ {
+		if states[i] == initial[i] {
+			t.Fatalf("Permute512x4 lane %d is identity on input", i)
+		}
 		if !bytes.Equal(states[i][:], expected[i][:]) {
 			t.Fatalf("Permute512x4 lane %d mismatch\nGot:  %x\nWant: %x", i, states[i][:], expected[i][:])
 		}
@@ -339,8 +364,10 @@ func TestPermuteP2x4Parity(t *testing.T) {
 			Permute256P2((*State256)(&single256[i]))
 			Permute512P2((*State512)(&single512[i]))
 		}
-		p1 := in256
-		Permute256x4(&p1)
+		p1_256 := in256
+		Permute256x4(&p1_256)
+		p1_512 := in512
+		Permute512x4(&p1_512)
 		for i := 0; i < 4; i++ {
 			if !bytes.Equal(got256[i][:], single256[i][:]) || !bytes.Equal(got256[i][:], ref256[i][:]) {
 				t.Fatalf("Permute256P2x4 lane %d tier %s mismatch\nGot:  %x\nWant: %x", i, tier, got256[i][:], ref256[i][:])
@@ -348,8 +375,11 @@ func TestPermuteP2x4Parity(t *testing.T) {
 			if !bytes.Equal(got512[i][:], single512[i][:]) || !bytes.Equal(got512[i][:], ref512[i][:]) {
 				t.Fatalf("Permute512P2x4 lane %d tier %s mismatch\nGot:  %x\nWant: %x", i, tier, got512[i][:], ref512[i][:])
 			}
-			if bytes.Equal(got256[i][:], p1[i][:]) {
+			if bytes.Equal(got256[i][:], p1_256[i][:]) {
 				t.Fatalf("Permute256P2x4 lane %d equals Permute256x4 (tier %s)", i, tier)
+			}
+			if bytes.Equal(got512[i][:], p1_512[i][:]) {
+				t.Fatalf("Permute512P2x4 lane %d equals Permute512x4 (tier %s)", i, tier)
 			}
 		}
 	})
@@ -407,6 +437,9 @@ func availableTiers() []string {
 	if hasAESNI {
 		tiers = append(tiers, "aesni")
 	}
+	if hasVEX {
+		tiers = append(tiers, "vex")
+	}
 	if hasVAESAVX2 {
 		tiers = append(tiers, "vaesavx2")
 	}
@@ -436,19 +469,7 @@ func eachTier(t *testing.T, f func(t *testing.T, tier string)) {
 // TestCrossTierParity verifies that all supported hardware acceleration tiers
 // produce 100% bit-exact identical results on randomized inputs.
 func TestCrossTierParity(t *testing.T) {
-	tiers := []string{"purego"}
-	if hasAESNI {
-		tiers = append(tiers, "aesni")
-	}
-	if hasVAESAVX2 {
-		tiers = append(tiers, "vaesavx2")
-	}
-	if hasAVX512 {
-		tiers = append(tiers, "avx512")
-	}
-	if hasARMCrypto {
-		tiers = append(tiers, "arm64")
-	}
+	tiers := availableTiers()
 
 	var m256 [32]byte
 	var key256 [64]byte
@@ -500,8 +521,20 @@ func TestCrossTierParity(t *testing.T) {
 
 	baseP256x4 := states256x4
 	Permute256x4(&baseP256x4)
+	baseP256P2x4 := states256x4
+	Permute256P2x4(&baseP256P2x4)
+	baseInv256x4 := states256x4
+	InversePermute256x4(&baseInv256x4)
+	baseInv256P2x4 := states256x4
+	InversePermute256P2x4(&baseInv256P2x4)
 	baseP512x4 := states512x4
 	Permute512x4(&baseP512x4)
+	baseP512P2x4 := states512x4
+	Permute512P2x4(&baseP512P2x4)
+	baseInv512x4 := states512x4
+	InversePermute512x4(&baseInv512x4)
+	baseInv512P2x4 := states512x4
+	InversePermute512P2x4(&baseInv512P2x4)
 	baseSoEM256x4 := SoEM256x4(&keys256x4, &states256x4)
 	baseSoEM512x4 := SoEM512x4(&keys512x4, &states512x4)
 
@@ -575,11 +608,59 @@ func TestCrossTierParity(t *testing.T) {
 				}
 			}
 
+			curP256P2x4 := states256x4
+			Permute256P2x4(&curP256P2x4)
+			for i := 0; i < 4; i++ {
+				if !bytes.Equal(curP256P2x4[i][:], baseP256P2x4[i][:]) {
+					t.Fatalf("Permute256P2x4 lane %d tier %s mismatch", i, tier)
+				}
+			}
+
+			curInv256x4 := states256x4
+			InversePermute256x4(&curInv256x4)
+			for i := 0; i < 4; i++ {
+				if !bytes.Equal(curInv256x4[i][:], baseInv256x4[i][:]) {
+					t.Fatalf("InversePermute256x4 lane %d tier %s mismatch", i, tier)
+				}
+			}
+
+			curInv256P2x4 := states256x4
+			InversePermute256P2x4(&curInv256P2x4)
+			for i := 0; i < 4; i++ {
+				if !bytes.Equal(curInv256P2x4[i][:], baseInv256P2x4[i][:]) {
+					t.Fatalf("InversePermute256P2x4 lane %d tier %s mismatch", i, tier)
+				}
+			}
+
 			curP512x4 := states512x4
 			Permute512x4(&curP512x4)
 			for i := 0; i < 4; i++ {
 				if !bytes.Equal(curP512x4[i][:], baseP512x4[i][:]) {
 					t.Fatalf("Permute512x4 lane %d tier %s mismatch", i, tier)
+				}
+			}
+
+			curP512P2x4 := states512x4
+			Permute512P2x4(&curP512P2x4)
+			for i := 0; i < 4; i++ {
+				if !bytes.Equal(curP512P2x4[i][:], baseP512P2x4[i][:]) {
+					t.Fatalf("Permute512P2x4 lane %d tier %s mismatch", i, tier)
+				}
+			}
+
+			curInv512x4 := states512x4
+			InversePermute512x4(&curInv512x4)
+			for i := 0; i < 4; i++ {
+				if !bytes.Equal(curInv512x4[i][:], baseInv512x4[i][:]) {
+					t.Fatalf("InversePermute512x4 lane %d tier %s mismatch", i, tier)
+				}
+			}
+
+			curInv512P2x4 := states512x4
+			InversePermute512P2x4(&curInv512P2x4)
+			for i := 0; i < 4; i++ {
+				if !bytes.Equal(curInv512P2x4[i][:], baseInv512P2x4[i][:]) {
+					t.Fatalf("InversePermute512P2x4 lane %d tier %s mismatch", i, tier)
 				}
 			}
 
@@ -1015,6 +1096,17 @@ func TestSetTierErrorHandlingAndAliases(t *testing.T) {
 		}
 	}
 
+	if hasVEX {
+		for _, name := range []string{"vex", " VEX "} {
+			if err := SetTier(name); err != nil {
+				t.Errorf("SetTier(%q) failed: %v", name, err)
+			}
+			if Tier() != "vex" || TierCode() != TierVEX {
+				t.Errorf("After SetTier(%q), Tier() = %s, TierCode() = %d, want vex / TierVEX", name, Tier(), TierCode())
+			}
+		}
+	}
+
 	if hasVAESAVX2 {
 		for _, name := range []string{"vaesavx2", " VAESAVX2 "} {
 			if err := SetTier(name); err != nil {
@@ -1070,19 +1162,7 @@ func TestPaperVectorsAllTiers(t *testing.T) {
 		&seq64:  "0fd4a3209d9892f05fbd2556b690b9bbc08e9ffbc2c773e5d451888ade4c23f1",
 	}
 
-	tiers := []string{"purego"}
-	if hasAESNI {
-		tiers = append(tiers, "aesni")
-	}
-	if hasVAESAVX2 {
-		tiers = append(tiers, "vaesavx2")
-	}
-	if hasAVX512 {
-		tiers = append(tiers, "avx512")
-	}
-	if hasARMCrypto {
-		tiers = append(tiers, "arm64")
-	}
+	tiers := availableTiers()
 	origTier := Tier()
 	defer func() { _ = SetTier(origTier) }()
 
@@ -1125,6 +1205,244 @@ func TestPaperVectorsAllTiers(t *testing.T) {
 	}
 }
 
+func TestInversePermutex4Parity(t *testing.T) {
+	var s256, s256p2 [4][32]byte
+	var s512, s512p2 [4][64]byte
+	for i := 0; i < 4; i++ {
+		rand.Read(s256[i][:])
+		rand.Read(s256p2[i][:])
+		rand.Read(s512[i][:])
+		rand.Read(s512p2[i][:])
+	}
+
+	orig := Tier()
+	if err := SetTier("purego"); err != nil {
+		t.Fatal(err)
+	}
+	wantP256, wantP256P2 := s256, s256p2
+	wantP512, wantP512P2 := s512, s512p2
+	Permute256x4(&wantP256)
+	Permute256P2x4(&wantP256P2)
+	Permute512x4(&wantP512)
+	Permute512P2x4(&wantP512P2)
+
+	wantInv256, wantInv256P2 := s256, s256p2
+	wantInv512, wantInv512P2 := s512, s512p2
+	for i := 0; i < 4; i++ {
+		InversePermute256(&wantInv256[i])
+		InversePermute256P2(&wantInv256P2[i])
+		InversePermute512(&wantInv512[i])
+		InversePermute512P2(&wantInv512P2[i])
+	}
+	_ = SetTier(orig)
+
+	eachTier(t, func(t *testing.T, tier string) {
+		got256 := s256
+		Permute256x4(&got256)
+		if got256 != wantP256 {
+			t.Fatalf("[%s] Permute256x4 mismatch", tier)
+		}
+		InversePermute256x4(&got256)
+		if got256 != s256 {
+			t.Fatalf("[%s] InversePermute256x4 forward-inverse round-trip failed", tier)
+		}
+
+		inv256 := s256
+		InversePermute256x4(&inv256)
+		if inv256 != wantInv256 {
+			t.Fatalf("[%s] InversePermute256x4 direct parity mismatch", tier)
+		}
+		Permute256x4(&inv256)
+		if inv256 != s256 {
+			t.Fatalf("[%s] InversePermute256x4 inverse-forward round-trip failed", tier)
+		}
+
+		got256P2 := s256p2
+		Permute256P2x4(&got256P2)
+		if got256P2 != wantP256P2 {
+			t.Fatalf("[%s] Permute256P2x4 mismatch", tier)
+		}
+		InversePermute256P2x4(&got256P2)
+		if got256P2 != s256p2 {
+			t.Fatalf("[%s] InversePermute256P2x4 forward-inverse round-trip failed", tier)
+		}
+
+		inv256P2 := s256p2
+		InversePermute256P2x4(&inv256P2)
+		if inv256P2 != wantInv256P2 {
+			t.Fatalf("[%s] InversePermute256P2x4 direct parity mismatch", tier)
+		}
+		Permute256P2x4(&inv256P2)
+		if inv256P2 != s256p2 {
+			t.Fatalf("[%s] InversePermute256P2x4 inverse-forward round-trip failed", tier)
+		}
+
+		got512 := s512
+		Permute512x4(&got512)
+		if got512 != wantP512 {
+			t.Fatalf("[%s] Permute512x4 mismatch", tier)
+		}
+		InversePermute512x4(&got512)
+		if got512 != s512 {
+			t.Fatalf("[%s] InversePermute512x4 forward-inverse round-trip failed", tier)
+		}
+
+		inv512 := s512
+		InversePermute512x4(&inv512)
+		if inv512 != wantInv512 {
+			t.Fatalf("[%s] InversePermute512x4 direct parity mismatch", tier)
+		}
+		Permute512x4(&inv512)
+		if inv512 != s512 {
+			t.Fatalf("[%s] InversePermute512x4 inverse-forward round-trip failed", tier)
+		}
+
+		got512P2 := s512p2
+		Permute512P2x4(&got512P2)
+		if got512P2 != wantP512P2 {
+			t.Fatalf("[%s] Permute512P2x4 mismatch", tier)
+		}
+		InversePermute512P2x4(&got512P2)
+		if got512P2 != s512p2 {
+			t.Fatalf("[%s] InversePermute512P2x4 forward-inverse round-trip failed", tier)
+		}
+
+		inv512P2 := s512p2
+		InversePermute512P2x4(&inv512P2)
+		if inv512P2 != wantInv512P2 {
+			t.Fatalf("[%s] InversePermute512P2x4 direct parity mismatch", tier)
+		}
+		Permute512P2x4(&inv512P2)
+		if inv512P2 != s512p2 {
+			t.Fatalf("[%s] InversePermute512P2x4 inverse-forward round-trip failed", tier)
+		}
+	})
+}
+
+func TestAES128PrimitivesAllTiers(t *testing.T) {
+	var key Block
+	var block Block
+	var block4 Block4
+	var key4 Key4
+	rand.Read(key[:])
+	rand.Read(block[:])
+	rand.Read(block4[:])
+	rand.Read(key4[:])
+
+	stdBlock, err := aes.NewCipher(key[:])
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wantStd Block
+	stdBlock.Encrypt(wantStd[:], block[:])
+
+	var wantStd4 Block4
+	for i := 0; i < 4; i++ {
+		stdBlock.Encrypt(wantStd4[i*16:(i+1)*16], block4[i*16:(i+1)*16])
+	}
+
+	orig := Tier()
+	if err := SetTier("purego"); err != nil {
+		t.Fatal(err)
+	}
+	var wantRK [11]Block
+	ExpandKey128(&key, &wantRK)
+	wantRound := block
+	AES128Round(&wantRound, &key)
+	wantFinal := block
+	AES128FinalRound(&wantFinal, &key)
+	wantRound4 := block4
+	AES128Round4(&wantRound4, &key4)
+	wantFinal4 := block4
+	AES128FinalRound4(&wantFinal4, &key4)
+	var wantXor Block
+	XorBlock(&wantXor, &block, &key)
+	var wantXor4 Block4
+	XorBlock4(&wantXor4, &block4, &key4)
+	_ = SetTier(orig)
+
+	eachTier(t, func(t *testing.T, tier string) {
+		var rk [11]Block
+		ExpandKey128(&key, &rk)
+		if rk != wantRK {
+			t.Fatalf("[%s] ExpandKey128 mismatch", tier)
+		}
+
+		var gotEnc Block
+		AES128EncryptBlock(&rk, &gotEnc, &block)
+		if gotEnc != wantStd {
+			t.Fatalf("[%s] AES128EncryptBlock = %x, want %x", tier, gotEnc, wantStd)
+		}
+
+		var gotEnc4 Block4
+		AES128Encrypt4Blocks(&rk, &gotEnc4, &block4)
+		if gotEnc4 != wantStd4 {
+			t.Fatalf("[%s] AES128Encrypt4Blocks = %x, want %x", tier, gotEnc4, wantStd4)
+		}
+
+		got := block
+		AES128Round(&got, &key)
+		if got != wantRound {
+			t.Fatalf("[%s] AES128Round mismatch", tier)
+		}
+		got = block
+		Round(&got, &key)
+		if got != wantRound {
+			t.Fatalf("[%s] Round mismatch", tier)
+		}
+		got = block
+		RoundHW(&got, &key)
+		if got != wantRound {
+			t.Fatalf("[%s] RoundHW mismatch", tier)
+		}
+		got = block
+		AES128FinalRound(&got, &key)
+		if got != wantFinal {
+			t.Fatalf("[%s] AES128FinalRound mismatch", tier)
+		}
+		got = block
+		FinalRound(&got, &key)
+		if got != wantFinal {
+			t.Fatalf("[%s] FinalRound mismatch", tier)
+		}
+		got = block
+		FinalRoundHW(&got, &key)
+		if got != wantFinal {
+			t.Fatalf("[%s] FinalRoundHW mismatch", tier)
+		}
+		got4 := block4
+		AES128Round4(&got4, &key4)
+		if got4 != wantRound4 {
+			t.Fatalf("[%s] AES128Round4 mismatch", tier)
+		}
+		got4 = block4
+		Round4HW(&got4, &key4)
+		if got4 != wantRound4 {
+			t.Fatalf("[%s] Round4HW mismatch", tier)
+		}
+		got4 = block4
+		AES128FinalRound4(&got4, &key4)
+		if got4 != wantFinal4 {
+			t.Fatalf("[%s] AES128FinalRound4 mismatch", tier)
+		}
+		got4 = block4
+		FinalRound4HW(&got4, &key4)
+		if got4 != wantFinal4 {
+			t.Fatalf("[%s] FinalRound4HW mismatch", tier)
+		}
+		var gotXor Block
+		XorBlock(&gotXor, &block, &key)
+		if gotXor != wantXor {
+			t.Fatalf("[%s] XorBlock mismatch", tier)
+		}
+		var gotXor4 Block4
+		XorBlock4(&gotXor4, &block4, &key4)
+		if gotXor4 != wantXor4 {
+			t.Fatalf("[%s] XorBlock4 mismatch", tier)
+		}
+	})
+}
+
 // --- Benchmarks ---
 
 func BenchmarkPermute256(b *testing.B) {
@@ -1133,6 +1451,15 @@ func BenchmarkPermute256(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		Permute256(&state)
+	}
+}
+
+func BenchmarkPermute256P2(b *testing.B) {
+	var state State256
+	b.SetBytes(32)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		Permute256P2(&state)
 	}
 }
 
@@ -1145,6 +1472,15 @@ func BenchmarkPermute512(b *testing.B) {
 	}
 }
 
+func BenchmarkPermute512P2(b *testing.B) {
+	var state State512
+	b.SetBytes(64)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		Permute512P2(&state)
+	}
+}
+
 func BenchmarkInversePermute256(b *testing.B) {
 	var state State256
 	b.SetBytes(32)
@@ -1154,12 +1490,30 @@ func BenchmarkInversePermute256(b *testing.B) {
 	}
 }
 
+func BenchmarkInversePermute256P2(b *testing.B) {
+	var state State256
+	b.SetBytes(32)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		InversePermute256P2(&state)
+	}
+}
+
 func BenchmarkInversePermute512(b *testing.B) {
 	var state State512
 	b.SetBytes(64)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		InversePermute512(&state)
+	}
+}
+
+func BenchmarkInversePermute512P2(b *testing.B) {
+	var state State512
+	b.SetBytes(64)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		InversePermute512P2(&state)
 	}
 }
 
@@ -1210,12 +1564,66 @@ func BenchmarkPermute256x4(b *testing.B) {
 	}
 }
 
+func BenchmarkPermute256P2x4(b *testing.B) {
+	var states [4][32]byte
+	b.SetBytes(128)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		Permute256P2x4(&states)
+	}
+}
+
 func BenchmarkPermute512x4(b *testing.B) {
 	var states [4][64]byte
 	b.SetBytes(256)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		Permute512x4(&states)
+	}
+}
+
+func BenchmarkPermute512P2x4(b *testing.B) {
+	var states [4][64]byte
+	b.SetBytes(256)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		Permute512P2x4(&states)
+	}
+}
+
+func BenchmarkInversePermute256x4(b *testing.B) {
+	var states [4][32]byte
+	b.SetBytes(128)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		InversePermute256x4(&states)
+	}
+}
+
+func BenchmarkInversePermute256P2x4(b *testing.B) {
+	var states [4][32]byte
+	b.SetBytes(128)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		InversePermute256P2x4(&states)
+	}
+}
+
+func BenchmarkInversePermute512x4(b *testing.B) {
+	var states [4][64]byte
+	b.SetBytes(256)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		InversePermute512x4(&states)
+	}
+}
+
+func BenchmarkInversePermute512P2x4(b *testing.B) {
+	var states [4][64]byte
+	b.SetBytes(256)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		InversePermute512P2x4(&states)
 	}
 }
 
@@ -1236,5 +1644,54 @@ func BenchmarkSoEM512x4(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = SoEM512x4(&keys, &inputs)
+	}
+}
+
+func BenchmarkAES128Round(b *testing.B) {
+	var state, rk Block
+	b.SetBytes(16)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		AES128Round(&state, &rk)
+	}
+}
+
+func BenchmarkAES128Round4(b *testing.B) {
+	var state Block4
+	var rk Key4
+	b.SetBytes(64)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		AES128Round4(&state, &rk)
+	}
+}
+
+func BenchmarkExpandKey128(b *testing.B) {
+	var key Block
+	var rk [11]Block
+	b.SetBytes(176)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		ExpandKey128(&key, &rk)
+	}
+}
+
+func BenchmarkAES128EncryptBlock(b *testing.B) {
+	var rk [11]Block
+	var state Block
+	b.SetBytes(16)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		AES128EncryptBlock(&rk, &state, &state)
+	}
+}
+
+func BenchmarkAES128Encrypt4Blocks(b *testing.B) {
+	var rk [11]Block
+	var state Block4
+	b.SetBytes(64)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		AES128Encrypt4Blocks(&rk, &state, &state)
 	}
 }

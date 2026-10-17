@@ -2,6 +2,6 @@
 
 package areion
 
-func probeCPU() (aesni, armCrypto, vaesAVX2, avx512 bool) {
-	return false, false, false, false
+func probeCPU() (aesni, vex, armCrypto, vaesAVX2, avx512 bool) {
+	return false, false, false, false, false
 }

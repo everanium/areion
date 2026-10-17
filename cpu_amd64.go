@@ -19,8 +19,9 @@ func hasVAESBit() bool {
 	return ecx7&(1<<9) != 0
 }
 
-func probeCPU() (aesni, armCrypto, vaesAVX2, avx512 bool) {
+func probeCPU() (aesni, vex, armCrypto, vaesAVX2, avx512 bool) {
 	aesni = cpu.X86.HasAES
+	vex = cpu.X86.HasAES && cpu.X86.HasAVX
 	vaesAVX2 = hasVAESBit()
 	avx512 = cpu.X86.HasAVX512F && vaesAVX2
 	return

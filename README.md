@@ -12,22 +12,49 @@ Go reference implementation of the **Areion** cryptographic permutation family a
 Areion (Isobe et al., [TCHES 2023](https://doi.org/10.46586/tches.v2023.i2.115-154); extended version [ePrint 2023/794](https://eprint.iacr.org/2023/794)) is a family of wide cryptographic permutations (256-bit and 512-bit) built from hardware AES round instructions (`AESENC` / `AESE`).
 
 This library provides:
-1. **Core Permutations ($P_1$)**:
-   - `Permute256`: 10-round Areion-256 permutation with the published round constants RC0..RC9 (Table 1).
-   - `Permute512`: 15-round Areion-512 permutation with the published round constants RC0..RC14 (Table 1).
-   - `InversePermute256` / `InversePermute512`: inverse permutations ($P_1^{-1}$).
-   - `Permute256x4` / `Permute512x4`: 4-way parallel evaluation of $P_1$.
-2. **Second Permutation ($P_2$)**:
-   - `Permute256P2` / `Permute512P2`: the Areion permutation under a second round-constant table (Table 2), the 15 consecutive 128-bit words of $\pi$ that follow those of $P_1$ (words 15..29). Table 2 is proposed by Andrey Kuvshinov and derived by [`scripts/verify_p2_table.py`](scripts/README.md); it is not part of the Areion specification.
-   - `InversePermute256P2` / `InversePermute512P2`: inverse permutations ($P_2^{-1}$).
-   - `Permute256P2x4` / `Permute512P2x4`: 4-way parallel evaluation of $P_2$.
+1. **Core Permutations ($P_1$)** (10-round Areion-256 and 15-round Areion-512 with the published round constants RC0..RC14 of Table 1):
+   - `Permute256(state)`: 10-round forward permutation $P_1$ on a 32-byte `State256`.
+   - `Permute512(state)`: 15-round forward permutation $P_1$ on a 64-byte `State512`.
+   - `InversePermute256(state)`: 10-round inverse permutation $P_1^{-1}$ on a 32-byte `State256`.
+   - `InversePermute512(state)`: 15-round inverse permutation $P_1^{-1}$ on a 64-byte `State512`.
+   - `Permute256x4(states)`: 4-way parallel forward permutation $P_1$ on `*[4][32]byte`.
+   - `Permute512x4(states)`: 4-way parallel forward permutation $P_1$ on `*[4][64]byte`.
+   - `InversePermute256x4(states)`: 4-way parallel inverse permutation $P_1^{-1}$ on `*[4][32]byte`.
+   - `InversePermute512x4(states)`: 4-way parallel inverse permutation $P_1^{-1}$ on `*[4][64]byte`.
+2. **Second Permutations ($P_2$)** (the Areion permutations under a second round-constant table, Table 2 — the 15 consecutive 128-bit words of $\pi$ that follow those of $P_1$, words 15..29; proposed by Andrey Kuvshinov and derived by [`scripts/verify_p2_table.py`](scripts/README.md), not part of the Areion specification):
+   - `Permute256P2(state)`: 10-round forward permutation $P_2$ on a 32-byte `State256`.
+   - `Permute512P2(state)`: 15-round forward permutation $P_2$ on a 64-byte `State512`.
+   - `InversePermute256P2(state)`: 10-round inverse permutation $P_2^{-1}$ on a 32-byte `State256`.
+   - `InversePermute512P2(state)`: 15-round inverse permutation $P_2^{-1}$ on a 64-byte `State512`.
+   - `Permute256P2x4(states)`: 4-way parallel forward permutation $P_2$ on `*[4][32]byte`.
+   - `Permute512P2x4(states)`: 4-way parallel forward permutation $P_2$ on `*[4][64]byte`.
+   - `InversePermute256P2x4(states)`: 4-way parallel inverse permutation $P_2^{-1}$ on `*[4][32]byte`.
+   - `InversePermute512P2x4(states)`: 4-way parallel inverse permutation $P_2^{-1}$ on `*[4][64]byte`.
 3. **Davies-Meyer Compression Functions**:
    - `DM256(m)`: 32-byte digest computed as $h = P_1(m) \oplus m$.
    - `DM512(m)`: 32-byte digest $\mathrm{trunc}(P_1(m) \oplus m)$ with the truncation of Section 4.1.1, Eq. (3) of ePrint 2023/794 (32-bit words $x_2 \parallel x_3 \parallel x_6 \parallel x_7 \parallel x_8 \parallel x_9 \parallel x_{12} \parallel x_{13}$).
 4. **Sum of Even-Mansour (SoEM22) PRFs**:
-   - `SoEM256(key, m)`: PRF with a 32-byte input, a 32-byte output, and a 64-byte key ($k_1 \parallel k_2$).
-   - `SoEM512(key, m)`: PRF with a 64-byte input, a 64-byte output, and a 128-byte key ($k_1 \parallel k_2$).
-   - `SoEM256x4` / `SoEM512x4`: 4-way batched PRF evaluation.
+   - `SoEM256(key, m)`: single-block PRF with a 32-byte input, a 32-byte output, and a 64-byte key ($k_1 \parallel k_2$).
+   - `SoEM512(key, m)`: single-block PRF with a 64-byte input, a 64-byte output, and a 128-byte key ($k_1 \parallel k_2$).
+   - `SoEM256x4(keys, inputs)`: 4-way parallel PRF evaluation over `*[4][64]byte` keys and `*[4][32]byte` inputs.
+   - `SoEM512x4(keys, inputs)`: 4-way parallel PRF evaluation over `*[4][128]byte` keys and `*[4][64]byte` inputs.
+5. **AES-128 Round & Block Primitives**:
+   - Types: `Block = [16]byte`, `Block4 = [64]byte`, `Key4 = [64]byte`.
+   - `AES128Round(state, roundKey)`: hardware-dispatched single-block AES round (`SubBytes` -> `ShiftRows` -> `MixColumns` -> `AddRoundKey`).
+   - `RoundHW(state, roundKey)`: alias for `AES128Round`.
+   - `Round(state, roundKey)`: constant-time bitsliced software single-block AES round.
+   - `AES128FinalRound(state, roundKey)`: hardware-dispatched single-block AES final round (`SubBytes` -> `ShiftRows` -> `AddRoundKey`, without `MixColumns`).
+   - `FinalRoundHW(state, roundKey)`: alias for `AES128FinalRound`.
+   - `FinalRound(state, roundKey)`: constant-time bitsliced software single-block AES final round.
+   - `AES128Round4(state, roundKeys)`: hardware-dispatched 4-block parallel AES round.
+   - `Round4HW(state, roundKeys)`: alias for `AES128Round4`.
+   - `AES128FinalRound4(state, roundKeys)`: hardware-dispatched 4-block parallel AES final round without `MixColumns`.
+   - `FinalRound4HW(state, roundKeys)`: alias for `AES128FinalRound4`.
+   - `XorBlock(dst, a, b)`: 16-byte XOR helper (`dst = a ^ b`).
+   - `XorBlock4(dst, a, b)`: 64-byte XOR helper (`dst = a ^ b`).
+   - `ExpandKey128(key, rk)`: AES-128 key schedule expansion to 11 round keys.
+   - `AES128EncryptBlock(rk, dst, src)`: full 10-round AES-128 single-block encryption.
+   - `AES128Encrypt4Blocks(rk, dst, src)`: full 10-round AES-128 4-block parallel encryption.
 
 Depends only on `golang.org/x/sys/cpu`.
 
@@ -69,13 +96,14 @@ The package automatically detects host CPU features:
 
 | Tier | Architectures | Instructions Used | Register Width (x4 functions) |
 | :--- | :--- | :--- | :--- |
-| **`avx512`** | Intel Ice Lake, Tiger Lake, Rocket Lake, Xeon Ice Lake-SP+; AMD Zen 4+ | `VAESENC`, `VAESENCLAST` | 512-bit ZMM (4 AES blocks) |
-| **`vaesavx2`** | Intel Alder Lake+ (no AVX-512); AMD Zen 3 | `VAESENC`, `VAESENCLAST` | 256-bit YMM (2 AES blocks) |
-| **`aesni`** | Intel Westmere+, AMD Bulldozer+ | `AESENC`, `AESENCLAST`, `AESDECLAST`, `AESIMC` | 128-bit XMM (1 AES block) |
+| **`avx512`** | Intel Ice Lake, Tiger Lake, Rocket Lake, Xeon Ice Lake-SP+; AMD Zen 4+ | `VAESENC`, `VAESENCLAST`, `VAESDECLAST`, `VAESIMC` | 512-bit ZMM (4 AES blocks) |
+| **`vaesavx2`** | Intel Alder Lake+ (no AVX-512); AMD Zen 3 | `VAESENC`, `VAESENCLAST`, `VAESDECLAST`, `VAESIMC` | 256-bit YMM (2 AES blocks) |
+| **`vex`** | Intel Sandy Bridge+, AMD Bulldozer+ (`AVX + AES-NI`) | 3-operand VEX XMM `VAESENC`, `VAESENCLAST`, `VAESDECLAST`, `VAESIMC`, `VPXOR` | 128-bit XMM (3-operand VEX) |
+| **`aesni`** | Intel Westmere+ (`AES-NI` without `AVX`) | Legacy SSE `AESENC`, `AESENCLAST`, `AESDECLAST`, `AESIMC`, `PXOR` | 128-bit XMM (2-operand SSE) |
 | **`arm64`** | ARMv8 with Cryptographic Extension, Apple Silicon, Graviton | `AESE`, `AESMC`, `AESD`, `AESIMC` | 128-bit NEON |
-| **`purego`** | All architectures | Portable pure Go table-based software (not constant-time) | Software scalar fallback |
+| **`purego`** | All architectures | Constant-time 64-bit bitsliced Boyar–Peralta S-box & linear layer | 64-bit bitsliced software (up to 4 blocks/word) |
 
-> **Note on single-block execution:** Single-block functions (`Permute256/512`, `InversePermute256/512` and their `P2` forms, `DM256/512`, `SoEM256/512`) route to the scalar AES-NI kernel on all x86 hardware tiers; their throughput is therefore identical across `aesni`, `vaesavx2`, and `avx512`. The `vaesavx2` and `avx512` vector tiers accelerate the `x4` batched functions.
+> **Note on single-block execution:** Single-block functions (`Permute256/512`, `InversePermute256/512` and their `P2` forms, `DM256/512`, `SoEM256/512`, `AES128Round`, `AES128FinalRound`, `AES128EncryptBlock`) use 3-operand VEX XMM instructions on `vex`, `vaesavx2`, and `avx512` tiers (eliminating destructive `MOVOA` register copies and legacy SSE transition penalties), and legacy 2-operand XMM instructions on `aesni`. `SoEM256` and `SoEM512` execute both $P_1(m \oplus k_1)$ and $P_2(m \oplus k_2)$ interleaved in a single assembly call.
 
 > **Note on VAES detection:** `golang.org/x/sys/cpu` reports VAES only together with AVX-512; the package reads CPUID leaf 7 directly so that VAES+AVX2 hosts (AMD Zen 3, Intel Alder Lake) activate the `vaesavx2` tier.
 
@@ -87,43 +115,55 @@ The package automatically detects host CPU features:
 
 Throughput comparison across execution tiers on the same physical CPU:
 
-| Operation | `purego` (Scalar) | `aesni` (128-bit XMM) | `vaesavx2` (256-bit YMM) | `avx512` (512-bit ZMM Fused) |
-| :--- | :---: | :---: | :---: | :---: |
-| **`Permute256`** | 58.7 MB/s (545.0 ns) | 2,086 MB/s (15.3 ns) | 2,087 MB/s (15.3 ns) | 2,073 MB/s (15.4 ns) |
-| **`Permute512`** | 48.5 MB/s (1,321 ns) | 3,920 MB/s (16.3 ns) | 3,919 MB/s (16.3 ns) | 3,909 MB/s (16.4 ns) |
-| **`InversePermute256`** | 54.1 MB/s (591.9 ns) | 1,472 MB/s (21.7 ns) | 1,474 MB/s (21.7 ns) | 1,469 MB/s (21.8 ns) |
-| **`InversePermute512`** | 27.8 MB/s (2,300 ns) | 1,723 MB/s (37.1 ns) | 1,719 MB/s (37.2 ns) | 1,717 MB/s (37.3 ns) |
-| **`DM256`** | 56.5 MB/s (566.1 ns) | 1,098 MB/s (29.1 ns) | 1,106 MB/s (28.9 ns) | 1,098 MB/s (29.1 ns) |
-| **`DM512`** | 47.2 MB/s (1,356 ns) | 1,338 MB/s (47.8 ns) | 1,400 MB/s (45.7 ns) | 1,328 MB/s (48.2 ns) |
-| **`SoEM256`** (single) | 28.0 MB/s (1,141 ns) | 457 MB/s (70.0 ns) | 458 MB/s (69.8 ns) | 460 MB/s (69.6 ns) |
-| **`SoEM512`** (single) | 23.1 MB/s (2,770 ns) | 511 MB/s (125.2 ns) | 515 MB/s (124.3 ns) | 505 MB/s (126.8 ns) |
-| **`Permute256x4`** | 58.4 MB/s (2,193 ns) | 4,628 MB/s (27.7 ns) | 4,336 MB/s (29.5 ns) | 4,315 MB/s (29.7 ns) |
-| **`Permute512x4`** | 48.2 MB/s (5,309 ns) | 3,841 MB/s (66.7 ns) | 4,849 MB/s (52.8 ns) | 5,080 MB/s (50.4 ns) |
-| **`SoEM256x4`** | 28.1 MB/s (4,562 ns) | 2,679 MB/s (47.8 ns) | 1,547 MB/s (82.8 ns) | 3,464 MB/s (37.0 ns) |
-| **`SoEM512x4`** | 23.2 MB/s (11,019 ns) | 1,940 MB/s (132.0 ns) | 1,634 MB/s (156.7 ns) | 3,259 MB/s (78.5 ns) |
+| Operation | `purego` (Bitsliced) | `aesni` (128-bit SSE) | `vex` (128-bit VEX) | `vaesavx2` (256-bit YMM) | `avx512` (512-bit ZMM) |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **`Permute256`** | 39.9 MB/s (801.7 ns) | 2,089 MB/s (15.3 ns) | 2,118 MB/s (15.1 ns) | 2,145 MB/s (14.9 ns) | 2,144 MB/s (14.9 ns) |
+| **`Permute512`** | 44.0 MB/s (1,454 ns) | 4,125 MB/s (15.5 ns) | 4,046 MB/s (15.8 ns) | 4,051 MB/s (15.8 ns) | 4,062 MB/s (15.8 ns) |
+| **`InversePermute256`** | 38.2 MB/s (837.5 ns) | 1,473 MB/s (21.7 ns) | 1,475 MB/s (21.7 ns) | 1,477 MB/s (21.7 ns) | 1,475 MB/s (21.7 ns) |
+| **`InversePermute512`** | 34.2 MB/s (1,870 ns) | 1,735 MB/s (36.9 ns) | 1,732 MB/s (37.0 ns) | 1,732 MB/s (36.9 ns) | 1,731 MB/s (37.0 ns) |
+| **`DM256`** | 39.4 MB/s (812.7 ns) | 1,088 MB/s (29.4 ns) | 1,142 MB/s (28.0 ns) | 1,149 MB/s (27.9 ns) | 1,151 MB/s (27.8 ns) |
+| **`DM512`** | 43.8 MB/s (1,462 ns) | 1,537 MB/s (41.6 ns) | 1,558 MB/s (41.1 ns) | 1,559 MB/s (41.1 ns) | 1,556 MB/s (41.1 ns) |
+| **`SoEM256`** (single) | 37.6 MB/s (850.9 ns) | 3,208 MB/s (9.98 ns) | 3,358 MB/s (9.53 ns) | 3,363 MB/s (9.52 ns) | 3,373 MB/s (9.49 ns) |
+| **`SoEM512`** (single) | 41.8 MB/s (1,530 ns) | 3,098 MB/s (20.7 ns) | 3,391 MB/s (18.9 ns) | 3,408 MB/s (18.8 ns) | 3,266 MB/s (19.6 ns) |
+| **`Permute256x4`** | 150.2 MB/s (852.0 ns) | 5,383 MB/s (23.8 ns) | 5,104 MB/s (25.1 ns) | 4,543 MB/s (28.2 ns) | 4,361 MB/s (29.4 ns) |
+| **`Permute512x4`** | 130.7 MB/s (1,959 ns) | 4,600 MB/s (55.7 ns) | 4,657 MB/s (55.0 ns) | 6,020 MB/s (42.5 ns) | 6,273 MB/s (40.8 ns) |
+| **`InversePermute256x4`** | 141.0 MB/s (907.5 ns) | 4,621 MB/s (27.7 ns) | 4,802 MB/s (26.7 ns) | 3,684 MB/s (34.8 ns) | 3,678 MB/s (34.8 ns) |
+| **`InversePermute512x4`** | 114.8 MB/s (2,230 ns) | 2,863 MB/s (89.4 ns) | 2,970 MB/s (86.2 ns) | 3,194 MB/s (80.2 ns) | 2,632 MB/s (97.3 ns) |
+| **`SoEM256x4`** | 72.4 MB/s (1,768 ns) | 2,667 MB/s (48.0 ns) | 2,603 MB/s (49.2 ns) | 3,432 MB/s (37.3 ns) | 3,270 MB/s (39.2 ns) |
+| **`SoEM512x4`** | 64.5 MB/s (3,967 ns) | 2,128 MB/s (120.3 ns) | 2,153 MB/s (118.9 ns) | 3,037 MB/s (84.3 ns) | 3,147 MB/s (81.4 ns) |
+| **`AES128Round`** | 315 MB/s (50.7 ns) | 6,999 MB/s (2.29 ns) | 7,678 MB/s (2.08 ns) | 7,654 MB/s (2.09 ns) | 7,685 MB/s (2.08 ns) |
+| **`AES128Round4`** | 739 MB/s (86.6 ns) | 16,428 MB/s (3.90 ns) | 18,806 MB/s (3.40 ns) | 21,711 MB/s (2.95 ns) | 25,427 MB/s (2.52 ns) |
+| **`ExpandKey128`** | 550 MB/s (320.2 ns) | 1,155 MB/s (152.4 ns) | 1,169 MB/s (150.5 ns) | 1,171 MB/s (150.2 ns) | 1,162 MB/s (151.4 ns) |
+| **`AES128EncryptBlock`** | 34.6 MB/s (461.9 ns) | 1,902 MB/s (8.41 ns) | 1,918 MB/s (8.34 ns) | 1,917 MB/s (8.35 ns) | 1,911 MB/s (8.37 ns) |
+| **`AES128Encrypt4Blocks`** | 125.5 MB/s (510.0 ns) | 7,473 MB/s (8.56 ns) | 7,469 MB/s (8.57 ns) | 7,449 MB/s (8.59 ns) | 7,453 MB/s (8.59 ns) |
 
 All operations: 0 B/op, 0 allocs/op.
 
-On this host the `vaesavx2` tier is slower than `aesni` for `Permute256x4`, `SoEM256x4`, and `SoEM512x4`. The automatic selection still picks `vaesavx2` on hosts with VAES and AVX2 but without AVX-512; `AREION_FORCE_TIER=aesni` or `SetTier("aesni")` selects the AES-NI kernels.
-
 ### 2. Graviton 4 (Neoverse V2, 16 vCPUs, ARM64)
 
-Measured on Graviton 4 (ARMv8 Cryptographic Extension):
+Measured on Graviton 4 (`purego` bitsliced fallback vs `arm64` ARMv8 Cryptographic Extension):
 
-| Operation | Throughput | Latency |
+| Operation | `purego` (Bitsliced) | `arm64` (128-bit NEON) |
 | :--- | :---: | :---: |
-| **`Permute256`** | 656.3 MB/s | 48.8 ns/op |
-| **`Permute512`** | 1,236.7 MB/s | 51.8 ns/op |
-| **`InversePermute256`** | 656.0 MB/s | 48.8 ns/op |
-| **`InversePermute512`** | 692.1 MB/s | 92.5 ns/op |
-| **`DM256`** | 523.4 MB/s | 61.1 ns/op |
-| **`DM512`** | 787.4 MB/s | 81.3 ns/op |
-| **`SoEM256`** (single) | 265.5 MB/s | 120.5 ns/op |
-| **`SoEM512`** (single) | 306.3 MB/s | 209.0 ns/op |
-| **`Permute256x4`** | 1,745.3 MB/s | 73.3 ns/op |
-| **`Permute512x4`** | 2,342.9 MB/s | 109.3 ns/op |
-| **`SoEM256x4`** | 306.8 MB/s | 417.2 ns/op |
-| **`SoEM512x4`** | 327.3 MB/s | 782.2 ns/op |
+| **`Permute256`** | 35.7 MB/s (897.2 ns) | 928.1 MB/s (34.5 ns) |
+| **`Permute512`** | 40.3 MB/s (1,587 ns) | 1,570.8 MB/s (40.7 ns) |
+| **`InversePermute256`** | 35.0 MB/s (915.4 ns) | 769.2 MB/s (41.6 ns) |
+| **`InversePermute512`** | 30.7 MB/s (2,085 ns) | 1,031.4 MB/s (62.1 ns) |
+| **`DM256`** | 35.1 MB/s (913.1 ns) | 653.0 MB/s (49.0 ns) |
+| **`DM512`** | 39.4 MB/s (1,623 ns) | 952.6 MB/s (67.2 ns) |
+| **`SoEM256`** (single) | 33.8 MB/s (946.2 ns) | 837.8 MB/s (38.2 ns) |
+| **`SoEM512`** (single) | 37.7 MB/s (1,698 ns) | 1,133.0 MB/s (56.5 ns) |
+| **`Permute256x4`** | 134.3 MB/s (953.1 ns) | 3,052.2 MB/s (41.9 ns) |
+| **`Permute512x4`** | 118.2 MB/s (2,165 ns) | 3,448.8 MB/s (74.2 ns) |
+| **`InversePermute256x4`** | 131.3 MB/s (974.7 ns) | 2,573.2 MB/s (49.7 ns) |
+| **`InversePermute512x4`** | 100.3 MB/s (2,551 ns) | 2,674.1 MB/s (95.7 ns) |
+| **`SoEM256x4`** | 65.4 MB/s (1,958 ns) | 1,760.0 MB/s (72.7 ns) |
+| **`SoEM512x4`** | 57.4 MB/s (4,462 ns) | 1,292.6 MB/s (198.0 ns) |
+| **`AES128Round`** | 281 MB/s (56.9 ns) | 4,452.3 MB/s (3.59 ns) |
+| **`AES128Round4`** | 712 MB/s (89.9 ns) | 16,047.6 MB/s (3.99 ns) |
+| **`ExpandKey128`** | 480 MB/s (366.6 ns) | 823.2 MB/s (213.8 ns) |
+| **`AES128EncryptBlock`** | 32.8 MB/s (488.3 ns) | 1,589.9 MB/s (10.1 ns) |
+| **`AES128Encrypt4Blocks`** | 117.3 MB/s (545.8 ns) | 6,287.1 MB/s (10.2 ns) |
 
 All operations: 0 B/op, 0 allocs/op.
 
@@ -148,8 +188,11 @@ The environment variable `AREION_FORCE_TIER` forces the execution tier:
 # Portable Go scalar fallback:
 AREION_FORCE_TIER=purego go test -v -count=1 ./...
 
-# AES-NI (128-bit XMM):
+# AES-NI (128-bit legacy SSE XMM):
 AREION_FORCE_TIER=aesni go test -v -count=1 ./...
+
+# VEX (128-bit 3-operand VEX XMM, AVX + AES-NI):
+AREION_FORCE_TIER=vex go test -v -count=1 ./...
 
 # 256-bit YMM Vector AES (AVX2 + VAES):
 AREION_FORCE_TIER=vaesavx2 go test -v -count=1 ./...
@@ -169,6 +212,7 @@ go test -run '^$' -bench=. -benchmem ./...
 # Benchmark individual tiers:
 AREION_FORCE_TIER=purego go test -run '^$' -bench=. -benchmem -benchtime=500ms -count=1 ./...
 AREION_FORCE_TIER=aesni go test -run '^$' -bench=. -benchmem -benchtime=500ms -count=1 ./...
+AREION_FORCE_TIER=vex go test -run '^$' -bench=. -benchmem -benchtime=500ms -count=1 ./...
 AREION_FORCE_TIER=vaesavx2 go test -run '^$' -bench=. -benchmem -benchtime=500ms -count=1 ./...
 AREION_FORCE_TIER=avx512 go test -run '^$' -bench=. -benchmem -benchtime=500ms -count=1 ./...
 AREION_FORCE_TIER=arm64 go test -run '^$' -bench=. -benchmem -benchtime=500ms -count=1 ./...
@@ -237,7 +281,5 @@ func main() {
 Dual-licensed under either:
 - [Apache License, Version 2.0](LICENSE-APACHE)
 - [MIT License](LICENSE-MIT)
-
-Includes code derived from Frank Denis's [go-aes](https://github.com/jedisct1/go-aes) (MIT License).
 
 Copyright (c) 2026 Andrey Kuvshinov.
