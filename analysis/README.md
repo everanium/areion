@@ -185,7 +185,7 @@ On the direct inverse pair `P1_r⁻¹(y) ⊕ P2_r⁻¹(y ⊕ δ)`:
 - Bounds on probabilities: the conversion from active S-boxes is heuristic (sections G, H, I), differentials and linear hulls can collect several trails, and the boomerang estimates leave out the gain and the incompatibilities of the switch between the halves (section I).
 - Linear trails of Areion-512 beyond 10 rounds and single-permutation differential trails beyond 7 (unweighted) or 10 rounds (weighted): only window lower bounds here.
 - Integral properties above order 5, including the paper's distinguishers with nearly every byte active.
-- The independence of `P1` and `P2` itself.
+- The independence of `P1` and `P2` beyond the reduced-round dissolution and cross-composition bounds of sections J and K.
 
 ## Reproducing
 
