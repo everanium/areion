@@ -405,6 +405,28 @@ def c_solvers(q, out):
         raise SystemExit(f"SAT and HiGHS disagree: {', '.join(bad)}")
 
 
+def c_dissolve(q, out):
+    feas_d = BUILD / f"feas_dissolve_p1{RC7P1}_{source_hash()}.json"
+    generate(feas_d, [str(GOBIN), "feas-dissolve"],
+             note="building ladder column feasibility tables (once per program version; a few seconds)")
+    os.environ["AREION_FEAS_DISSOLVE"] = str(feas_d)
+    r256, r512 = (5, 6) if q else (10, 15)
+    if ROUNDS is not None:
+        r256, r512 = min(r256, ROUNDS), min(r512, ROUNDS)
+    sh(py("dissolve.py", "--r256", r256, "--r512", r512, "--jobs", JOBS,
+          "--gobin", GOBIN, "--trace-n", 25 if q else 100), out)
+    sh(go("dissolve", r256, r512, *(["quick"] if q else [])), out)
+
+
+def c_inverse(q, out):
+    r256, r512 = (5, 6) if q else (10, 15)
+    if ROUNDS is not None:
+        r256, r512 = min(r256, ROUNDS), min(r512, ROUNDS)
+    sh(go("cross", r256, r512, *(["quick"] if q else [])), out)
+    sh(py("inverse_model.py", "--r256", r256, "--r512", r512, "--jobs", JOBS,
+          "--gobin", GOBIN, "--trace-n", 50 if q else 200), out)
+
+
 CHECKS = {
     # name: (function, needs feas.json, needs C, description, full runtime, quick runtime)
     "ref": (c_ref, False, False, "reference rounds and oracle match the library", "seconds", "seconds"),
@@ -429,6 +451,10 @@ CHECKS = {
                  "--solver highs --rounds 10 --linear-rounds 8: about 20 h; resumes", "a few minutes"),
     "solvers": (c_solvers, False, False, "SAT and HiGHS minima agree on the round counts both reach (H, I)",
                 "about 15 min (more as the SAT tables grow)", "a few minutes"),
+    "dissolve": (c_dissolve, False, False, "parameterized P2^(k) dependence-dissolution spectrum across rounds (J)",
+                 "about 2 min", "about 15 s"),
+    "inverse": (c_inverse, True, False, "InversePermute backward & cross-composition C_r(x) = P2_r^-1(P1_r(x)) analysis (K)",
+                "about 3 min", "about 20 s"),
 }
 HEAVY = ("linear", "boomerang", "weighted")  # skipped by 'all' without --quick: run them on their own
 
@@ -436,7 +462,7 @@ HEAVY = ("linear", "boomerang", "weighted")  # skipped by 'all' without --quick:
 def run(name, quick, record):
     fn, feas, c, desc, _, _ = CHECKS[name]
     form = ("" if RC7P2 == "shift" else f" --rc7p2 {RC7P2}") + ("" if RC7P1 == "shift" else f" --rc7p1 {RC7P1}")
-    if name in HEAVY and ROUNDS is not None:
+    if (name in HEAVY or name in ("dissolve", "inverse")) and ROUNDS is not None:
         form += f" --rounds {ROUNDS}"
     if name == "weighted" and LINEAR_ROUNDS is not None:
         form += f" --linear-rounds {LINEAR_ROUNDS}"

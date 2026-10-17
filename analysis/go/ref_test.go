@@ -27,6 +27,17 @@ func TestReferenceMatchesLibrary(t *testing.T) {
 				t.Fatalf("Areion-256 reference differs from the library")
 			}
 		}
+		for _, c := range []struct {
+			lib func(*State256)
+			rc  *[15][16]byte
+		}{{areion.InversePermute256, &roundConstantsP1}, {areion.InversePermute256P2, &roundConstantsP2}} {
+			a, b := s, s
+			c.lib(&a)
+			areion256InversePermuteSoftwareRC(&b, c.rc)
+			if a != b {
+				t.Fatalf("Areion-256 inverse reference differs from the library")
+			}
+		}
 		var u State512
 		for i := range u {
 			u[i] = byte(rng.Uint32())
@@ -40,6 +51,17 @@ func TestReferenceMatchesLibrary(t *testing.T) {
 			areion512PermuteSoftwareRC(&b, c.rc)
 			if a != b {
 				t.Fatalf("Areion-512 reference differs from the library")
+			}
+		}
+		for _, c := range []struct {
+			lib func(*State512)
+			rc  *[15][16]byte
+		}{{areion.InversePermute512, &roundConstantsP1}, {areion.InversePermute512P2, &roundConstantsP2}} {
+			a, b := u, u
+			c.lib(&a)
+			areion512InversePermuteSoftwareRC(&b, c.rc)
+			if a != b {
+				t.Fatalf("Areion-512 inverse reference differs from the library")
 			}
 		}
 	}

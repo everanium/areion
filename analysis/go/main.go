@@ -32,10 +32,18 @@ var usage = `subcommands:
                                  Lambda-set sums of order 1..maxorder (default 3)
   chain                          exact correlations and probabilities of the S-box
                                  chain of F3 in Areion-512, over every constant byte
+  feas-dissolve                  ladder definitions and column feasibility tables (JSON)
+  trace-dissolve <256|512> <level> <rounds> <n>
+                                 oracle activity traces for ladder level (JSON lines)
+  dissolve [r256 r512 [quick]]   parameterized P2^(k) dependence-dissolution spectrum
+  check-inv                      instrumented InversePermute == library and round-trip
+  trace-inv <256|512> <shift|pi> <rounds> <n>
+                                 backward oracle activity traces (JSON lines)
+  cross [r256 r512 [quick]]      InversePermute & cross-composition C_r(x) delta analysis
 The optional shift|pi selects the RC7 form of P2 (default shift, the library's).
 
 AREION_RC7P1=pi switches P1 to the pi form of RC7 for every subcommand
-except check, kat and consts.
+except check, check-inv, kat and consts.
 `
 
 func main() {
@@ -44,7 +52,7 @@ func main() {
 		os.Exit(2)
 	}
 	switch os.Args[1] {
-	case "check", "kat", "consts":
+	case "check", "check-inv", "kat", "consts":
 	default:
 		applyRC7P1()
 	}
@@ -82,6 +90,24 @@ func main() {
 		integralMain()
 	case "chain":
 		chainMain()
+	case "feas-dissolve":
+		feasDissolve()
+	case "trace-dissolve":
+		w, _ := strconv.Atoi(os.Args[2])
+		r, _ := strconv.Atoi(os.Args[4])
+		n, _ := strconv.Atoi(os.Args[5])
+		traceDissolve(w, os.Args[3], r, n)
+	case "dissolve":
+		dissolveMain()
+	case "check-inv":
+		checkInv()
+	case "trace-inv":
+		w, _ := strconv.Atoi(os.Args[2])
+		r, _ := strconv.Atoi(os.Args[4])
+		n, _ := strconv.Atoi(os.Args[5])
+		traceInv(w, os.Args[3], r, n)
+	case "cross":
+		crossMain()
 	default:
 		fmt.Fprint(os.Stderr, usage)
 		os.Exit(2)

@@ -1,0 +1,390 @@
+$ python3 analysis/run.py inverse
+instrumented InversePermute vs library (2000 x {256 P1, 256 P2, 512 P1, 512 P2}): 0 mismatches
+reduced-round P_r^-1(P_r(x)) == x (r=1..10 for 256, r=1..15 for 512): 0 mismatches
+algebraic cross-composition check (Areion-512, 500 x r=1..15): d=1 closed-form mismatches=0, d=2 constant MC^2(Delta_{r-1}) mismatches=0
+
+== Track 2.1: Cross-Composition C_r(x) = P2_r^-1(P1_r(x)) Intermediate-State & End-to-End Deltas (samples=262144)
+Areion-256 C_1  end-to-end (k=0, d= 1) | invol(C_r^2=id)=1.000 | zeroB=16/32 constNZ= 0/32 halfB(<=128)= 0/32 fullB(256)=16/32 miss= 4080 maxChi(nonConst)=     340.7
+Areion-256 C_2  end-to-end (k=0, d= 2) | invol(C_r^2=id)=0.000 | zeroB= 0/32 constNZ= 0/32 halfB(<=128)= 0/32 fullB(256)=32/32 miss=    0 maxChi(nonConst)=     301.4
+Areion-256 C_3  end-to-end (k=0, d= 3) | invol(C_r^2=id)=0.000 | zeroB= 0/32 constNZ= 0/32 halfB(<=128)= 0/32 fullB(256)=32/32 miss=    0 maxChi(nonConst)=     293.4
+Areion-256 C_4  end-to-end (k=0, d= 4) | invol(C_r^2=id)=0.000 | zeroB= 0/32 constNZ= 0/32 halfB(<=128)= 0/32 fullB(256)=32/32 miss=    0 maxChi(nonConst)=     325.5
+Areion-256 C_5  end-to-end (k=0, d= 5) | invol(C_r^2=id)=0.000 | zeroB= 0/32 constNZ= 0/32 halfB(<=128)= 0/32 fullB(256)=32/32 miss=    0 maxChi(nonConst)=     295.3
+Areion-256 C_6  end-to-end (k=0, d= 6) | invol(C_r^2=id)=0.000 | zeroB= 0/32 constNZ= 0/32 halfB(<=128)= 0/32 fullB(256)=32/32 miss=    0 maxChi(nonConst)=     299.5
+Areion-256 C_7  end-to-end (k=0, d= 7) | invol(C_r^2=id)=0.000 | zeroB= 0/32 constNZ= 0/32 halfB(<=128)= 0/32 fullB(256)=32/32 miss=    0 maxChi(nonConst)=     315.4
+Areion-256 C_8  end-to-end (k=0, d= 8) | invol(C_r^2=id)=0.000 | zeroB= 0/32 constNZ= 0/32 halfB(<=128)= 0/32 fullB(256)=32/32 miss=    0 maxChi(nonConst)=     316.4
+Areion-256 C_9  end-to-end (k=0, d= 9) | invol(C_r^2=id)=0.000 | zeroB= 0/32 constNZ= 0/32 halfB(<=128)= 0/32 fullB(256)=32/32 miss=    0 maxChi(nonConst)=     294.1
+Areion-256 C_10 end-to-end (k=0, d=10) | invol(C_r^2=id)=0.000 | zeroB= 0/32 constNZ= 0/32 halfB(<=128)= 0/32 fullB(256)=32/32 miss=    0 maxChi(nonConst)=     303.1
+  -- Internal boundary trajectory delta_{10, k}(x) = s_k^(1)(x) ^ s_k^(2)(x) for k = 9..0:
+     k= 9 (bwd depth d= 1): zeroB=16/32 constNZ= 0/32 halfB(<=128)= 0/32 fullB(256)=16/32 miss= 4080 maxChi(nonConst)=     315.3
+     k= 8 (bwd depth d= 2): zeroB= 0/32 constNZ= 0/32 halfB(<=128)= 0/32 fullB(256)=32/32 miss=    0 maxChi(nonConst)=     313.8
+     k= 7 (bwd depth d= 3): zeroB= 0/32 constNZ= 0/32 halfB(<=128)= 0/32 fullB(256)=32/32 miss=    0 maxChi(nonConst)=     302.9
+     k= 6 (bwd depth d= 4): zeroB= 0/32 constNZ= 0/32 halfB(<=128)= 0/32 fullB(256)=32/32 miss=    0 maxChi(nonConst)=     300.0
+     k= 5 (bwd depth d= 5): zeroB= 0/32 constNZ= 0/32 halfB(<=128)= 0/32 fullB(256)=32/32 miss=    0 maxChi(nonConst)=     297.9
+     k= 4 (bwd depth d= 6): zeroB= 0/32 constNZ= 0/32 halfB(<=128)= 0/32 fullB(256)=32/32 miss=    0 maxChi(nonConst)=     316.1
+     k= 3 (bwd depth d= 7): zeroB= 0/32 constNZ= 0/32 halfB(<=128)= 0/32 fullB(256)=32/32 miss=    0 maxChi(nonConst)=     308.2
+     k= 2 (bwd depth d= 8): zeroB= 0/32 constNZ= 0/32 halfB(<=128)= 0/32 fullB(256)=32/32 miss=    0 maxChi(nonConst)=     316.1
+     k= 1 (bwd depth d= 9): zeroB= 0/32 constNZ= 0/32 halfB(<=128)= 0/32 fullB(256)=32/32 miss=    0 maxChi(nonConst)=     343.5
+     k= 0 (bwd depth d=10): zeroB= 0/32 constNZ= 0/32 halfB(<=128)= 0/32 fullB(256)=32/32 miss=    0 maxChi(nonConst)=     303.1
+Areion-512 C_1  end-to-end (k=0, d= 1) | invol(C_r^2=id)=1.000 | zeroB=32/64 constNZ=16/64 halfB(<=128)=16/64 fullB(256)= 0/64 miss=14304 maxChi(nonConst)=  271170.9
+Areion-512 C_2  end-to-end (k=0, d= 2) | invol(C_r^2=id)=1.000 | zeroB= 0/64 constNZ=16/64 halfB(<=128)=48/64 fullB(256)= 0/64 miss=10272 maxChi(nonConst)=  271185.1
+Areion-512 C_3  end-to-end (k=0, d= 3) | invol(C_r^2=id)=0.000 | zeroB= 0/64 constNZ= 0/64 halfB(<=128)= 0/64 fullB(256)=38/64 miss= 1489 maxChi(nonConst)=  283943.8
+Areion-512 C_4  end-to-end (k=0, d= 4) | invol(C_r^2=id)=0.000 | zeroB= 0/64 constNZ= 0/64 halfB(<=128)= 0/64 fullB(256)=64/64 miss=    0 maxChi(nonConst)=     303.5
+Areion-512 C_5  end-to-end (k=0, d= 5) | invol(C_r^2=id)=0.000 | zeroB= 0/64 constNZ= 0/64 halfB(<=128)= 0/64 fullB(256)=64/64 miss=    0 maxChi(nonConst)=     302.4
+Areion-512 C_6  end-to-end (k=0, d= 6) | invol(C_r^2=id)=0.000 | zeroB= 0/64 constNZ= 0/64 halfB(<=128)= 0/64 fullB(256)=64/64 miss=    0 maxChi(nonConst)=     318.4
+Areion-512 C_7  end-to-end (k=0, d= 7) | invol(C_r^2=id)=0.000 | zeroB= 0/64 constNZ= 0/64 halfB(<=128)= 0/64 fullB(256)=64/64 miss=    0 maxChi(nonConst)=     301.4
+Areion-512 C_8  end-to-end (k=0, d= 8) | invol(C_r^2=id)=0.000 | zeroB= 0/64 constNZ= 0/64 halfB(<=128)= 0/64 fullB(256)=64/64 miss=    0 maxChi(nonConst)=     304.0
+Areion-512 C_9  end-to-end (k=0, d= 9) | invol(C_r^2=id)=0.000 | zeroB= 0/64 constNZ= 0/64 halfB(<=128)= 0/64 fullB(256)=64/64 miss=    0 maxChi(nonConst)=     310.8
+Areion-512 C_10 end-to-end (k=0, d=10) | invol(C_r^2=id)=0.000 | zeroB= 0/64 constNZ= 0/64 halfB(<=128)= 0/64 fullB(256)=64/64 miss=    0 maxChi(nonConst)=     295.0
+Areion-512 C_11 end-to-end (k=0, d=11) | invol(C_r^2=id)=0.000 | zeroB= 0/64 constNZ= 0/64 halfB(<=128)= 0/64 fullB(256)=64/64 miss=    0 maxChi(nonConst)=     323.2
+Areion-512 C_12 end-to-end (k=0, d=12) | invol(C_r^2=id)=0.000 | zeroB= 0/64 constNZ= 0/64 halfB(<=128)= 0/64 fullB(256)=64/64 miss=    0 maxChi(nonConst)=     326.7
+Areion-512 C_13 end-to-end (k=0, d=13) | invol(C_r^2=id)=0.000 | zeroB= 0/64 constNZ= 0/64 halfB(<=128)= 0/64 fullB(256)=64/64 miss=    0 maxChi(nonConst)=     314.8
+Areion-512 C_14 end-to-end (k=0, d=14) | invol(C_r^2=id)=0.000 | zeroB= 0/64 constNZ= 0/64 halfB(<=128)= 0/64 fullB(256)=64/64 miss=    0 maxChi(nonConst)=     308.8
+Areion-512 C_15 end-to-end (k=0, d=15) | invol(C_r^2=id)=0.000 | zeroB= 0/64 constNZ= 0/64 halfB(<=128)= 0/64 fullB(256)=64/64 miss=    0 maxChi(nonConst)=     303.9
+  -- Internal boundary trajectory delta_{15, k}(x) = s_k^(1)(x) ^ s_k^(2)(x) for k = 14..0:
+     k=14 (bwd depth d= 1): zeroB=33/64 constNZ=15/64 halfB(<=128)=16/64 fullB(256)= 0/64 miss=14304 maxChi(nonConst)=  270839.2
+     k=13 (bwd depth d= 2): zeroB= 1/64 constNZ=16/64 halfB(<=128)=47/64 fullB(256)= 0/64 miss=10398 maxChi(nonConst)=  271375.5
+     k=12 (bwd depth d= 3): zeroB= 0/64 constNZ= 0/64 halfB(<=128)= 1/64 fullB(256)=41/64 miss= 1558 maxChi(nonConst)=  315926.6
+     k=11 (bwd depth d= 4): zeroB= 0/64 constNZ= 0/64 halfB(<=128)= 0/64 fullB(256)=64/64 miss=    0 maxChi(nonConst)=     293.9
+     k=10 (bwd depth d= 5): zeroB= 0/64 constNZ= 0/64 halfB(<=128)= 0/64 fullB(256)=64/64 miss=    0 maxChi(nonConst)=     308.3
+     k= 9 (bwd depth d= 6): zeroB= 0/64 constNZ= 0/64 halfB(<=128)= 0/64 fullB(256)=64/64 miss=    0 maxChi(nonConst)=     299.3
+     k= 8 (bwd depth d= 7): zeroB= 0/64 constNZ= 0/64 halfB(<=128)= 0/64 fullB(256)=64/64 miss=    0 maxChi(nonConst)=     307.3
+     k= 7 (bwd depth d= 8): zeroB= 0/64 constNZ= 0/64 halfB(<=128)= 0/64 fullB(256)=64/64 miss=    0 maxChi(nonConst)=     305.5
+     k= 6 (bwd depth d= 9): zeroB= 0/64 constNZ= 0/64 halfB(<=128)= 0/64 fullB(256)=64/64 miss=    0 maxChi(nonConst)=     318.6
+     k= 5 (bwd depth d=10): zeroB= 0/64 constNZ= 0/64 halfB(<=128)= 0/64 fullB(256)=64/64 miss=    0 maxChi(nonConst)=     328.5
+     k= 4 (bwd depth d=11): zeroB= 0/64 constNZ= 0/64 halfB(<=128)= 0/64 fullB(256)=64/64 miss=    0 maxChi(nonConst)=     306.4
+     k= 3 (bwd depth d=12): zeroB= 0/64 constNZ= 0/64 halfB(<=128)= 0/64 fullB(256)=64/64 miss=    0 maxChi(nonConst)=     324.9
+     k= 2 (bwd depth d=13): zeroB= 0/64 constNZ= 0/64 halfB(<=128)= 0/64 fullB(256)=64/64 miss=    0 maxChi(nonConst)=     317.4
+     k= 1 (bwd depth d=14): zeroB= 0/64 constNZ= 0/64 halfB(<=128)= 0/64 fullB(256)=64/64 miss=    0 maxChi(nonConst)=     317.1
+     k= 0 (bwd depth d=15): zeroB= 0/64 constNZ= 0/64 halfB(<=128)= 0/64 fullB(256)=64/64 miss=    0 maxChi(nonConst)=     303.9
+
+== Track 2.2: Cross-Composition Differential Avalanche C_r(x) ^ C_r(x ^ e_i) Across Ladder Levels (pairs=1024)
+Areion-256 | L0   ident        | C_1  | idBits=256/256 meanHW=0.0039 minHW=0.0039 maxBias=0.5000
+Areion-256 | L0   ident        | C_2  | idBits=256/256 meanHW=0.0039 minHW=0.0039 maxBias=0.5000
+Areion-256 | L0   ident        | C_3  | idBits=256/256 meanHW=0.0039 minHW=0.0039 maxBias=0.5000
+Areion-256 | L0   ident        | C_4  | idBits=256/256 meanHW=0.0039 minHW=0.0039 maxBias=0.5000
+Areion-256 | L0   ident        | C_5  | idBits=256/256 meanHW=0.0039 minHW=0.0039 maxBias=0.5000
+Areion-256 | L0   ident        | C_6  | idBits=256/256 meanHW=0.0039 minHW=0.0039 maxBias=0.5000
+Areion-256 | L0   ident        | C_7  | idBits=256/256 meanHW=0.0039 minHW=0.0039 maxBias=0.5000
+Areion-256 | L0   ident        | C_8  | idBits=256/256 meanHW=0.0039 minHW=0.0039 maxBias=0.5000
+Areion-256 | L0   ident        | C_9  | idBits=256/256 meanHW=0.0039 minHW=0.0039 maxBias=0.5000
+Areion-256 | L0   ident        | C_10 | idBits=256/256 meanHW=0.0039 minHW=0.0039 maxBias=0.5000
+Areion-256 | L1   rot1         | C_1  | idBits=128/256 meanHW=0.1289 minHW=0.0039 maxBias=0.5000
+Areion-256 | L1   rot1         | C_2  | idBits=  0/256 meanHW=0.4384 minHW=0.3729 maxBias=0.5000
+Areion-256 | L1   rot1         | C_3  | idBits=  0/256 meanHW=0.5002 minHW=0.4974 maxBias=0.0645
+Areion-256 | L1   rot1         | C_4  | idBits=  0/256 meanHW=0.4999 minHW=0.4970 maxBias=0.0645
+Areion-256 | L1   rot1         | C_5  | idBits=  0/256 meanHW=0.4999 minHW=0.4967 maxBias=0.0684
+Areion-256 | L1   rot1         | C_6  | idBits=  0/256 meanHW=0.5000 minHW=0.4974 maxBias=0.0693
+Areion-256 | L1   rot1         | C_7  | idBits=  0/256 meanHW=0.4999 minHW=0.4978 maxBias=0.0703
+Areion-256 | L1   rot1         | C_8  | idBits=  0/256 meanHW=0.5000 minHW=0.4974 maxBias=0.0762
+Areion-256 | L1   rot1         | C_9  | idBits=  0/256 meanHW=0.5000 minHW=0.4977 maxBias=0.0703
+Areion-256 | L1   rot1         | C_10 | idBits=  0/256 meanHW=0.4999 minHW=0.4966 maxBias=0.0713
+Areion-256 | L2a  onebyte_r0   | C_1  | idBits=224/256 meanHW=0.0117 minHW=0.0039 maxBias=0.5000
+Areion-256 | L2a  onebyte_r0   | C_2  | idBits=224/256 meanHW=0.0117 minHW=0.0039 maxBias=0.5000
+Areion-256 | L2a  onebyte_r0   | C_3  | idBits=224/256 meanHW=0.0117 minHW=0.0039 maxBias=0.5000
+Areion-256 | L2a  onebyte_r0   | C_4  | idBits=224/256 meanHW=0.0117 minHW=0.0039 maxBias=0.5000
+Areion-256 | L2a  onebyte_r0   | C_5  | idBits=224/256 meanHW=0.0117 minHW=0.0039 maxBias=0.5000
+Areion-256 | L2a  onebyte_r0   | C_6  | idBits=224/256 meanHW=0.0117 minHW=0.0039 maxBias=0.5000
+Areion-256 | L2a  onebyte_r0   | C_7  | idBits=224/256 meanHW=0.0117 minHW=0.0039 maxBias=0.5000
+Areion-256 | L2a  onebyte_r0   | C_8  | idBits=224/256 meanHW=0.0117 minHW=0.0039 maxBias=0.5000
+Areion-256 | L2a  onebyte_r0   | C_9  | idBits=224/256 meanHW=0.0117 minHW=0.0039 maxBias=0.5000
+Areion-256 | L2a  onebyte_r0   | C_10 | idBits=224/256 meanHW=0.0117 minHW=0.0039 maxBias=0.5000
+Areion-256 | L2b  oneround_r0  | C_1  | idBits=128/256 meanHW=0.1289 minHW=0.0039 maxBias=0.5000
+Areion-256 | L2b  oneround_r0  | C_2  | idBits=128/256 meanHW=0.1289 minHW=0.0039 maxBias=0.5000
+Areion-256 | L2b  oneround_r0  | C_3  | idBits=128/256 meanHW=0.1289 minHW=0.0039 maxBias=0.5000
+Areion-256 | L2b  oneround_r0  | C_4  | idBits=128/256 meanHW=0.1289 minHW=0.0039 maxBias=0.5000
+Areion-256 | L2b  oneround_r0  | C_5  | idBits=128/256 meanHW=0.1290 minHW=0.0039 maxBias=0.5000
+Areion-256 | L2b  oneround_r0  | C_6  | idBits=128/256 meanHW=0.1289 minHW=0.0039 maxBias=0.5000
+Areion-256 | L2b  oneround_r0  | C_7  | idBits=128/256 meanHW=0.1289 minHW=0.0039 maxBias=0.5000
+Areion-256 | L2b  oneround_r0  | C_8  | idBits=128/256 meanHW=0.1289 minHW=0.0039 maxBias=0.5000
+Areion-256 | L2b  oneround_r0  | C_9  | idBits=128/256 meanHW=0.1290 minHW=0.0039 maxBias=0.5000
+Areion-256 | L2b  oneround_r0  | C_10 | idBits=128/256 meanHW=0.1289 minHW=0.0039 maxBias=0.5000
+Areion-256 | L3a  sparse1      | C_1  | idBits=224/256 meanHW=0.0117 minHW=0.0039 maxBias=0.5000
+Areion-256 | L3a  sparse1      | C_2  | idBits= 96/256 meanHW=0.1201 minHW=0.0039 maxBias=0.5000
+Areion-256 | L3a  sparse1      | C_3  | idBits=  0/256 meanHW=0.2823 minHW=0.2775 maxBias=0.5000
+Areion-256 | L3a  sparse1      | C_4  | idBits=  0/256 meanHW=0.4070 minHW=0.4039 maxBias=0.5000
+Areion-256 | L3a  sparse1      | C_5  | idBits=  0/256 meanHW=0.5001 minHW=0.4974 maxBias=0.0713
+Areion-256 | L3a  sparse1      | C_6  | idBits=  0/256 meanHW=0.5000 minHW=0.4973 maxBias=0.0625
+Areion-256 | L3a  sparse1      | C_7  | idBits=  0/256 meanHW=0.5001 minHW=0.4978 maxBias=0.0713
+Areion-256 | L3a  sparse1      | C_8  | idBits=  0/256 meanHW=0.5001 minHW=0.4972 maxBias=0.0732
+Areion-256 | L3a  sparse1      | C_9  | idBits=  0/256 meanHW=0.5001 minHW=0.4977 maxBias=0.0664
+Areion-256 | L3a  sparse1      | C_10 | idBits=  0/256 meanHW=0.5000 minHW=0.4967 maxBias=0.0752
+Areion-256 | L3b  sparse4      | C_1  | idBits=224/256 meanHW=0.0352 minHW=0.0039 maxBias=0.5000
+Areion-256 | L3b  sparse4      | C_2  | idBits= 96/256 meanHW=0.2512 minHW=0.0039 maxBias=0.5000
+Areion-256 | L3b  sparse4      | C_3  | idBits=  0/256 meanHW=0.4528 minHW=0.3726 maxBias=0.5000
+Areion-256 | L3b  sparse4      | C_4  | idBits=  0/256 meanHW=0.4999 minHW=0.4974 maxBias=0.0732
+Areion-256 | L3b  sparse4      | C_5  | idBits=  0/256 meanHW=0.4999 minHW=0.4972 maxBias=0.0674
+Areion-256 | L3b  sparse4      | C_6  | idBits=  0/256 meanHW=0.5000 minHW=0.4973 maxBias=0.0723
+Areion-256 | L3b  sparse4      | C_7  | idBits=  0/256 meanHW=0.5000 minHW=0.4969 maxBias=0.0742
+Areion-256 | L3b  sparse4      | C_8  | idBits=  0/256 meanHW=0.5000 minHW=0.4974 maxBias=0.0684
+Areion-256 | L3b  sparse4      | C_9  | idBits=  0/256 meanHW=0.5001 minHW=0.4978 maxBias=0.0674
+Areion-256 | L3b  sparse4      | C_10 | idBits=  0/256 meanHW=0.5001 minHW=0.4971 maxBias=0.0654
+Areion-256 | L4   table2_shift | C_1  | idBits=128/256 meanHW=0.1289 minHW=0.0039 maxBias=0.5000
+Areion-256 | L4   table2_shift | C_2  | idBits=  0/256 meanHW=0.4385 minHW=0.3726 maxBias=0.5000
+Areion-256 | L4   table2_shift | C_3  | idBits=  0/256 meanHW=0.4999 minHW=0.4973 maxBias=0.0693
+Areion-256 | L4   table2_shift | C_4  | idBits=  0/256 meanHW=0.5001 minHW=0.4975 maxBias=0.0635
+Areion-256 | L4   table2_shift | C_5  | idBits=  0/256 meanHW=0.5000 minHW=0.4972 maxBias=0.0664
+Areion-256 | L4   table2_shift | C_6  | idBits=  0/256 meanHW=0.5000 minHW=0.4961 maxBias=0.0713
+Areion-256 | L4   table2_shift | C_7  | idBits=  0/256 meanHW=0.5000 minHW=0.4978 maxBias=0.0664
+Areion-256 | L4   table2_shift | C_8  | idBits=  0/256 meanHW=0.5000 minHW=0.4970 maxBias=0.0674
+Areion-256 | L4   table2_shift | C_9  | idBits=  0/256 meanHW=0.5001 minHW=0.4972 maxBias=0.0762
+Areion-256 | L4   table2_shift | C_10 | idBits=  0/256 meanHW=0.5001 minHW=0.4977 maxBias=0.0684
+Areion-256 | L4p  table2_pi    | C_1  | idBits=128/256 meanHW=0.1289 minHW=0.0039 maxBias=0.5000
+Areion-256 | L4p  table2_pi    | C_2  | idBits=  0/256 meanHW=0.4385 minHW=0.3726 maxBias=0.5000
+Areion-256 | L4p  table2_pi    | C_3  | idBits=  0/256 meanHW=0.4999 minHW=0.4973 maxBias=0.0693
+Areion-256 | L4p  table2_pi    | C_4  | idBits=  0/256 meanHW=0.5001 minHW=0.4975 maxBias=0.0635
+Areion-256 | L4p  table2_pi    | C_5  | idBits=  0/256 meanHW=0.5000 minHW=0.4972 maxBias=0.0664
+Areion-256 | L4p  table2_pi    | C_6  | idBits=  0/256 meanHW=0.5000 minHW=0.4961 maxBias=0.0713
+Areion-256 | L4p  table2_pi    | C_7  | idBits=  0/256 meanHW=0.5000 minHW=0.4978 maxBias=0.0664
+Areion-256 | L4p  table2_pi    | C_8  | idBits=  0/256 meanHW=0.5001 minHW=0.4976 maxBias=0.0840
+Areion-256 | L4p  table2_pi    | C_9  | idBits=  0/256 meanHW=0.4999 minHW=0.4969 maxBias=0.0674
+Areion-256 | L4p  table2_pi    | C_10 | idBits=  0/256 meanHW=0.4999 minHW=0.4968 maxBias=0.0703
+Areion-512 | L0   ident        | C_1  | idBits=512/512 meanHW=0.0020 minHW=0.0020 maxBias=0.5000
+Areion-512 | L0   ident        | C_2  | idBits=512/512 meanHW=0.0020 minHW=0.0020 maxBias=0.5000
+Areion-512 | L0   ident        | C_3  | idBits=512/512 meanHW=0.0020 minHW=0.0020 maxBias=0.5000
+Areion-512 | L0   ident        | C_4  | idBits=512/512 meanHW=0.0020 minHW=0.0020 maxBias=0.5000
+Areion-512 | L0   ident        | C_5  | idBits=512/512 meanHW=0.0020 minHW=0.0020 maxBias=0.5000
+Areion-512 | L0   ident        | C_6  | idBits=512/512 meanHW=0.0020 minHW=0.0020 maxBias=0.5000
+Areion-512 | L0   ident        | C_7  | idBits=512/512 meanHW=0.0020 minHW=0.0020 maxBias=0.5000
+Areion-512 | L0   ident        | C_8  | idBits=512/512 meanHW=0.0020 minHW=0.0020 maxBias=0.5000
+Areion-512 | L0   ident        | C_9  | idBits=512/512 meanHW=0.0020 minHW=0.0020 maxBias=0.5000
+Areion-512 | L0   ident        | C_10 | idBits=512/512 meanHW=0.0020 minHW=0.0020 maxBias=0.5000
+Areion-512 | L0   ident        | C_11 | idBits=512/512 meanHW=0.0020 minHW=0.0020 maxBias=0.5000
+Areion-512 | L0   ident        | C_12 | idBits=512/512 meanHW=0.0020 minHW=0.0020 maxBias=0.5000
+Areion-512 | L0   ident        | C_13 | idBits=512/512 meanHW=0.0020 minHW=0.0020 maxBias=0.5000
+Areion-512 | L0   ident        | C_14 | idBits=512/512 meanHW=0.0020 minHW=0.0020 maxBias=0.5000
+Areion-512 | L0   ident        | C_15 | idBits=512/512 meanHW=0.0020 minHW=0.0020 maxBias=0.5000
+Areion-512 | L1   rot1         | C_1  | idBits=384/512 meanHW=0.0034 minHW=0.0020 maxBias=0.5000
+Areion-512 | L1   rot1         | C_2  | idBits=128/512 meanHW=0.0142 minHW=0.0020 maxBias=0.5000
+Areion-512 | L1   rot1         | C_3  | idBits=  0/512 meanHW=0.1016 minHW=0.0074 maxBias=0.5000
+Areion-512 | L1   rot1         | C_4  | idBits=  0/512 meanHW=0.3456 minHW=0.1627 maxBias=0.5000
+Areion-512 | L1   rot1         | C_5  | idBits=  0/512 meanHW=0.5000 minHW=0.4979 maxBias=0.0791
+Areion-512 | L1   rot1         | C_6  | idBits=  0/512 meanHW=0.5000 minHW=0.4980 maxBias=0.0742
+Areion-512 | L1   rot1         | C_7  | idBits=  0/512 meanHW=0.5000 minHW=0.4977 maxBias=0.0703
+Areion-512 | L1   rot1         | C_8  | idBits=  0/512 meanHW=0.5000 minHW=0.4976 maxBias=0.0732
+Areion-512 | L1   rot1         | C_9  | idBits=  0/512 meanHW=0.5000 minHW=0.4979 maxBias=0.0713
+Areion-512 | L1   rot1         | C_10 | idBits=  0/512 meanHW=0.5000 minHW=0.4977 maxBias=0.0732
+Areion-512 | L1   rot1         | C_11 | idBits=  0/512 meanHW=0.5000 minHW=0.4979 maxBias=0.0723
+Areion-512 | L1   rot1         | C_12 | idBits=  0/512 meanHW=0.5000 minHW=0.4977 maxBias=0.0801
+Areion-512 | L1   rot1         | C_13 | idBits=  0/512 meanHW=0.5000 minHW=0.4980 maxBias=0.0732
+Areion-512 | L1   rot1         | C_14 | idBits=  0/512 meanHW=0.5000 minHW=0.4978 maxBias=0.0723
+Areion-512 | L1   rot1         | C_15 | idBits=  0/512 meanHW=0.5000 minHW=0.4982 maxBias=0.0703
+Areion-512 | L2a  onebyte_r0   | C_1  | idBits=504/512 meanHW=0.0020 minHW=0.0020 maxBias=0.5000
+Areion-512 | L2a  onebyte_r0   | C_2  | idBits=504/512 meanHW=0.0020 minHW=0.0020 maxBias=0.5000
+Areion-512 | L2a  onebyte_r0   | C_3  | idBits=504/512 meanHW=0.0020 minHW=0.0020 maxBias=0.5000
+Areion-512 | L2a  onebyte_r0   | C_4  | idBits=504/512 meanHW=0.0020 minHW=0.0020 maxBias=0.5000
+Areion-512 | L2a  onebyte_r0   | C_5  | idBits=504/512 meanHW=0.0020 minHW=0.0020 maxBias=0.5000
+Areion-512 | L2a  onebyte_r0   | C_6  | idBits=504/512 meanHW=0.0020 minHW=0.0020 maxBias=0.5000
+Areion-512 | L2a  onebyte_r0   | C_7  | idBits=504/512 meanHW=0.0020 minHW=0.0020 maxBias=0.5000
+Areion-512 | L2a  onebyte_r0   | C_8  | idBits=504/512 meanHW=0.0020 minHW=0.0020 maxBias=0.5000
+Areion-512 | L2a  onebyte_r0   | C_9  | idBits=504/512 meanHW=0.0020 minHW=0.0020 maxBias=0.5000
+Areion-512 | L2a  onebyte_r0   | C_10 | idBits=504/512 meanHW=0.0020 minHW=0.0020 maxBias=0.5000
+Areion-512 | L2a  onebyte_r0   | C_11 | idBits=504/512 meanHW=0.0020 minHW=0.0020 maxBias=0.5000
+Areion-512 | L2a  onebyte_r0   | C_12 | idBits=504/512 meanHW=0.0020 minHW=0.0020 maxBias=0.5000
+Areion-512 | L2a  onebyte_r0   | C_13 | idBits=504/512 meanHW=0.0020 minHW=0.0020 maxBias=0.5000
+Areion-512 | L2a  onebyte_r0   | C_14 | idBits=504/512 meanHW=0.0020 minHW=0.0020 maxBias=0.5000
+Areion-512 | L2a  onebyte_r0   | C_15 | idBits=504/512 meanHW=0.0020 minHW=0.0020 maxBias=0.5000
+Areion-512 | L2b  oneround_r0  | C_1  | idBits=384/512 meanHW=0.0034 minHW=0.0020 maxBias=0.5000
+Areion-512 | L2b  oneround_r0  | C_2  | idBits=384/512 meanHW=0.0034 minHW=0.0020 maxBias=0.5000
+Areion-512 | L2b  oneround_r0  | C_3  | idBits=384/512 meanHW=0.0034 minHW=0.0020 maxBias=0.5000
+Areion-512 | L2b  oneround_r0  | C_4  | idBits=384/512 meanHW=0.0034 minHW=0.0020 maxBias=0.5000
+Areion-512 | L2b  oneround_r0  | C_5  | idBits=384/512 meanHW=0.0034 minHW=0.0020 maxBias=0.5000
+Areion-512 | L2b  oneround_r0  | C_6  | idBits=384/512 meanHW=0.0034 minHW=0.0020 maxBias=0.5000
+Areion-512 | L2b  oneround_r0  | C_7  | idBits=384/512 meanHW=0.0034 minHW=0.0020 maxBias=0.5000
+Areion-512 | L2b  oneround_r0  | C_8  | idBits=384/512 meanHW=0.0034 minHW=0.0020 maxBias=0.5000
+Areion-512 | L2b  oneround_r0  | C_9  | idBits=384/512 meanHW=0.0034 minHW=0.0020 maxBias=0.5000
+Areion-512 | L2b  oneround_r0  | C_10 | idBits=384/512 meanHW=0.0034 minHW=0.0020 maxBias=0.5000
+Areion-512 | L2b  oneround_r0  | C_11 | idBits=384/512 meanHW=0.0034 minHW=0.0020 maxBias=0.5000
+Areion-512 | L2b  oneround_r0  | C_12 | idBits=384/512 meanHW=0.0034 minHW=0.0020 maxBias=0.5000
+Areion-512 | L2b  oneround_r0  | C_13 | idBits=384/512 meanHW=0.0034 minHW=0.0020 maxBias=0.5000
+Areion-512 | L2b  oneround_r0  | C_14 | idBits=384/512 meanHW=0.0034 minHW=0.0020 maxBias=0.5000
+Areion-512 | L2b  oneround_r0  | C_15 | idBits=384/512 meanHW=0.0034 minHW=0.0020 maxBias=0.5000
+Areion-512 | L3a  sparse1      | C_1  | idBits=504/512 meanHW=0.0020 minHW=0.0020 maxBias=0.5000
+Areion-512 | L3a  sparse1      | C_2  | idBits=440/512 meanHW=0.0030 minHW=0.0020 maxBias=0.5000
+Areion-512 | L3a  sparse1      | C_3  | idBits=192/512 meanHW=0.0200 minHW=0.0020 maxBias=0.5000
+Areion-512 | L3a  sparse1      | C_4  | idBits=  0/512 meanHW=0.1844 minHW=0.0464 maxBias=0.5000
+Areion-512 | L3a  sparse1      | C_5  | idBits=  0/512 meanHW=0.4511 minHW=0.3416 maxBias=0.5000
+Areion-512 | L3a  sparse1      | C_6  | idBits=  0/512 meanHW=0.5000 minHW=0.4980 maxBias=0.0713
+Areion-512 | L3a  sparse1      | C_7  | idBits=  0/512 meanHW=0.5000 minHW=0.4977 maxBias=0.0742
+Areion-512 | L3a  sparse1      | C_8  | idBits=  0/512 meanHW=0.5000 minHW=0.4982 maxBias=0.0732
+Areion-512 | L3a  sparse1      | C_9  | idBits=  0/512 meanHW=0.5000 minHW=0.4979 maxBias=0.0771
+Areion-512 | L3a  sparse1      | C_10 | idBits=  0/512 meanHW=0.5000 minHW=0.4978 maxBias=0.0742
+Areion-512 | L3a  sparse1      | C_11 | idBits=  0/512 meanHW=0.4999 minHW=0.4975 maxBias=0.0713
+Areion-512 | L3a  sparse1      | C_12 | idBits=  0/512 meanHW=0.5000 minHW=0.4978 maxBias=0.0703
+Areion-512 | L3a  sparse1      | C_13 | idBits=  0/512 meanHW=0.5000 minHW=0.4980 maxBias=0.0713
+Areion-512 | L3a  sparse1      | C_14 | idBits=  0/512 meanHW=0.5000 minHW=0.4981 maxBias=0.0684
+Areion-512 | L3a  sparse1      | C_15 | idBits=  0/512 meanHW=0.5000 minHW=0.4979 maxBias=0.0732
+Areion-512 | L3b  sparse4      | C_1  | idBits=480/512 meanHW=0.0023 minHW=0.0020 maxBias=0.5000
+Areion-512 | L3b  sparse4      | C_2  | idBits=320/512 meanHW=0.0050 minHW=0.0020 maxBias=0.5000
+Areion-512 | L3b  sparse4      | C_3  | idBits= 96/512 meanHW=0.0596 minHW=0.0020 maxBias=0.5000
+Areion-512 | L3b  sparse4      | C_4  | idBits=  0/512 meanHW=0.2414 minHW=0.1476 maxBias=0.5000
+Areion-512 | L3b  sparse4      | C_5  | idBits=  0/512 meanHW=0.4678 minHW=0.4051 maxBias=0.5000
+Areion-512 | L3b  sparse4      | C_6  | idBits=  0/512 meanHW=0.5001 minHW=0.4977 maxBias=0.0801
+Areion-512 | L3b  sparse4      | C_7  | idBits=  0/512 meanHW=0.5000 minHW=0.4979 maxBias=0.0723
+Areion-512 | L3b  sparse4      | C_8  | idBits=  0/512 meanHW=0.5000 minHW=0.4984 maxBias=0.0830
+Areion-512 | L3b  sparse4      | C_9  | idBits=  0/512 meanHW=0.5000 minHW=0.4977 maxBias=0.0762
+Areion-512 | L3b  sparse4      | C_10 | idBits=  0/512 meanHW=0.5000 minHW=0.4981 maxBias=0.0713
+Areion-512 | L3b  sparse4      | C_11 | idBits=  0/512 meanHW=0.5000 minHW=0.4975 maxBias=0.0732
+Areion-512 | L3b  sparse4      | C_12 | idBits=  0/512 meanHW=0.5000 minHW=0.4978 maxBias=0.0703
+Areion-512 | L3b  sparse4      | C_13 | idBits=  0/512 meanHW=0.5000 minHW=0.4984 maxBias=0.0713
+Areion-512 | L3b  sparse4      | C_14 | idBits=  0/512 meanHW=0.5000 minHW=0.4980 maxBias=0.0693
+Areion-512 | L3b  sparse4      | C_15 | idBits=  0/512 meanHW=0.5000 minHW=0.4981 maxBias=0.0723
+Areion-512 | L4   table2_shift | C_1  | idBits=384/512 meanHW=0.0034 minHW=0.0020 maxBias=0.5000
+Areion-512 | L4   table2_shift | C_2  | idBits=128/512 meanHW=0.0142 minHW=0.0020 maxBias=0.5000
+Areion-512 | L4   table2_shift | C_3  | idBits=  0/512 meanHW=0.1016 minHW=0.0075 maxBias=0.5000
+Areion-512 | L4   table2_shift | C_4  | idBits=  0/512 meanHW=0.3456 minHW=0.1626 maxBias=0.5000
+Areion-512 | L4   table2_shift | C_5  | idBits=  0/512 meanHW=0.5000 minHW=0.4980 maxBias=0.0771
+Areion-512 | L4   table2_shift | C_6  | idBits=  0/512 meanHW=0.5001 minHW=0.4981 maxBias=0.0684
+Areion-512 | L4   table2_shift | C_7  | idBits=  0/512 meanHW=0.5000 minHW=0.4981 maxBias=0.0762
+Areion-512 | L4   table2_shift | C_8  | idBits=  0/512 meanHW=0.5001 minHW=0.4980 maxBias=0.0742
+Areion-512 | L4   table2_shift | C_9  | idBits=  0/512 meanHW=0.5000 minHW=0.4975 maxBias=0.0752
+Areion-512 | L4   table2_shift | C_10 | idBits=  0/512 meanHW=0.5000 minHW=0.4981 maxBias=0.0752
+Areion-512 | L4   table2_shift | C_11 | idBits=  0/512 meanHW=0.5000 minHW=0.4979 maxBias=0.0850
+Areion-512 | L4   table2_shift | C_12 | idBits=  0/512 meanHW=0.5000 minHW=0.4981 maxBias=0.0732
+Areion-512 | L4   table2_shift | C_13 | idBits=  0/512 meanHW=0.5000 minHW=0.4979 maxBias=0.0703
+Areion-512 | L4   table2_shift | C_14 | idBits=  0/512 meanHW=0.5000 minHW=0.4979 maxBias=0.0840
+Areion-512 | L4   table2_shift | C_15 | idBits=  0/512 meanHW=0.5000 minHW=0.4980 maxBias=0.0781
+Areion-512 | L4p  table2_pi    | C_1  | idBits=384/512 meanHW=0.0034 minHW=0.0020 maxBias=0.5000
+Areion-512 | L4p  table2_pi    | C_2  | idBits=128/512 meanHW=0.0142 minHW=0.0020 maxBias=0.5000
+Areion-512 | L4p  table2_pi    | C_3  | idBits=  0/512 meanHW=0.1016 minHW=0.0075 maxBias=0.5000
+Areion-512 | L4p  table2_pi    | C_4  | idBits=  0/512 meanHW=0.3456 minHW=0.1626 maxBias=0.5000
+Areion-512 | L4p  table2_pi    | C_5  | idBits=  0/512 meanHW=0.5000 minHW=0.4980 maxBias=0.0771
+Areion-512 | L4p  table2_pi    | C_6  | idBits=  0/512 meanHW=0.5001 minHW=0.4981 maxBias=0.0684
+Areion-512 | L4p  table2_pi    | C_7  | idBits=  0/512 meanHW=0.5000 minHW=0.4981 maxBias=0.0762
+Areion-512 | L4p  table2_pi    | C_8  | idBits=  0/512 meanHW=0.5000 minHW=0.4976 maxBias=0.0732
+Areion-512 | L4p  table2_pi    | C_9  | idBits=  0/512 meanHW=0.5000 minHW=0.4981 maxBias=0.0713
+Areion-512 | L4p  table2_pi    | C_10 | idBits=  0/512 meanHW=0.5000 minHW=0.4979 maxBias=0.0723
+Areion-512 | L4p  table2_pi    | C_11 | idBits=  0/512 meanHW=0.5000 minHW=0.4983 maxBias=0.0703
+Areion-512 | L4p  table2_pi    | C_12 | idBits=  0/512 meanHW=0.5000 minHW=0.4977 maxBias=0.0713
+Areion-512 | L4p  table2_pi    | C_13 | idBits=  0/512 meanHW=0.5000 minHW=0.4978 maxBias=0.0723
+Areion-512 | L4p  table2_pi    | C_14 | idBits=  0/512 meanHW=0.5000 minHW=0.4978 maxBias=0.0732
+Areion-512 | L4p  table2_pi    | C_15 | idBits=  0/512 meanHW=0.4999 minHW=0.4980 maxBias=0.0771
+
+== Track 2.3: Forward vs Backward Direct Pair P1_r(u)^P2_r(u^d) vs P1_r^-1(y)^P2_r^-1(y^d) (samples=262144)
+Areion-256 r= 1 (shift) | FWD d=0: const=16 miss= 4080 chi2=66846720.0 | BWD d=0: const=16 miss= 4080 chi2=66846720.0 | FWD d=rand: const= 0 miss= 2064 chi2=271265.5 z=[0,1100] | BWD d=rand: const= 0 miss= 2064 chi2=270992.7 z=[0,1079]
+Areion-256 r= 2 (shift) | FWD d=0: const= 0 miss=    0 chi2=     290.4 | BWD d=0: const= 0 miss=    0 chi2=     328.8 | FWD d=rand: const= 0 miss=    0 chi2=   300.1 z=[975,1063] | BWD d=rand: const= 0 miss=    0 chi2=   312.8 z=[942,1116]
+Areion-256 r= 3 (shift) | FWD d=0: const= 0 miss=    0 chi2=     301.8 | BWD d=0: const= 0 miss=    0 chi2=     288.1 | FWD d=rand: const= 0 miss=    0 chi2=   305.9 z=[973,1111] | BWD d=rand: const= 0 miss=    0 chi2=   297.4 z=[943,1103]
+Areion-256 r= 4 (shift) | FWD d=0: const= 0 miss=    0 chi2=     306.9 | BWD d=0: const= 0 miss=    0 chi2=     312.3 | FWD d=rand: const= 0 miss=    0 chi2=   353.2 z=[945,1074] | BWD d=rand: const= 0 miss=    0 chi2=   302.7 z=[950,1117]
+Areion-256 r= 5 (shift) | FWD d=0: const= 0 miss=    0 chi2=     323.2 | BWD d=0: const= 0 miss=    0 chi2=     301.9 | FWD d=rand: const= 0 miss=    0 chi2=   295.1 z=[945,1096] | BWD d=rand: const= 0 miss=    0 chi2=   294.6 z=[970,1125]
+Areion-256 r= 6 (shift) | FWD d=0: const= 0 miss=    0 chi2=     295.0 | BWD d=0: const= 0 miss=    0 chi2=     317.7 | FWD d=rand: const= 0 miss=    0 chi2=   343.3 z=[959,1092] | BWD d=rand: const= 0 miss=    0 chi2=   288.0 z=[949,1077]
+Areion-256 r= 7 (shift) | FWD d=0: const= 0 miss=    0 chi2=     283.4 | BWD d=0: const= 0 miss=    0 chi2=     303.5 | FWD d=rand: const= 0 miss=    0 chi2=   319.9 z=[959,1101] | BWD d=rand: const= 0 miss=    0 chi2=   302.3 z=[953,1078]
+Areion-256 r= 8 (shift) | FWD d=0: const= 0 miss=    0 chi2=     298.2 | BWD d=0: const= 0 miss=    0 chi2=     300.7 | FWD d=rand: const= 0 miss=    0 chi2=   338.2 z=[965,1095] | BWD d=rand: const= 0 miss=    0 chi2=   326.0 z=[979,1076]
+Areion-256 r= 9 (shift) | FWD d=0: const= 0 miss=    0 chi2=     294.0 | BWD d=0: const= 0 miss=    0 chi2=     296.0 | FWD d=rand: const= 0 miss=    0 chi2=   317.3 z=[971,1063] | BWD d=rand: const= 0 miss=    0 chi2=   321.8 z=[980,1083]
+Areion-256 r=10 (shift) | FWD d=0: const= 0 miss=    0 chi2=     290.8 | BWD d=0: const= 0 miss=    0 chi2=     296.7 | FWD d=rand: const= 0 miss=    0 chi2=   306.0 z=[962,1082] | BWD d=rand: const= 0 miss=    0 chi2=   298.4 z=[962,1115]
+Areion-512 r= 1 (shift) | FWD d=0: const=48 miss=12240 chi2=66846720.0 | BWD d=0: const=48 miss=14304 chi2=66846720.0 | FWD d=rand: const= 0 miss= 2064 chi2=270774.3 z=[0,1138] | BWD d=rand: const=16 miss= 7675 chi2=66846720.0 z=[0,2110]
+Areion-512 r= 2 (shift) | FWD d=0: const=32 miss= 8160 chi2=66846720.0 | BWD d=0: const=16 miss=10272 chi2=66846720.0 | FWD d=rand: const= 0 miss=    0 chi2=   316.2 z=[931,1083] | BWD d=rand: const= 0 miss= 1494 chi2=329896.3 z=[0,2209]
+Areion-512 r= 3 (shift) | FWD d=0: const=16 miss= 4080 chi2=66846720.0 | BWD d=0: const= 0 miss= 1489 chi2=  284150.4 | FWD d=rand: const= 0 miss=    0 chi2=   303.1 z=[952,1088] | BWD d=rand: const= 0 miss=    0 chi2=   290.3 z=[953,1078]
+Areion-512 r= 4 (shift) | FWD d=0: const= 0 miss=    0 chi2=     320.9 | BWD d=0: const= 0 miss=    0 chi2=     320.6 | FWD d=rand: const= 0 miss=    0 chi2=   323.4 z=[946,1100] | BWD d=rand: const= 0 miss=    0 chi2=   311.3 z=[950,1120]
+Areion-512 r= 5 (shift) | FWD d=0: const= 0 miss=    0 chi2=     312.9 | BWD d=0: const= 0 miss=    0 chi2=     298.4 | FWD d=rand: const= 0 miss=    0 chi2=   324.4 z=[956,1071] | BWD d=rand: const= 0 miss=    0 chi2=   297.0 z=[915,1105]
+Areion-512 r= 6 (shift) | FWD d=0: const= 0 miss=    0 chi2=     315.4 | BWD d=0: const= 0 miss=    0 chi2=     321.1 | FWD d=rand: const= 0 miss=    0 chi2=   318.5 z=[955,1109] | BWD d=rand: const= 0 miss=    0 chi2=   298.8 z=[960,1103]
+Areion-512 r= 7 (shift) | FWD d=0: const= 0 miss=    0 chi2=     336.3 | BWD d=0: const= 0 miss=    0 chi2=     307.6 | FWD d=rand: const= 0 miss=    0 chi2=   301.8 z=[966,1078] | BWD d=rand: const= 0 miss=    0 chi2=   284.2 z=[943,1098]
+Areion-512 r= 8 (shift) | FWD d=0: const= 0 miss=    0 chi2=     306.3 | BWD d=0: const= 0 miss=    0 chi2=     315.6 | FWD d=rand: const= 0 miss=    0 chi2=   305.4 z=[953,1081] | BWD d=rand: const= 0 miss=    0 chi2=   317.7 z=[953,1088]
+Areion-512 r= 9 (shift) | FWD d=0: const= 0 miss=    0 chi2=     302.3 | BWD d=0: const= 0 miss=    0 chi2=     320.3 | FWD d=rand: const= 0 miss=    0 chi2=   292.1 z=[940,1080] | BWD d=rand: const= 0 miss=    0 chi2=   305.1 z=[970,1105]
+Areion-512 r=10 (shift) | FWD d=0: const= 0 miss=    0 chi2=     311.8 | BWD d=0: const= 0 miss=    0 chi2=     312.5 | FWD d=rand: const= 0 miss=    0 chi2=   310.5 z=[954,1091] | BWD d=rand: const= 0 miss=    0 chi2=   302.2 z=[954,1084]
+Areion-512 r=11 (shift) | FWD d=0: const= 0 miss=    0 chi2=     310.9 | BWD d=0: const= 0 miss=    0 chi2=     301.2 | FWD d=rand: const= 0 miss=    0 chi2=   305.3 z=[962,1115] | BWD d=rand: const= 0 miss=    0 chi2=   306.2 z=[952,1096]
+Areion-512 r=12 (shift) | FWD d=0: const= 0 miss=    0 chi2=     304.5 | BWD d=0: const= 0 miss=    0 chi2=     311.9 | FWD d=rand: const= 0 miss=    0 chi2=   306.6 z=[947,1106] | BWD d=rand: const= 0 miss=    0 chi2=   294.5 z=[950,1116]
+Areion-512 r=13 (shift) | FWD d=0: const= 0 miss=    0 chi2=     326.6 | BWD d=0: const= 0 miss=    0 chi2=     309.9 | FWD d=rand: const= 0 miss=    0 chi2=   301.4 z=[945,1091] | BWD d=rand: const= 0 miss=    0 chi2=   304.3 z=[956,1105]
+Areion-512 r=14 (shift) | FWD d=0: const= 0 miss=    0 chi2=     312.3 | BWD d=0: const= 0 miss=    0 chi2=     303.1 | FWD d=rand: const= 0 miss=    0 chi2=   310.7 z=[976,1096] | BWD d=rand: const= 0 miss=    0 chi2=   322.5 z=[947,1099]
+Areion-512 r=15 (shift) | FWD d=0: const= 0 miss=    0 chi2=     303.7 | BWD d=0: const= 0 miss=    0 chi2=     330.9 | FWD d=rand: const= 0 miss=    0 chi2=   314.5 z=[966,1102] | BWD d=rand: const= 0 miss=    0 chi2=   320.5 z=[953,1092]
+
+== Track 2.4: Backward Weak-Coset Containment Trails on P1^-1 and P2^-1
+Areion-256 | P1^-1           | 1-dim bytes in a column                  | seeds   880 | exact max  1 (cut: 44, longest 1) [1-dim bytes mask 3 blk 0 col 0 r0=0 dims=[2 3]] | below generic bound max  1 (cut: 44, longest 1) [1-dim bytes mask 3 blk 0 col 0 r0=0 dims=[2 3]]
+Areion-256 | P1^-1           | 1-dim bytes in a diagonal                | seeds   880 | exact max  2 (cut: 132, longest 2) [1-dim bytes mask 3 blk 0 diag 0 r0=0 dims=[2 2 3]] | below generic bound max  2 (cut: 132, longest 2) [1-dim bytes mask 3 blk 0 diag 0 r0=0 dims=[2 2 3]]
+Areion-256 | P1^-1           | F4/F16 line in a byte                    | seeds 32640 | exact max  1 (cut: 1632, longest 1) [line 0 byte 0 r0=0 dims=[2 3]] | below generic bound max  1 (cut: 1632, longest 1) [line 0 byte 0 r0=0 dims=[2 3]]
+Areion-256 | P1^-1           | column-rotation fixed space (period 1)   | seeds    10 | exact max  0 (cut: 0, longest 0) [] | below generic bound max  1 (cut: 1, longest 1) [sym1 r0=0 dims=[160 256]]
+Areion-256 | P1^-1           | column-rotation fixed space (period 2)   | seeds    10 | exact max  0 (cut: 0, longest 0) [] | below generic bound max  1 (cut: 1, longest 1) [sym2 r0=0 dims=[192 256]]
+Areion-256 | P1^-1           | full byte                                | seeds   320 | exact max  1 (cut: 16, longest 1) [full byte 0 r0=0 dims=[8 40 192 192 256]] | below generic bound max  4 (cut: 112, longest 4) [full byte 0 r0=0 dims=[8 40 192 192 256]]
+Areion-256 | P2^-1 shift     | 1-dim bytes in a column                  | seeds   880 | exact max  1 (cut: 44, longest 1) [1-dim bytes mask 3 blk 0 col 0 r0=0 dims=[2 3]] | below generic bound max  1 (cut: 44, longest 1) [1-dim bytes mask 3 blk 0 col 0 r0=0 dims=[2 3]]
+Areion-256 | P2^-1 shift     | 1-dim bytes in a diagonal                | seeds   880 | exact max  2 (cut: 132, longest 2) [1-dim bytes mask 3 blk 0 diag 0 r0=0 dims=[2 2 3]] | below generic bound max  2 (cut: 132, longest 2) [1-dim bytes mask 3 blk 0 diag 0 r0=0 dims=[2 2 3]]
+Areion-256 | P2^-1 shift     | F4/F16 line in a byte                    | seeds 32640 | exact max  1 (cut: 1632, longest 1) [line 0 byte 0 r0=0 dims=[2 3]] | below generic bound max  1 (cut: 1632, longest 1) [line 0 byte 0 r0=0 dims=[2 3]]
+Areion-256 | P2^-1 shift     | column-rotation fixed space (period 1)   | seeds    10 | exact max  0 (cut: 0, longest 0) [] | below generic bound max  1 (cut: 1, longest 1) [sym1 r0=0 dims=[160 256]]
+Areion-256 | P2^-1 shift     | column-rotation fixed space (period 2)   | seeds    10 | exact max  0 (cut: 0, longest 0) [] | below generic bound max  1 (cut: 1, longest 1) [sym2 r0=0 dims=[192 256]]
+Areion-256 | P2^-1 shift     | full byte                                | seeds   320 | exact max  1 (cut: 16, longest 1) [full byte 0 r0=0 dims=[8 32 192 192 256]] | below generic bound max  4 (cut: 112, longest 4) [full byte 0 r0=0 dims=[8 32 192 192 256]]
+Areion-256 | control sym1^-1 | 1-dim bytes in a column                  | seeds   880 | exact max  1 (cut: 44, longest 1) [1-dim bytes mask 3 blk 0 col 0 r0=0 dims=[2 3]] | below generic bound max  1 (cut: 44, longest 1) [1-dim bytes mask 3 blk 0 col 0 r0=0 dims=[2 3]]
+Areion-256 | control sym1^-1 | 1-dim bytes in a diagonal                | seeds   880 | exact max  2 (cut: 132, longest 2) [1-dim bytes mask 3 blk 0 diag 0 r0=0 dims=[2 2 3]] | below generic bound max  2 (cut: 132, longest 2) [1-dim bytes mask 3 blk 0 diag 0 r0=0 dims=[2 2 3]]
+Areion-256 | control sym1^-1 | F4/F16 line in a byte                    | seeds 32640 | exact max  1 (cut: 1632, longest 1) [line 0 byte 0 r0=0 dims=[2 3]] | below generic bound max  1 (cut: 1632, longest 1) [line 0 byte 0 r0=0 dims=[2 3]]
+Areion-256 | control sym1^-1 | column-rotation fixed space (period 1)   | seeds    10 | exact max  0 (cut: 10, longest 10) [] | below generic bound max  0 (cut: 10, longest 10) []
+Areion-256 | control sym1^-1 | column-rotation fixed space (period 2)   | seeds    10 | exact max  0 (cut: 10, longest 10) [] | below generic bound max  0 (cut: 10, longest 10) []
+Areion-256 | control sym1^-1 | full byte                                | seeds   320 | exact max  1 (cut: 16, longest 1) [full byte 0 r0=0 dims=[8 40 192 192 256]] | below generic bound max  4 (cut: 112, longest 4) [full byte 0 r0=0 dims=[8 40 192 192 256]]
+Areion-512 | P1^-1           | 1-dim bytes in a column                  | seeds  2640 | exact max  4 (cut: 352, longest 4) [1-dim bytes mask 3 blk 1 col 0 r0=0 dims=[2 2 2 2 3]] | below generic bound max  4 (cut: 352, longest 4) [1-dim bytes mask 3 blk 1 col 0 r0=0 dims=[2 2 2 2 3]]
+Areion-512 | P1^-1           | 1-dim bytes in a diagonal                | seeds  2640 | exact max  4 (cut: 384, longest 4) [1-dim bytes mask 3 blk 1 diag 0 r0=0 dims=[2 2 2 2 3]] | below generic bound max  4 (cut: 424, longest 4) [1-dim bytes mask 3 blk 1 diag 0 r0=0 dims=[2 2 2 2 3]]
+Areion-512 | P1^-1           | F4/F16 line in a byte                    | seeds 97920 | exact max  1 (cut: 3264, longest 1) [line 0 byte 16 r0=0 dims=[2 3]] | below generic bound max  5 (cut: 5440, longest 5) [line 85 byte 16 r0=0 dims=[4 12 21 109 296 512]]
+Areion-512 | P1^-1           | column-rotation fixed space (period 1)   | seeds    15 | exact max  0 (cut: 0, longest 0) [] | below generic bound max  2 (cut: 2, longest 2) [sym1 r0=0 dims=[224 408 512]]
+Areion-512 | P1^-1           | column-rotation fixed space (period 2)   | seeds    15 | exact max  0 (cut: 0, longest 0) [] | below generic bound max  2 (cut: 2, longest 2) [sym2 r0=0 dims=[320 448 512]]
+Areion-512 | P1^-1           | full byte                                | seeds   960 | exact max  1 (cut: 32, longest 1) [full byte 16 r0=0 dims=[8 16 24 112 296 512]] | below generic bound max  5 (cut: 256, longest 5) [full byte 16 r0=0 dims=[8 16 24 112 296 512]]
+Areion-512 | P2^-1 shift     | 1-dim bytes in a column                  | seeds  2640 | exact max  4 (cut: 352, longest 4) [1-dim bytes mask 3 blk 1 col 0 r0=0 dims=[2 2 2 2 3]] | below generic bound max  4 (cut: 352, longest 4) [1-dim bytes mask 3 blk 1 col 0 r0=0 dims=[2 2 2 2 3]]
+Areion-512 | P2^-1 shift     | 1-dim bytes in a diagonal                | seeds  2640 | exact max  4 (cut: 384, longest 4) [1-dim bytes mask 3 blk 1 diag 0 r0=0 dims=[2 2 2 2 3]] | below generic bound max  4 (cut: 424, longest 4) [1-dim bytes mask 3 blk 1 diag 0 r0=0 dims=[2 2 2 2 3]]
+Areion-512 | P2^-1 shift     | F4/F16 line in a byte                    | seeds 97920 | exact max  1 (cut: 3264, longest 1) [line 0 byte 16 r0=0 dims=[2 3]] | below generic bound max  6 (cut: 5440, longest 5) [line 85 byte 2 r0=5 dims=[4 12 22 110 296 504 512]]
+Areion-512 | P2^-1 shift     | column-rotation fixed space (period 1)   | seeds    15 | exact max  0 (cut: 0, longest 0) [] | below generic bound max  2 (cut: 2, longest 2) [sym1 r0=0 dims=[224 416 512]]
+Areion-512 | P2^-1 shift     | column-rotation fixed space (period 2)   | seeds    15 | exact max  0 (cut: 0, longest 0) [] | below generic bound max  2 (cut: 2, longest 2) [sym2 r0=0 dims=[320 448 512]]
+Areion-512 | P2^-1 shift     | full byte                                | seeds   960 | exact max  1 (cut: 32, longest 1) [full byte 16 r0=0 dims=[8 16 24 112 296 512]] | below generic bound max  6 (cut: 256, longest 5) [full byte 2 r0=5 dims=[8 16 24 112 296 504 512]]
+Areion-512 | control sym1^-1 | 1-dim bytes in a column                  | seeds  2640 | exact max  4 (cut: 352, longest 4) [1-dim bytes mask 3 blk 1 col 0 r0=0 dims=[2 2 2 2 3]] | below generic bound max  4 (cut: 352, longest 4) [1-dim bytes mask 3 blk 1 col 0 r0=0 dims=[2 2 2 2 3]]
+Areion-512 | control sym1^-1 | 1-dim bytes in a diagonal                | seeds  2640 | exact max  4 (cut: 384, longest 4) [1-dim bytes mask 3 blk 1 diag 0 r0=0 dims=[2 2 2 2 3]] | below generic bound max  4 (cut: 424, longest 4) [1-dim bytes mask 3 blk 1 diag 0 r0=0 dims=[2 2 2 2 3]]
+Areion-512 | control sym1^-1 | F4/F16 line in a byte                    | seeds 97920 | exact max  1 (cut: 3264, longest 1) [line 0 byte 16 r0=0 dims=[2 3]] | below generic bound max  5 (cut: 5440, longest 5) [line 85 byte 16 r0=0 dims=[4 12 21 109 296 512]]
+Areion-512 | control sym1^-1 | column-rotation fixed space (period 1)   | seeds    15 | exact max  0 (cut: 15, longest 15) [] | below generic bound max  0 (cut: 15, longest 15) []
+Areion-512 | control sym1^-1 | column-rotation fixed space (period 2)   | seeds    15 | exact max  0 (cut: 15, longest 15) [] | below generic bound max  0 (cut: 15, longest 15) []
+Areion-512 | control sym1^-1 | full byte                                | seeds   960 | exact max  1 (cut: 32, longest 1) [full byte 16 r0=0 dims=[8 16 24 112 296 512]] | below generic bound max  5 (cut: 256, longest 5) [full byte 16 r0=0 dims=[8 16 24 112 296 512]]
+== Track 2.5: Backward Oracle Verification on P1^-1 vs P2^-1 (n=200 traces)
+{"check": "oracle-inv", "width": 256, "variant": "pi", "rounds": 10, "traces": 200, "unsat_coarse": 0, "unsat_refined": 0}
+{"check": "oracle-inv", "width": 256, "variant": "shift", "rounds": 10, "traces": 200, "unsat_coarse": 0, "unsat_refined": 0}
+{"check": "oracle-inv", "width": 512, "variant": "pi", "rounds": 15, "traces": 200, "unsat_coarse": 0, "unsat_refined": null}
+{"check": "oracle-inv", "width": 512, "variant": "shift", "rounds": 15, "traces": 200, "unsat_coarse": 0, "unsat_refined": null}
+
+== Track 2.6: Forward (Permute) vs Backward (InversePermute) Active S-Box Bounds
+Areion-256 | related-coarse        | delta=free    | FWD | r1:  4 r2:  8 r3: 12 r4: 16 r5: 20 r6: 24 r7: 28 r8: 32 r9: 36 r10: 40  (0.43s)
+Areion-256 | related-coarse        | delta=free    | BWD | r1:  4 r2:  8 r3: 12 r4: 16 r5: 20 r6: 24 r7: 28 r8: 32 r9: 36 r10: 40  (0.4s)
+Areion-256 | related-coarse        | delta=zero    | FWD | r1: 16 r2: 20 r3: 25 r4: 29 r5: 36 r6: 40 r7: 46 r8: 50 r9: 56 r10: 60  (19.42s)
+Areion-256 | related-coarse        | delta=zero    | BWD | r1: 16 r2: 20 r3: 36 r4: 40 r5: 45 r6: 49 r7: 56 r8: 60 r9: 64 r10: 68  (8.79s)
+Areion-256 | related-refined-shift | delta=free    | FWD | r1: 15 r2: 31 r3: 45 r4: 61 r5: 77 r6: 93 r7:108 r8:123 r9:139 r10:154  (51.07s)
+Areion-256 | related-refined-shift | delta=free    | BWD | r1: 15 r2: 31 r3: 45 r4: 61 r5: 77 r6: 93 r7:108 r8:123 r9:139 r10:154  (52.63s)
+Areion-256 | related-refined-shift | delta=zero    | FWD | r1: 16 r2: 32 r3: 46 r4: 62 r5: 78 r6: 94 r7:109 r8:124 r9:140 r10:155  (44.21s)
+Areion-256 | related-refined-shift | delta=zero    | BWD | r1: 16 r2: 31 r3: 47 r4: 61 r5: 77 r6: 93 r7:109 r8:124 r9:140 r10:155  (45.48s)
+Areion-256 | related-refined-pi    | delta=free    | FWD | r1: 15 r2: 31 r3: 45 r4: 61 r5: 77 r6: 93 r7:108 r8:124 r9:140 r10:155  (52.44s)
+Areion-256 | related-refined-pi    | delta=free    | BWD | r1: 15 r2: 31 r3: 45 r4: 61 r5: 77 r6: 93 r7:108 r8:124 r9:140 r10:155  (53.84s)
+Areion-256 | related-refined-pi    | delta=zero    | FWD | r1: 16 r2: 32 r3: 46 r4: 62 r5: 78 r6: 94 r7:109 r8:125 r9:141 r10:156  (44.83s)
+Areion-256 | related-refined-pi    | delta=zero    | BWD | r1: 16 r2: 31 r3: 47 r4: 61 r5: 77 r6: 93 r7:109 r8:124 r9:140 r10:156  (43.39s)
+Areion-256 | single-1byte          | delta=onebyte | FWD | r1:  0 r2:  5 r3: 25 r4: 25 r5: 30 r6: 35 r7: 50 r8: 55 r9: 55* r10: 56*  (42.75s)
+Areion-256 | single-1byte          | delta=onebyte | BWD | r1:  0 r2:  5 r3: 25 r4: 25 r5: 30 r6: 35 r7: 50 r8: 50* r9: 52* r10: 52*  (36.65s)
+Areion-512 | related-coarse        | delta=free    | FWD | r1: 16 r2: 32 r3: 48 r4: 64 r5: 80 r6: 96 r7:112 r8:128 r9:144 r10:160 r11:176 r12:192 r13:208 r14:224 r15:240  (33.39s)
+Areion-512 | related-coarse        | delta=free    | BWD | r1: 16 r2: 32 r3: 48 r4: 64 r5: 80 r6: 96 r7:112 r8:128 r9:144 r10:160 r11:176 r12:192 r13:208 r14:224 r15:240  (34.19s)
+Areion-512 | related-coarse        | delta=zero    | FWD | r1: 16 r2: 32 r3: 52 r4: 68 r5: 88 r6:104 r7:123 r8:139 r9:155 r10:171 r11:187 r12:203 r13:219* r14:235 r15:251  (53.27s)
+Areion-512 | related-coarse        | delta=zero    | BWD | r1: 16 r2: 36 r3: 52 r4: 68 r5: 84 r6:100 r7:116 r8:132 r9:148 r10:164 r11:180 r12:196 r13:212 r14:228 r15:244  (28.54s)
+Areion-512 | single-1byte          | delta=onebyte | FWD | r1:  0 r2:  1 r3:  5 r4: 23 r5: 39 r6: 39 r7: 40*  (16.97s)
+Areion-512 | single-1byte          | delta=onebyte | BWD | r1:  0 r2:  1 r3:  3 r4: 15 r5: 31* r6: 31* r7: 32*  (30.99s)
+
+== Track 2.7: Forward vs Backward Byte-Level Impossible Differentials (impdiff)
+Areion-256 r= 1 delta=free | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-256 r= 2 delta=free | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-256 r= 3 delta=free | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-256 r= 4 delta=free | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-256 r= 5 delta=free | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-256 r= 6 delta=free | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-256 r= 1 delta=full | FWD: forced_active=16 forced_zero= 0 allzero_sat=False | BWD: forced_active=16 forced_zero= 0 allzero_sat=False
+Areion-256 r= 2 delta=full | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-256 r= 3 delta=full | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-256 r= 4 delta=full | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-256 r= 5 delta=full | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-256 r= 6 delta=full | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-256 r= 1 delta=zero | FWD: forced_active= 0 forced_zero=16 allzero_sat=False | BWD: forced_active= 0 forced_zero=16 allzero_sat=False
+Areion-256 r= 2 delta=zero | FWD: forced_active= 0 forced_zero= 0 allzero_sat=False | BWD: forced_active= 0 forced_zero= 0 allzero_sat=False
+Areion-256 r= 3 delta=zero | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-256 r= 4 delta=zero | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-256 r= 5 delta=zero | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-256 r= 6 delta=zero | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-512 r= 1 delta=free | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-512 r= 2 delta=free | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-512 r= 3 delta=free | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-512 r= 4 delta=free | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-512 r= 5 delta=free | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-512 r= 6 delta=free | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-512 r= 1 delta=full | FWD: forced_active=16 forced_zero= 0 allzero_sat=False | BWD: forced_active=16 forced_zero= 0 allzero_sat=False
+Areion-512 r= 2 delta=full | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=False
+Areion-512 r= 3 delta=full | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=False
+Areion-512 r= 4 delta=full | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-512 r= 5 delta=full | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-512 r= 6 delta=full | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-512 r= 1 delta=zero | FWD: forced_active= 0 forced_zero=48 allzero_sat=False | BWD: forced_active=16 forced_zero=32 allzero_sat=False
+Areion-512 r= 2 delta=zero | FWD: forced_active= 0 forced_zero=32 allzero_sat=False | BWD: forced_active=16 forced_zero= 0 allzero_sat=False
+Areion-512 r= 3 delta=zero | FWD: forced_active= 0 forced_zero=16 allzero_sat=False | BWD: forced_active= 0 forced_zero= 0 allzero_sat=False
+Areion-512 r= 4 delta=zero | FWD: forced_active= 0 forced_zero= 0 allzero_sat=False | BWD: forced_active= 0 forced_zero= 0 allzero_sat=False
+Areion-512 r= 5 delta=zero | FWD: forced_active= 0 forced_zero= 0 allzero_sat=False | BWD: forced_active= 0 forced_zero= 0 allzero_sat=False
+Areion-512 r= 6 delta=zero | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
