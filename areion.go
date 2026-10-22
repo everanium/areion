@@ -86,10 +86,14 @@ func InversePermute512P2(state *State512) {
 func DM256(m *[32]byte) [32]byte {
 	state := *m
 	Permute256(&state)
+	var out [32]byte
 	for i := range state {
-		state[i] ^= m[i]
+		out[i] = state[i] ^ m[i]
 	}
-	return state
+	clear(state[:])
+	runtime.KeepAlive(&state)
+	clobberScratchGPRs()
+	return out
 }
 
 // DM512 computes the Davies-Meyer fixed-input compression/hash of a 64-byte input:
@@ -112,6 +116,7 @@ func DM512(m *[64]byte) [32]byte {
 	copy(out[24:32], state[48:56])
 	clear(state[:])
 	runtime.KeepAlive(&state)
+	clobberScratchGPRs()
 	return out
 }
 
@@ -195,6 +200,7 @@ func InversePermute512P2x4(states *[4][64]byte) {
 func Round(block, roundKey *Block) {
 	roundNoKey(block)
 	xorBlock(block, block, roundKey)
+	clobberScratchGPRs()
 }
 
 // FinalRound performs one final AES encryption round (SubBytes, ShiftRows, AddRoundKey, no MixColumns)
@@ -202,6 +208,7 @@ func Round(block, roundKey *Block) {
 func FinalRound(block, roundKey *Block) {
 	finalRoundNoKey(block)
 	xorBlock(block, block, roundKey)
+	clobberScratchGPRs()
 }
 
 // RoundHW performs one standard AES encryption round (SubBytes, ShiftRows, MixColumns, AddRoundKey),

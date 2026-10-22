@@ -340,17 +340,24 @@ func areion512InversePermuteRC(state *State512, rc *[15][16]byte) {
 	areion512InversePermuteSoftwareRC(state, rc)
 }
 
+//go:noescape
+func clobberScratchGPRs()
+
 func areionSoEM256(key *[64]byte, m *[32]byte) [32]byte {
 	tier := TierCode()
 	if tier == TierPureGo || !hasAESNI {
 		return soem256Software(key, m)
 	}
-	var out [32]byte
+	var buf [32]byte
 	if hasVEX && tier >= TierVEX {
-		areionSoEM256VexAsm(&out, key, m)
+		areionSoEM256VexAsm(&buf, key, m)
 	} else {
-		areionSoEM256Asm(&out, key, m)
+		areionSoEM256Asm(&buf, key, m)
 	}
+	out := buf
+	clear(buf[:])
+	runtime.KeepAlive(&buf)
+	clobberScratchGPRs()
 	return out
 }
 
@@ -359,12 +366,16 @@ func areionSoEM512(key *[128]byte, m *[64]byte) [64]byte {
 	if tier == TierPureGo || !hasAESNI {
 		return soem512Software(key, m)
 	}
-	var out [64]byte
+	var buf [64]byte
 	if hasVEX && tier >= TierVEX {
-		areionSoEM512VexAsm(&out, key, m)
+		areionSoEM512VexAsm(&buf, key, m)
 	} else {
-		areionSoEM512Asm(&out, key, m)
+		areionSoEM512Asm(&buf, key, m)
 	}
+	out := buf
+	clear(buf[:])
+	runtime.KeepAlive(&buf)
+	clobberScratchGPRs()
 	return out
 }
 
@@ -380,6 +391,7 @@ func areion256Permutex4Tables(states *[4][32]byte, rc *[15][16]byte, rc4 *[15 * 
 	tier := TierCode()
 	if tier == TierPureGo || !hasAESNI {
 		areion256Permutex4SoftwareRC(states, rc)
+		clobberScratchGPRs()
 		return
 	}
 	var b0, b1 Block4
@@ -398,6 +410,7 @@ func areion256Permutex4Tables(states *[4][32]byte, rc *[15][16]byte, rc4 *[15 * 
 	clear(b1[:])
 	runtime.KeepAlive(&b0)
 	runtime.KeepAlive(&b1)
+	clobberScratchGPRs()
 }
 
 func areion256InversePermutex4(states *[4][32]byte) {
@@ -412,6 +425,7 @@ func areion256InversePermutex4Tables(states *[4][32]byte, rc *[15][16]byte, rc4 
 	tier := TierCode()
 	if tier == TierPureGo || !hasAESNI {
 		areion256InversePermutex4SoftwareRC(states, rc)
+		clobberScratchGPRs()
 		return
 	}
 	var b0, b1 Block4
@@ -430,6 +444,7 @@ func areion256InversePermutex4Tables(states *[4][32]byte, rc *[15][16]byte, rc4 
 	clear(b1[:])
 	runtime.KeepAlive(&b0)
 	runtime.KeepAlive(&b1)
+	clobberScratchGPRs()
 }
 
 func areion512Permutex4(states *[4][64]byte) {
@@ -444,6 +459,7 @@ func areion512Permutex4Tables(states *[4][64]byte, rc *[15][16]byte, rc4 *[15 * 
 	tier := TierCode()
 	if tier == TierPureGo || !hasAESNI {
 		areion512Permutex4SoftwareRC(states, rc)
+		clobberScratchGPRs()
 		return
 	}
 	var b0, b1, b2, b3 Block4
@@ -466,6 +482,7 @@ func areion512Permutex4Tables(states *[4][64]byte, rc *[15][16]byte, rc4 *[15 * 
 	runtime.KeepAlive(&b1)
 	runtime.KeepAlive(&b2)
 	runtime.KeepAlive(&b3)
+	clobberScratchGPRs()
 }
 
 func areion512InversePermutex4(states *[4][64]byte) {
@@ -480,6 +497,7 @@ func areion512InversePermutex4Tables(states *[4][64]byte, rc *[15][16]byte, rc4 
 	tier := TierCode()
 	if tier == TierPureGo || !hasAESNI {
 		areion512InversePermutex4SoftwareRC(states, rc)
+		clobberScratchGPRs()
 		return
 	}
 	var b0, b1, b2, b3 Block4
@@ -502,6 +520,7 @@ func areion512InversePermutex4Tables(states *[4][64]byte, rc *[15][16]byte, rc4 
 	runtime.KeepAlive(&b1)
 	runtime.KeepAlive(&b2)
 	runtime.KeepAlive(&b3)
+	clobberScratchGPRs()
 }
 
 func areionSoEM256x4(keys *[4][64]byte, inputs *[4][32]byte) [4][32]byte {
@@ -542,11 +561,11 @@ func areionSoEM256x4(keys *[4][64]byte, inputs *[4][32]byte) [4][32]byte {
 		areion256SoEMPermutex4AesNi(&s1b0, &s1b1, &s2b0, &s2b1)
 	}
 
-	var out [4][32]byte
+	var buf [4][32]byte
 	for lane := 0; lane < 4; lane++ {
 		s1b0U64 := (*[2]uint64)(unsafe.Pointer(&s1b0[lane*16]))
 		s1b1U64 := (*[2]uint64)(unsafe.Pointer(&s1b1[lane*16]))
-		outU64 := (*[4]uint64)(unsafe.Pointer(&out[lane]))
+		outU64 := (*[4]uint64)(unsafe.Pointer(&buf[lane]))
 		k := &keysU64[lane]
 
 		outU64[0] = s1b0U64[0] ^ k[0] ^ k[4]
@@ -554,14 +573,18 @@ func areionSoEM256x4(keys *[4][64]byte, inputs *[4][32]byte) [4][32]byte {
 		outU64[2] = s1b1U64[0] ^ k[2] ^ k[6]
 		outU64[3] = s1b1U64[1] ^ k[3] ^ k[7]
 	}
+	out := buf
+	clear(buf[:])
 	clear(s1b0[:])
 	clear(s1b1[:])
 	clear(s2b0[:])
 	clear(s2b1[:])
+	runtime.KeepAlive(&buf)
 	runtime.KeepAlive(&s1b0)
 	runtime.KeepAlive(&s1b1)
 	runtime.KeepAlive(&s2b0)
 	runtime.KeepAlive(&s2b1)
+	clobberScratchGPRs()
 	return out
 }
 
@@ -616,13 +639,13 @@ func areionSoEM512x4(keys *[4][128]byte, inputs *[4][64]byte) [4][64]byte {
 		areion512SoEMPermutex4AesNi(&a1, &b1, &c1, &d1, &a2, &b2, &c2, &d2)
 	}
 
-	var out [4][64]byte
+	var buf [4][64]byte
 	for lane := 0; lane < 4; lane++ {
 		a1U64 := (*[2]uint64)(unsafe.Pointer(&a1[lane*16]))
 		b1U64 := (*[2]uint64)(unsafe.Pointer(&b1[lane*16]))
 		c1U64 := (*[2]uint64)(unsafe.Pointer(&c1[lane*16]))
 		d1U64 := (*[2]uint64)(unsafe.Pointer(&d1[lane*16]))
-		outU64 := (*[8]uint64)(unsafe.Pointer(&out[lane]))
+		outU64 := (*[8]uint64)(unsafe.Pointer(&buf[lane]))
 		k := &keysU64[lane]
 
 		outU64[0] = a1U64[0] ^ k[0] ^ k[8]
@@ -634,6 +657,8 @@ func areionSoEM512x4(keys *[4][128]byte, inputs *[4][64]byte) [4][64]byte {
 		outU64[6] = d1U64[0] ^ k[6] ^ k[14]
 		outU64[7] = d1U64[1] ^ k[7] ^ k[15]
 	}
+	out := buf
+	clear(buf[:])
 	clear(a1[:])
 	clear(b1[:])
 	clear(c1[:])
@@ -642,6 +667,7 @@ func areionSoEM512x4(keys *[4][128]byte, inputs *[4][64]byte) [4][64]byte {
 	clear(b2[:])
 	clear(c2[:])
 	clear(d2[:])
+	runtime.KeepAlive(&buf)
 	runtime.KeepAlive(&a1)
 	runtime.KeepAlive(&b1)
 	runtime.KeepAlive(&c1)
@@ -650,5 +676,6 @@ func areionSoEM512x4(keys *[4][128]byte, inputs *[4][64]byte) [4][64]byte {
 	runtime.KeepAlive(&b2)
 	runtime.KeepAlive(&c2)
 	runtime.KeepAlive(&d2)
+	clobberScratchGPRs()
 	return out
 }

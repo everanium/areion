@@ -105,3 +105,5 @@ func aes128EncryptBlock(rk *[11][16]byte, dst, src *[16]byte) {
 func aes128Encrypt4Blocks(rk *[11][16]byte, dst, src *[64]byte) {
 	aes128Encrypt4BlocksSoftware(rk, dst, src)
 }
+
+func clobberScratchGPRs() {}

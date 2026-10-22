@@ -544,6 +544,8 @@ func bsMixColumns(q *bsState) {
 	q[7] = a[6] ^ b[7]
 	clear(a[:])
 	clear(b[:])
+	runtime.KeepAlive(&a)
+	runtime.KeepAlive(&b)
 }
 
 func bsInvMixColumns(q *bsState) {
@@ -578,6 +580,9 @@ func bsInvMixColumns(q *bsState) {
 	clear(d[:])
 	clear(u[:])
 	clear(f[:])
+	runtime.KeepAlive(&d)
+	runtime.KeepAlive(&u)
+	runtime.KeepAlive(&f)
 }
 
 func bsXor(dst, src *bsState) {
@@ -616,6 +621,13 @@ func getBSRC(rcs *[15][16]byte) *[15]bsState {
 	return &custom
 }
 
+//go:noinline
+func wipeSoftwareStack() {
+	var frame [128]uint64
+	clear(frame[:])
+	runtime.KeepAlive(&frame)
+}
+
 func roundNoKey(block *Block) {
 	var q bsState
 	bsPack1(&q, block)
@@ -623,6 +635,8 @@ func roundNoKey(block *Block) {
 	bsUnpack1(&q, block)
 	clear(q[:])
 	runtime.KeepAlive(&q)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
 }
 
 func finalRoundNoKey(block *Block) {
@@ -632,6 +646,8 @@ func finalRoundNoKey(block *Block) {
 	bsUnpack1(&q, block)
 	clear(q[:])
 	runtime.KeepAlive(&q)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
 }
 
 // xorBlock sets dst = a ⊕ b. It makes no alignment assumption about its
@@ -843,6 +859,8 @@ func areion256PermuteSoftwareRC(state *State256, rcs *[15][16]byte) {
 	clear(x1[:])
 	runtime.KeepAlive(&x0)
 	runtime.KeepAlive(&x1)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
 }
 
 // areion256InversePermuteSoftwareRC runs 10 inverse rounds of Areion-256 with the specified round constants.
@@ -857,6 +875,8 @@ func areion256InversePermuteSoftwareRC(state *State256, rcs *[15][16]byte) {
 	clear(x1[:])
 	runtime.KeepAlive(&x0)
 	runtime.KeepAlive(&x1)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
 }
 
 // areion512PermuteSoftwareRC runs 15 rounds of Areion-512 with the specified round constants.
@@ -879,6 +899,8 @@ func areion512PermuteSoftwareRC(state *State512, rcs *[15][16]byte) {
 	runtime.KeepAlive(&x1)
 	runtime.KeepAlive(&x2)
 	runtime.KeepAlive(&x3)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
 }
 
 // areion512InversePermuteSoftwareRC runs 15 inverse rounds of Areion-512 with the specified round constants.
@@ -901,6 +923,8 @@ func areion512InversePermuteSoftwareRC(state *State512, rcs *[15][16]byte) {
 	runtime.KeepAlive(&x1)
 	runtime.KeepAlive(&x2)
 	runtime.KeepAlive(&x3)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
 }
 
 func areion256Permutex4SoftwareRC(states *[4][32]byte, rcs *[15][16]byte) {
@@ -914,6 +938,8 @@ func areion256Permutex4SoftwareRC(states *[4][32]byte, rcs *[15][16]byte) {
 	clear(x1[:])
 	runtime.KeepAlive(&x0)
 	runtime.KeepAlive(&x1)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
 }
 
 func areion256InversePermutex4SoftwareRC(states *[4][32]byte, rcs *[15][16]byte) {
@@ -927,6 +953,8 @@ func areion256InversePermutex4SoftwareRC(states *[4][32]byte, rcs *[15][16]byte)
 	clear(x1[:])
 	runtime.KeepAlive(&x0)
 	runtime.KeepAlive(&x1)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
 }
 
 func areion512Permutex4SoftwareRC(states *[4][64]byte, rcs *[15][16]byte) {
@@ -948,6 +976,8 @@ func areion512Permutex4SoftwareRC(states *[4][64]byte, rcs *[15][16]byte) {
 	runtime.KeepAlive(&x1)
 	runtime.KeepAlive(&x2)
 	runtime.KeepAlive(&x3)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
 }
 
 func areion512InversePermutex4SoftwareRC(states *[4][64]byte, rcs *[15][16]byte) {
@@ -969,6 +999,8 @@ func areion512InversePermutex4SoftwareRC(states *[4][64]byte, rcs *[15][16]byte)
 	runtime.KeepAlive(&x1)
 	runtime.KeepAlive(&x2)
 	runtime.KeepAlive(&x3)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
 }
 
 // soem256Software evaluates SoEM22 in constant-time bitsliced pure Go software,
@@ -988,20 +1020,25 @@ func soem256Software(key *[64]byte, input *[32]byte) [32]byte {
 	areion256PermuteBS(&x0, &x1, &bsRCP1P2)
 	bsUnpack2(&x0, (*Block)(state1[0:16]), (*Block)(state2[0:16]))
 	bsUnpack2(&x1, (*Block)(state1[16:32]), (*Block)(state2[16:32]))
+	var out [32]byte
 	for i := 0; i < 32; i += 8 {
 		v1 := binary.LittleEndian.Uint64(state1[i : i+8])
 		v2 := binary.LittleEndian.Uint64(state2[i : i+8])
 		k1 := binary.LittleEndian.Uint64(key[i : i+8])
 		k2 := binary.LittleEndian.Uint64(key[32+i : 32+i+8])
-		binary.LittleEndian.PutUint64(state1[i:i+8], v1^v2^k1^k2)
+		binary.LittleEndian.PutUint64(out[i:i+8], v1^v2^k1^k2)
 	}
 	clear(x0[:])
 	clear(x1[:])
+	clear(state1[:])
 	clear(state2[:])
 	runtime.KeepAlive(&x0)
 	runtime.KeepAlive(&x1)
+	runtime.KeepAlive(&state1)
 	runtime.KeepAlive(&state2)
-	return state1
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+	return out
 }
 
 // soem512Software evaluates SoEM22 in constant-time bitsliced pure Go software,
@@ -1025,24 +1062,29 @@ func soem512Software(key *[128]byte, input *[64]byte) [64]byte {
 	bsUnpack2(&x1, (*Block)(state1[16:32]), (*Block)(state2[16:32]))
 	bsUnpack2(&x2, (*Block)(state1[32:48]), (*Block)(state2[32:48]))
 	bsUnpack2(&x3, (*Block)(state1[48:64]), (*Block)(state2[48:64]))
+	var out [64]byte
 	for i := 0; i < 64; i += 8 {
 		v1 := binary.LittleEndian.Uint64(state1[i : i+8])
 		v2 := binary.LittleEndian.Uint64(state2[i : i+8])
 		k1 := binary.LittleEndian.Uint64(key[i : i+8])
 		k2 := binary.LittleEndian.Uint64(key[64+i : 64+i+8])
-		binary.LittleEndian.PutUint64(state1[i:i+8], v1^v2^k1^k2)
+		binary.LittleEndian.PutUint64(out[i:i+8], v1^v2^k1^k2)
 	}
 	clear(x0[:])
 	clear(x1[:])
 	clear(x2[:])
 	clear(x3[:])
+	clear(state1[:])
 	clear(state2[:])
 	runtime.KeepAlive(&x0)
 	runtime.KeepAlive(&x1)
 	runtime.KeepAlive(&x2)
 	runtime.KeepAlive(&x3)
+	runtime.KeepAlive(&state1)
 	runtime.KeepAlive(&state2)
-	return state1
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+	return out
 }
 
 func soem256x4Software(keys *[4][64]byte, inputs *[4][32]byte) [4][32]byte {
@@ -1058,18 +1100,23 @@ func soem256x4Software(keys *[4][64]byte, inputs *[4][32]byte) [4][32]byte {
 	}
 	areion256Permutex4SoftwareRC(&state1, &roundConstantsP1)
 	areion256Permutex4SoftwareRC(&state2, &roundConstantsP2)
+	var out [4][32]byte
 	for lane := 0; lane < 4; lane++ {
 		for i := 0; i < 32; i += 8 {
 			v1 := binary.LittleEndian.Uint64(state1[lane][i : i+8])
 			v2 := binary.LittleEndian.Uint64(state2[lane][i : i+8])
 			k1 := binary.LittleEndian.Uint64(keys[lane][i : i+8])
 			k2 := binary.LittleEndian.Uint64(keys[lane][32+i : 32+i+8])
-			binary.LittleEndian.PutUint64(state1[lane][i:i+8], v1^v2^k1^k2)
+			binary.LittleEndian.PutUint64(out[lane][i:i+8], v1^v2^k1^k2)
 		}
 	}
+	clear(state1[:])
 	clear(state2[:])
+	runtime.KeepAlive(&state1)
 	runtime.KeepAlive(&state2)
-	return state1
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+	return out
 }
 
 func soem512x4Software(keys *[4][128]byte, inputs *[4][64]byte) [4][64]byte {
@@ -1085,18 +1132,23 @@ func soem512x4Software(keys *[4][128]byte, inputs *[4][64]byte) [4][64]byte {
 	}
 	areion512Permutex4SoftwareRC(&state1, &roundConstantsP1)
 	areion512Permutex4SoftwareRC(&state2, &roundConstantsP2)
+	var out [4][64]byte
 	for lane := 0; lane < 4; lane++ {
 		for i := 0; i < 64; i += 8 {
 			v1 := binary.LittleEndian.Uint64(state1[lane][i : i+8])
 			v2 := binary.LittleEndian.Uint64(state2[lane][i : i+8])
 			k1 := binary.LittleEndian.Uint64(keys[lane][i : i+8])
 			k2 := binary.LittleEndian.Uint64(keys[lane][64+i : 64+i+8])
-			binary.LittleEndian.PutUint64(state1[lane][i:i+8], v1^v2^k1^k2)
+			binary.LittleEndian.PutUint64(out[lane][i:i+8], v1^v2^k1^k2)
 		}
 	}
+	clear(state1[:])
 	clear(state2[:])
+	runtime.KeepAlive(&state1)
 	runtime.KeepAlive(&state2)
-	return state1
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+	return out
 }
 
 // xorBlock4 sets dst = a ⊕ b on 64-byte (4-block) vectors.
@@ -1173,6 +1225,8 @@ func expandKey128(key *[16]byte, rk *[11][16]byte) {
 	clear(blk[:])
 	runtime.KeepAlive(&w)
 	runtime.KeepAlive(&blk)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
 }
 
 func aesRound4Software(blocks, roundKeys *Block4) {
@@ -1183,6 +1237,8 @@ func aesRound4Software(blocks, roundKeys *Block4) {
 	xorBlock4(blocks, blocks, roundKeys)
 	clear(q[:])
 	runtime.KeepAlive(&q)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
 }
 
 func aesFinalRound4Software(blocks, roundKeys *Block4) {
@@ -1193,6 +1249,8 @@ func aesFinalRound4Software(blocks, roundKeys *Block4) {
 	xorBlock4(blocks, blocks, roundKeys)
 	clear(q[:])
 	runtime.KeepAlive(&q)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
 }
 
 func aes128EncryptBlockSoftware(rk *[11][16]byte, dst, src *[16]byte) {
@@ -1235,6 +1293,8 @@ func aes128EncryptBlockSoftware(rk *[11][16]byte, dst, src *[16]byte) {
 	runtime.KeepAlive(&k14)
 	runtime.KeepAlive(&k58)
 	runtime.KeepAlive(&k910)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
 }
 
 func aes128Encrypt4BlocksSoftware(rk *[11][16]byte, dst, src *[64]byte) {
@@ -1279,4 +1339,6 @@ func aes128Encrypt4BlocksSoftware(rk *[11][16]byte, dst, src *[64]byte) {
 	runtime.KeepAlive(&k14)
 	runtime.KeepAlive(&k58)
 	runtime.KeepAlive(&k910)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
 }
