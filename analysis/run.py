@@ -35,10 +35,11 @@ GOBIN = BUILD / "analysis"
 CBIN = BUILD / "integral"
 RC7P2 = "shift"  # RC7 form of P2 for the checks that run one table (the library's); set by --rc7p2
 RC7P1 = "shift"  # RC7 form of P1 (the library's is the published shift form); set by --rc7p1
-JOBS = max(1, (os.cpu_count() or 2) - 2)  # processes for the SAT bounds; set by --jobs
+JOBS = int(os.environ.get("AREION_THREADS", max(1, (os.cpu_count() or 2) - 2)))  # worker processes/threads; set by --threads or --jobs
 ROUNDS = None  # cap on the round counts of the Areion-512 bounds tables; set by --rounds
 LINEAR_ROUNDS = None  # weighted: separate cap on the weighted linear table; set by --linear-rounds
 SOLVER = "sat"  # solver of the Areion-512 tables of linear / weighted (sat or highs); set by --solver
+TIME_LIMIT = 0.0  # per-cell HiGHS MILP time limit in seconds for dissolve / inverse (0 = no limit); set by --time-limit
 
 
 def sh(cmd, out, stdin=None, env=None):
@@ -207,7 +208,7 @@ def c_cosets(q, out):
 
 
 def c_impdiff(q, out):
-    sh(py("impdiff.py", *((3, 3) if q else (10, 15))), out)
+    sh(py("impdiff.py", *((3, 3) if q else (10, 15)), "--threads", JOBS), out)
 
 
 def c_values(q, out):
@@ -238,7 +239,7 @@ def c_hintegral(q, out):
         raise SystemExit("hintegral self-test: output depends on the thread count")
     if q:
         return
-    t = str(max(1, (os.cpu_count() or 2) - 2))
+    t = str(JOBS)
     for r in (3, 4, 5):
         for b_ in (0, 1):
             sh([str(CBIN), "sum", 256, r, 4, b_, 0, t, r * 10 + b_, RC7P2], out)
@@ -254,9 +255,9 @@ def c_hintegral(q, out):
 
 def c_affine(q, out):
     sh(py("affeq.py"), out)
-    sh(py("affeq_rel.py", 256), out)
+    sh(py("affeq_rel.py", 256, "--threads", JOBS), out)
     if not q:
-        sh(py("affeq_rel.py", 512), out)
+        sh(py("affeq_rel.py", 512, "--threads", JOBS), out)
 
 
 def model_hash():
@@ -283,10 +284,10 @@ def fill(kind, width, upto, out):
     if SOLVER == "highs" and width == 512 and kind == "linear":
         # rounds missing from the SAT table, by the MILP solver, in a table of their own
         sh(py("milp.py", kind, "--upto", upto, "--table", f"{table_prefix()}{kind}_{width}_milp.json",
-              "--sat-table", path), out)
+              "--sat-table", path, "--threads", JOBS), out)
         return
     sh(py("bounds.py", kind, width, "--upto", upto, "--table", path, "--rounds-at-once", JOBS,
-          "--quiet"), out)
+          "--threads", JOBS, "--quiet"), out)
 
 
 def c_linear(q, out):
@@ -366,7 +367,7 @@ def c_weighted(q, out):
         # SAT, whose window bound settles every round count at once
         for kind, upto in (("linear", lin), ("single", single)):
             sh(py("milp.py", kind, "--upto", upto, "--weights", chain, "--table", f"{prefix}{kind}_milp.json",
-                  "--sat-table", f"{prefix}{kind}.json"), out)
+                  "--sat-table", f"{prefix}{kind}.json", "--threads", JOBS), out)
         lin = single = 0
     sh(py("weighted.py", "--weights", chain, "--prefix", prefix, "--plain-prefix", table_prefix(),
           "--linear", lin, "--single", single, "--related", related, "--quiet"), out)
@@ -390,7 +391,8 @@ def c_solvers(q, out):
             continue
         t = BUILD / f"solvers_check_{os.getpid()}.json"
         try:
-            sh(py("milp.py", kind, "--upto", n, "--table", t, *(["--weights", weights] if weights else [])), out)
+            sh(py("milp.py", kind, "--upto", n, "--table", t, "--threads", JOBS,
+                  *(["--weights", weights] if weights else [])), out)
             mine = read_table(t)
         finally:
             if t.exists():
@@ -413,18 +415,23 @@ def c_dissolve(q, out):
     r256, r512 = (5, 6) if q else (10, 15)
     if ROUNDS is not None:
         r256, r512 = min(r256, ROUNDS), min(r512, ROUNDS)
-    sh(py("dissolve.py", "--r256", r256, "--r512", r512, "--jobs", JOBS,
-          "--gobin", GOBIN, "--trace-n", 25 if q else 100), out)
+    tlim_args = ["--time-limit", TIME_LIMIT] if TIME_LIMIT and TIME_LIMIT > 0 else []
+    sh(py("dissolve.py", "--r256", r256, "--r512", r512, "--jobs", JOBS, "--threads", JOBS,
+          "--gobin", GOBIN, "--trace-n", 25 if q else 100, *tlim_args), out)
     sh(go("dissolve", r256, r512, *(["quick"] if q else [])), out)
 
 
 def c_inverse(q, out):
     r256, r512 = (5, 6) if q else (10, 15)
-    if ROUNDS is not None:
-        r256, r512 = min(r256, ROUNDS), min(r512, ROUNDS)
+    tlim_args = ["--time-limit", TIME_LIMIT] if TIME_LIMIT and TIME_LIMIT > 0 else []
+    rnd_args = ["--rounds", ROUNDS] if ROUNDS is not None else []
     sh(go("cross", r256, r512, *(["quick"] if q else [])), out)
-    sh(py("inverse_model.py", "--r256", r256, "--r512", r512, "--jobs", JOBS,
-          "--gobin", GOBIN, "--trace-n", 50 if q else 200), out)
+    sh(py("inverse_model.py", "--r256", r256, "--r512", r512, "--jobs", JOBS, "--threads", JOBS,
+          "--gobin", GOBIN, "--trace-n", 50 if q else 200, *rnd_args, *tlim_args), out)
+
+
+def c_clearing(q, out):
+    sh(py("clearing_cost.py", *(["--quick"] if q else [])), out)
 
 
 CHECKS = {
@@ -454,7 +461,9 @@ CHECKS = {
     "dissolve": (c_dissolve, False, False, "parameterized P2^(k) dependence-dissolution spectrum across rounds (J)",
                  "about 2 min", "about 15 s"),
     "inverse": (c_inverse, True, False, "InversePermute backward & cross-composition C_r(x) = P2_r^-1(P1_r(x)) analysis (K)",
-                "about 3 min", "about 20 s"),
+                "--rounds 7: about 15 min; --rounds 10: hours; resumes", "about 20 s"),
+    "clearing": (c_clearing, False, False, "epilogue register and stack clearing instruction & runtime cost (L)",
+                 "about 2 min", "about 25 s"),
 }
 HEAVY = ("linear", "boomerang", "weighted")  # skipped by 'all' without --quick: run them on their own
 
@@ -468,6 +477,8 @@ def run(name, quick, record):
         form += f" --linear-rounds {LINEAR_ROUNDS}"
     if name in ("linear", "weighted") and SOLVER != "sat":
         form += f" --solver {SOLVER}"
+    if name in ("dissolve", "inverse") and TIME_LIMIT and TIME_LIMIT > 0:
+        form += f" --time-limit {TIME_LIMIT:g}"
     header = f"$ python3 analysis/run.py {name}{' --quick' if quick else ''}{form}\n"
     print(f"== {name}: {desc}", flush=True)
     prepare(need_feas=feas, need_c=c)
@@ -484,7 +495,7 @@ def run(name, quick, record):
 
 
 def main():
-    global RC7P2, RC7P1, JOBS, ROUNDS, LINEAR_ROUNDS, SOLVER
+    global RC7P2, RC7P1, JOBS, ROUNDS, LINEAR_ROUNDS, SOLVER, TIME_LIMIT
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("check", help="'list', 'all', 'clean' or a check name")
     ap.add_argument("--quick", action="store_true", help="reduced rounds / orders / seeds")
@@ -493,17 +504,24 @@ def main():
     ap.add_argument("--rc7p1", choices=("shift", "pi"), default="shift",
                     help="RC7 form of P1 for every check except ref, never in comparisons with the library: shift (published) or pi (plain pi word 7)")
     ap.add_argument("--jobs", type=int, default=JOBS,
-                    help=f"processes for the SAT bounds: table rounds searched at once (default {JOBS})")
-    ap.add_argument("--rounds", type=int, help="cap the Areion-512 round counts of the linear / boomerang / weighted tables")
+                    help=f"worker processes for SAT / MILP bounds and parallel checks (default {JOBS})")
+    ap.add_argument("--threads", type=int, default=None,
+                    help=f"worker threads/processes across SAT, HiGHS MILP cubes, and C checks (default: --jobs or $AREION_THREADS)")
+    ap.add_argument("--rounds", type=int, help="cap the Areion-512 round counts of the linear / boomerang / weighted / inverse tables")
     ap.add_argument("--linear-rounds", type=int, help="weighted: cap the weighted linear table separately (default: --rounds)")
     ap.add_argument("--solver", choices=("sat", "highs"), default="sat",
                     help="linear / weighted: fill the Areion-512 tables with the MILP solver HiGHS")
+    ap.add_argument("--time-limit", type=float, default=0.0,
+                    help="dissolve / inverse: per-cell HiGHS MILP time limit in seconds (default 0 = no limit)")
     ap.add_argument("--rc7p2", choices=("shift", "pi"), default="shift",
                     help="RC7 form of P2 for values, integral and hintegral; the other checks that depend on P2 run both forms")
     a = ap.parse_args()
     RC7P2 = a.rc7p2
     RC7P1 = a.rc7p1
-    JOBS, ROUNDS, LINEAR_ROUNDS, SOLVER = max(1, a.jobs), a.rounds, a.linear_rounds, a.solver
+    JOBS = max(1, a.threads if a.threads is not None else a.jobs)
+    ROUNDS, LINEAR_ROUNDS, SOLVER, TIME_LIMIT = a.rounds, a.linear_rounds, a.solver, a.time_limit
+    os.environ["AREION_THREADS"] = str(JOBS)
+    os.environ["GOMAXPROCS"] = str(JOBS)
     os.environ["AREION_RC7P1"] = RC7P1  # read by the Go, Python and C programs
     if a.check == "list":
         for k, (_, _, _, d, full, quick) in CHECKS.items():

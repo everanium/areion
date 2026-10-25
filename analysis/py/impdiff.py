@@ -7,31 +7,59 @@ trail) would be a distinguisher. Checked with the byte-activity model
 (model.py, mode related: Delta_r added every round), for delta free and
 for delta with every byte active: UNSAT means no truncated trail has
 that output byte inactive."""
+import argparse
+import concurrent.futures
 import json
+import multiprocessing as mp
+import os
 import sys
 from model import build
 from pysat.solvers import Solver
 
-out = []
-limits = [int(v) for v in sys.argv[1:3]] if len(sys.argv) >= 3 else [10, 15]
-for width, R in ((256, limits[0]), (512, limits[1])):
+
+def _solve_cell(task):
+    width, r, dmode = task
     nb = width // 128
-    for r in range(1, R + 1):
-        for dmode in ('free', 'full'):
-            m, rec = build(width, r, [0xFFFF] * 15)
-            inp = list(range(1, 16 * nb + 1))
-            if dmode == 'full':
-                m.cl += [[v] for v in inp]
-            fin = rec[-1]
-            outv = sum((fin[f'x{i}'] for i in range(nb)), [])
-            unsat = []
-            with Solver(name='cadical153', bootstrap_with=m.cl) as s:
-                for j, v in enumerate(outv):
-                    if not s.solve(assumptions=[-v]):
-                        unsat.append(j)
-                allzero_sat = s.solve(assumptions=[-v for v in outv])
-            rec_ = {'width': width, 'rounds': r, 'delta': dmode,
-                    'output bytes that cannot be inactive': unsat,
-                    'all-zero output admitted': allzero_sat}
+    m, rec = build(width, r, [0xFFFF] * 15)
+    inp = list(range(1, 16 * nb + 1))
+    if dmode == 'full':
+        m.cl += [[v] for v in inp]
+    fin = rec[-1]
+    outv = sum((fin[f'x{i}'] for i in range(nb)), [])
+    unsat = []
+    with Solver(name='cadical153', bootstrap_with=m.cl) as s:
+        for j, v in enumerate(outv):
+            if not s.solve(assumptions=[-v]):
+                unsat.append(j)
+        allzero_sat = s.solve(assumptions=[-v for v in outv])
+    return {
+        'width': width, 'rounds': r, 'delta': dmode,
+        'output bytes that cannot be inactive': unsat,
+        'all-zero output admitted': allzero_sat,
+    }
+
+
+def main():
+    default_jobs = int(os.environ.get("AREION_THREADS", max(1, (os.cpu_count() or 2) - 2)))
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("limits", nargs="*", type=int, help="optional [r256 r512] round limits")
+    ap.add_argument("--jobs", type=int, default=default_jobs)
+    ap.add_argument("--threads", type=int, default=default_jobs)
+    a = ap.parse_args()
+    limits = a.limits[:2] if len(a.limits) >= 2 else [10, 15]
+    workers = max(1, a.threads if a.threads != default_jobs else a.jobs)
+    tasks = [
+        (width, r, dmode)
+        for width, R in ((256, limits[0]), (512, limits[1]))
+        for r in range(1, R + 1)
+        for dmode in ('free', 'full')
+    ]
+    ctx = mp.get_context("fork")
+    with concurrent.futures.ProcessPoolExecutor(max_workers=workers, mp_context=ctx) as ex:
+        for rec_ in ex.map(_solve_cell, tasks):
             print(json.dumps(rec_), flush=True)
-            out.append(rec_)
+
+
+if __name__ == "__main__":
+    main()
+

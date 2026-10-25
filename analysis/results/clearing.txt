@@ -1,0 +1,201 @@
+$ python3 analysis/run.py clearing
+== 1. Static disassembly & epilogue instruction-count audit (c74d39a vs 72a892a)
+
+-- 1a. Assembly kernels (.abi0) across amd64 and arm64 --
+Arch/File                    Kernel                               c74d39a 72a892a +dInsn  c74d39a epilogue       72a892a epilogue
+---------------------------------------------------------------------------------------------------------------------------------
+areion_amd64.s               aes128Encrypt4BlocksAesNiAsm              68      75     +7  1 SIMD                 5 SIMD, 3 GPR
+areion_amd64.s               aes128Encrypt4BlocksVexAsm                68      75     +7  1 SIMD                 5 SIMD, 3 GPR
+areion_amd64.s               aes128Encrypt4BlocksYmmAsm                42      47     +5  1 SIMD, VZEROUPPER     3 SIMD, 3 GPR, VZEROUPPER
+areion_amd64.s               aes128Encrypt4BlocksZmmAsm                29      33     +4  1 SIMD, VZEROUPPER     2 SIMD, 3 GPR, VZEROUPPER
+areion_amd64.s               aes128EncryptBlockAsm                     29      33     +4  1 SIMD                 2 SIMD, 3 GPR
+areion_amd64.s               aes128EncryptBlockVexAsm                  17      21     +4  none                   1 SIMD, 3 GPR
+areion_amd64.s               aesFinalRound4AesNiAsm                    23      29     +6  4 SIMD                 8 SIMD, 2 GPR
+areion_amd64.s               aesFinalRound4VexAsm                      15      21     +6  none                   4 SIMD, 2 GPR
+areion_amd64.s               aesFinalRound4YmmAsm                       9      13     +4  VZEROUPPER             2 SIMD, 2 GPR, VZEROUPPER
+areion_amd64.s               aesFinalRound4ZmmAsm                       6       9     +3  VZEROUPPER             1 SIMD, 2 GPR, VZEROUPPER
+areion_amd64.s               aesFinalRoundAsm                           8      11     +3  1 SIMD                 2 SIMD, 2 GPR
+areion_amd64.s               aesFinalRoundVexAsm                        6       9     +3  none                   1 SIMD, 2 GPR
+areion_amd64.s               aesRound4AesNiAsm                         23      29     +6  4 SIMD                 8 SIMD, 2 GPR
+areion_amd64.s               aesRound4VexAsm                           15      21     +6  none                   4 SIMD, 2 GPR
+areion_amd64.s               aesRound4YmmAsm                            9      13     +4  VZEROUPPER             2 SIMD, 2 GPR, VZEROUPPER
+areion_amd64.s               aesRound4ZmmAsm                            6       9     +3  VZEROUPPER             1 SIMD, 2 GPR, VZEROUPPER
+areion_amd64.s               aesRoundAsm                                8      11     +3  1 SIMD                 2 SIMD, 2 GPR
+areion_amd64.s               aesRoundVexAsm                             6       9     +3  none                   1 SIMD, 2 GPR
+areion_amd64.s               areion256InversePermuteRCAsm              68      75     +7  none                   5 SIMD, 2 GPR
+areion_amd64.s               areion256InversePermuteVexRCAsm           38      44     +6  none                   4 SIMD, 2 GPR
+areion_amd64.s               areion256InversePermutex4Avx2RC           83      94    +11  VZEROUPPER             8 SIMD, 3 GPR, VZEROUPPER
+areion_amd64.s               areion256InversePermutex4RC               39      46     +7  VZEROUPPER             4 SIMD, 3 GPR, VZEROUPPER
+areion_amd64.s               areion256PermuteRCAsm                     68      75     +7  none                   5 SIMD, 2 GPR
+areion_amd64.s               areion256PermuteVexRCAsm                  38      44     +6  none                   4 SIMD, 2 GPR
+areion_amd64.s               areion256Permutex4Avx2RC                  83      94    +11  VZEROUPPER             8 SIMD, 3 GPR, VZEROUPPER
+areion_amd64.s               areion256Permutex4RC                      39      46     +7  VZEROUPPER             4 SIMD, 3 GPR, VZEROUPPER
+areion_amd64.s               areion512InversePermuteRCAsm             177     186     +9  none                   7 SIMD, 2 GPR
+areion_amd64.s               areion512InversePermuteVexRCAsm          102     109     +7  none                   5 SIMD, 2 GPR
+areion_amd64.s               areion512InversePermutex4Avx2RC          308     325    +17  VZEROUPPER             12 SIMD, 5 GPR, VZEROUPPER
+areion_amd64.s               areion512InversePermutex4RC              240     253    +13  VZEROUPPER             8 SIMD, 5 GPR, VZEROUPPER
+areion_amd64.s               areion512PermuteRCAsm                    162     171     +9  none                   7 SIMD, 2 GPR
+areion_amd64.s               areion512PermuteVexRCAsm                  87      94     +7  none                   5 SIMD, 2 GPR
+areion_amd64.s               areion512Permutex4Avx2RC                 188     203    +15  VZEROUPPER             10 SIMD, 5 GPR, VZEROUPPER
+areion_amd64.s               areion512Permutex4RC                      90     100    +10  VZEROUPPER             5 SIMD, 5 GPR, VZEROUPPER
+areion_amd64.s               areionSoEM256Asm                         153     161     +8  8 SIMD                 13 SIMD, 3 GPR
+areion_amd64.s               areionSoEM256VexAsm                       91      97     +6  8 SIMD                 11 SIMD, 3 GPR
+areion_amd64.s               areionSoEM512Asm                         361     371    +10  8 SIMD                 15 SIMD, 3 GPR
+areion_amd64.s               areionSoEM512VexAsm                      187     195     +8  4 SIMD                 9 SIMD, 3 GPR
+areion_arm64.s               aes128Encrypt4BlocksAsm                   99     106     +7  2 SIMD                 6 SIMD, 3 GPR
+areion_arm64.s               aes128EncryptBlockAsm                     39      43     +4  2 SIMD                 3 SIMD, 3 GPR
+areion_arm64.s               aesFinalRound4Asm                         19      26     +7  4 SIMD                 9 SIMD, 2 GPR
+areion_arm64.s               aesFinalRoundAsm                          10      14     +4  1 SIMD                 3 SIMD, 2 GPR
+areion_arm64.s               aesRound4Asm                              23      30     +7  4 SIMD                 9 SIMD, 2 GPR
+areion_arm64.s               aesRoundAsm                               11      15     +4  1 SIMD                 3 SIMD, 2 GPR
+areion_arm64.s               areion256InversePermuteRCAsm              86     102    +16  none                   14 SIMD, 2 GPR
+areion_arm64.s               areion256InversePermutex4RC              299     325    +26  none                   23 SIMD, 3 GPR
+areion_arm64.s               areion256PermuteRCAsm                     86      93     +7  none                   5 SIMD, 2 GPR
+areion_arm64.s               areion256Permutex4RC                     299     316    +17  none                   14 SIMD, 3 GPR
+areion_arm64.s               areion256SoEMPermutex4NEON               620     637    +17  16 SIMD                27 SIMD, 6 GPR
+areion_arm64.s               areion512InversePermuteRCAsm             203     227    +24  none                   21 SIMD, 3 GPR
+areion_arm64.s               areion512InversePermutex4RC              765     797    +32  none                   26 SIMD, 6 GPR
+areion_arm64.s               areion512PermuteRCAsm                    203     213    +10  none                   7 SIMD, 3 GPR
+areion_arm64.s               areion512Permutex4RC                     750     781    +31  none                   26 SIMD, 5 GPR
+areion_arm64.s               areion512SoEMPermutex4NEON              1576    1598    +22  16 SIMD                27 SIMD, 11 GPR
+areion_arm64.s               areionSoEM256Asm                         190     200    +10  8 SIMD                 13 SIMD, 5 GPR
+areion_arm64.s               areionSoEM512Asm                         442     455    +13  16 SIMD                23 SIMD, 6 GPR
+areion_soem256_amd64.s       areion256SoEMPermutex4Interleaved         88     104    +16  4 SIMD, VZEROUPPER     16 SIMD, 4 GPR, VZEROUPPER
+areion_soem256_amd64.s       areion256SoEMPermutex4VaesAvx2           170     180    +10  8 SIMD, VZEROUPPER     14 SIMD, 4 GPR, VZEROUPPER
+areion_soem512_amd64.s       areion512SoEMPermutex4Interleaved        195     222    +27  4 SIMD, VZEROUPPER     23 SIMD, 8 GPR, VZEROUPPER
+areion_soem512_amd64.s       areion512SoEMPermutex4VaesAvx2           346     358    +12  4 SIMD, VZEROUPPER     8 SIMD, 8 GPR, VZEROUPPER
+areion_soem_aesni_amd64.s    areion256InversePermutex4AesNiRC         231     248    +17  none                   14 SIMD, 3 GPR
+areion_soem_aesni_amd64.s    areion256InversePermutex4VexRC           151     168    +17  none                   14 SIMD, 3 GPR
+areion_soem_aesni_amd64.s    areion256Permutex4AesNiRC                231     248    +17  none                   14 SIMD, 3 GPR
+areion_soem_aesni_amd64.s    areion256Permutex4VexRC                  151     168    +17  none                   14 SIMD, 3 GPR
+areion_soem_aesni_amd64.s    areion256SoEMPermutex4AesNi              486     497    +11  8 SIMD                 15 SIMD, 4 GPR
+areion_soem_aesni_amd64.s    areion256SoEMPermutex4Vex                326     337    +11  8 SIMD                 15 SIMD, 4 GPR
+areion_soem_aesni_amd64.s    areion512InversePermutex4AesNiRC         669     688    +19  none                   14 SIMD, 5 GPR
+areion_soem_aesni_amd64.s    areion512InversePermutex4VexRC           429     444    +15  none                   10 SIMD, 5 GPR
+areion_soem_aesni_amd64.s    areion512Permutex4AesNiRC                609     628    +19  none                   14 SIMD, 5 GPR
+areion_soem_aesni_amd64.s    areion512Permutex4VexRC                  369     384    +15  none                   10 SIMD, 5 GPR
+areion_soem_aesni_amd64.s    areion512SoEMPermutex4AesNi             1282    1297    +15  8 SIMD                 15 SIMD, 8 GPR
+areion_soem_aesni_amd64.s    areion512SoEMPermutex4Vex                798     813    +15  4 SIMD                 11 SIMD, 8 GPR
+
+-- 1b. Shared clearing helpers added in 72a892a --
+  wipeSoftwareStack (purego, 1024 B = [128]uint64 stack scrub): amd64=20 static insns (94 dynamic insns/call: 16x4 MOVUPS X15 loop); arm64=22 static insns
+  clobberScratchGPRs.abi0 (register scrub helper):              amd64=30 insns (16 PXOR X0..X15 + 13 XORQ + RET); arm64=60 insns (32 VEOR V0..V31 + 27 MOVD ZR + RET)
+
+-- 1c. Per-interface instruction delta (+dInsn: kernel / Go wrapper+helpers) --
+Interface                 B |  purego (static/dyn) |      aesni |        vex |   vaesavx2 |     avx512 |      arm64
+-------------------------------------------------------------------------------------------------------------------
+AES128EncryptBlock       16 |          +55 (+129d) |      +4/+0 |      +4/+0 |      +4/+0 |      +4/+0 |      +4/+0
+Permute256               32 |          +54 (+128d) |      +7/+0 |      +6/+0 |      +6/+0 |      +6/+0 |      +7/+0
+Permute512               64 |          +53 (+127d) |      +9/+0 |      +7/+0 |      +7/+0 |      +7/+0 |     +10/+0
+InversePermute256        32 |          +54 (+128d) |      +7/+0 |      +6/+0 |      +6/+0 |      +6/+0 |     +16/+0
+InversePermute512        64 |          +53 (+127d) |      +9/+0 |      +7/+0 |      +7/+0 |      +7/+0 |     +24/+0
+SoEM256                  32 |          +59 (+133d) |     +8/+41 |     +6/+41 |     +6/+41 |     +6/+41 |    +10/+68
+SoEM512                  64 |          +64 (+138d) |    +10/+46 |     +8/+46 |     +8/+46 |     +8/+46 |    +13/+74
+AES128Encrypt4Blocks     64 |          +55 (+129d) |      +7/+0 |      +7/+0 |      +5/+0 |      +4/+0 |      +7/+0
+Permute256x4            128 |          +89 (+163d) |    +17/+34 |    +17/+34 |    +11/+34 |     +7/+34 |    +17/+61
+Permute512x4            256 |          +89 (+163d) |    +19/+31 |    +15/+31 |    +15/+31 |    +10/+31 |    +31/+61
+InversePermute256x4     128 |          +89 (+163d) |    +17/+34 |    +17/+34 |    +11/+34 |     +7/+34 |    +26/+61
+InversePermute512x4     256 |          +89 (+163d) |    +19/+31 |    +15/+31 |    +17/+31 |    +13/+31 |    +32/+61
+SoEM256x4               128 |         +184 (+406d) |    +11/+59 |    +11/+59 |    +10/+59 |    +16/+59 |    +17/+79
+SoEM512x4               256 |         +181 (+403d) |    +15/+57 |    +15/+57 |    +12/+57 |    +27/+57 |    +22/+78
+
+== 2. Interleaved A/B microbenchmarks (5 interleaved pairs/tier, -benchtime=60ms, CPU core 7, c/B at 3.60 GHz)
+
+-- Tier: purego --
+Interface                 B  c74d39a ns  72a892a ns      d_ns  c74d39a c/B  72a892a c/B     d_c/B      d_%
+----------------------------------------------------------------------------------------------------------
+AES128EncryptBlock       16      513.50      558.10    +44.60      115.538      125.573   +10.035    +8.7%
+Permute256               32      952.60      884.10    -68.50      107.168       99.461    -7.706    -7.2%
+Permute512               64     1631.00     1629.00     -2.00       91.744       91.631    -0.112    -0.1%
+InversePermute256        32      984.90      907.90    -77.00      110.801      102.139    -8.662    -7.8%
+InversePermute512        64     2333.00     2151.00   -182.00      131.231      120.994   -10.238    -7.8%
+SoEM256                  32     1078.00      993.30    -84.70      121.275      111.746    -9.529    -7.9%
+SoEM512                  64     2522.00     2633.00   +111.00      141.863      148.106    +6.244    +4.4%
+AES128Encrypt4Blocks     64      934.80     1056.00   +121.20       52.582       59.400    +6.818   +13.0%
+Permute256x4            128     1697.00     1690.00     -7.00       47.728       47.531    -0.197    -0.4%
+Permute512x4            256     3679.00     2821.00   -858.00       51.736       39.670   -12.066   -23.3%
+InversePermute256x4     128     1181.00     1309.00   +128.00       33.216       36.816    +3.600   +10.8%
+InversePermute512x4     256     3676.00     3940.00   +264.00       51.694       55.406    +3.712    +7.2%
+SoEM256x4               128     2605.00     2797.00   +192.00       73.266       78.666    +5.400    +7.4%
+SoEM512x4               256     6567.00     6436.00   -131.00       92.348       90.506    -1.842    -2.0%
+
+-- Tier: aesni --
+Interface                 B  c74d39a ns  72a892a ns      d_ns  c74d39a c/B  72a892a c/B     d_c/B      d_%
+----------------------------------------------------------------------------------------------------------
+AES128EncryptBlock       16        9.32        9.32     -0.00        2.097        2.097    -0.001    -0.0%
+Permute256               32       16.73       16.45     -0.28        1.882        1.851    -0.032    -1.7%
+Permute512               64       19.72       20.65     +0.93        1.109        1.162    +0.052    +4.7%
+InversePermute256        32       23.36       23.84     +0.48        2.628        2.682    +0.054    +2.1%
+InversePermute512        64       46.01       42.36     -3.65        2.588        2.383    -0.205    -7.9%
+SoEM256                  32       17.43       19.34     +1.91        1.961        2.176    +0.215   +11.0%
+SoEM512                  64       40.05       47.50     +7.45        2.253        2.672    +0.419   +18.6%
+AES128Encrypt4Blocks     64       12.84       13.32     +0.48        0.722        0.749    +0.027    +3.7%
+Permute256x4            128       49.68       55.61     +5.93        1.397        1.564    +0.167   +11.9%
+Permute512x4            256      122.60      126.30     +3.70        1.724        1.776    +0.052    +3.0%
+InversePermute256x4     128       52.64       56.96     +4.32        1.481        1.602    +0.121    +8.2%
+InversePermute512x4     256       97.38      105.50     +8.12        1.369        1.484    +0.114    +8.3%
+SoEM256x4               128       92.12      105.70    +13.58        2.591        2.973    +0.382   +14.7%
+SoEM512x4               256      270.90      291.90    +21.00        3.810        4.105    +0.295    +7.8%
+
+-- Tier: vex --
+Interface                 B  c74d39a ns  72a892a ns      d_ns  c74d39a c/B  72a892a c/B     d_c/B      d_%
+----------------------------------------------------------------------------------------------------------
+AES128EncryptBlock       16        9.60        9.54     -0.06        2.159        2.146    -0.013    -0.6%
+Permute256               32       17.19       16.66     -0.53        1.934        1.874    -0.060    -3.1%
+Permute512               64       17.88       18.11     +0.23        1.006        1.019    +0.013    +1.3%
+InversePermute256        32       23.60       23.71     +0.11        2.655        2.667    +0.012    +0.5%
+InversePermute512        64       40.44       40.63     +0.19        2.275        2.285    +0.011    +0.5%
+SoEM256                  32       16.21       21.17     +4.96        1.824        2.382    +0.558   +30.6%
+SoEM512                  64       28.09       34.26     +6.17        1.580        1.927    +0.347   +22.0%
+AES128Encrypt4Blocks     64       11.79       12.37     +0.58        0.663        0.696    +0.033    +4.9%
+Permute256x4            128       48.21       51.90     +3.69        1.356        1.460    +0.104    +7.7%
+Permute512x4            256      104.00      106.90     +2.90        1.463        1.503    +0.041    +2.8%
+InversePermute256x4     128       45.17       49.03     +3.86        1.270        1.379    +0.109    +8.5%
+InversePermute512x4     256      127.90      134.30     +6.40        1.799        1.889    +0.090    +5.0%
+SoEM256x4               128       80.41       85.47     +5.06        2.262        2.404    +0.142    +6.3%
+SoEM512x4               256      180.60      199.80    +19.20        2.540        2.810    +0.270   +10.6%
+
+-- Tier: vaesavx2 --
+Interface                 B  c74d39a ns  72a892a ns      d_ns  c74d39a c/B  72a892a c/B     d_c/B      d_%
+----------------------------------------------------------------------------------------------------------
+AES128EncryptBlock       16        9.02        9.32     +0.30        2.030        2.098    +0.068    +3.3%
+Permute256               32       16.09       15.79     -0.30        1.810        1.776    -0.034    -1.9%
+Permute512               64       17.00       16.93     -0.07        0.956        0.952    -0.004    -0.4%
+InversePermute256        32       23.59       23.06     -0.53        2.654        2.594    -0.060    -2.2%
+InversePermute512        64       38.70       38.65     -0.05        2.177        2.174    -0.003    -0.1%
+SoEM256                  32       11.65       15.89     +4.24        1.311        1.788    +0.477   +36.4%
+SoEM512                  64       23.61       27.11     +3.50        1.328        1.525    +0.197   +14.8%
+AES128Encrypt4Blocks     64        9.30        9.52     +0.21        0.523        0.535    +0.012    +2.3%
+Permute256x4            128       33.98       34.38     +0.40        0.956        0.967    +0.011    +1.2%
+Permute512x4            256       54.55       53.91     -0.64        0.767        0.758    -0.009    -1.2%
+InversePermute256x4     128       39.56       38.13     -1.43        1.113        1.072    -0.040    -3.6%
+InversePermute512x4     256       92.97       95.26     +2.29        1.307        1.340    +0.032    +2.5%
+SoEM256x4               128       47.43       58.02    +10.59        1.334        1.632    +0.298   +22.3%
+SoEM512x4               256      108.40      115.00     +6.60        1.524        1.617    +0.093    +6.1%
+
+-- Tier: avx512 --
+Interface                 B  c74d39a ns  72a892a ns      d_ns  c74d39a c/B  72a892a c/B     d_c/B      d_%
+----------------------------------------------------------------------------------------------------------
+AES128EncryptBlock       16        8.54        8.56     +0.01        1.922        1.925    +0.003    +0.2%
+Permute256               32       15.23       15.19     -0.04        1.713        1.709    -0.005    -0.3%
+Permute512               64       16.19       16.21     +0.02        0.911        0.912    +0.001    +0.1%
+InversePermute256        32       21.93       22.00     +0.07        2.467        2.475    +0.008    +0.3%
+InversePermute512        64       37.44       37.39     -0.05        2.106        2.103    -0.003    -0.1%
+SoEM256                  32       11.35       14.13     +2.78        1.277        1.590    +0.313   +24.5%
+SoEM512                  64       21.69       24.30     +2.61        1.220        1.367    +0.147   +12.0%
+AES128Encrypt4Blocks     64        9.04        9.04     +0.00        0.508        0.508    +0.000    +0.0%
+Permute256x4            128       31.20       33.27     +2.07        0.877        0.936    +0.058    +6.6%
+Permute512x4            256       55.57       46.88     -8.69        0.781        0.659    -0.122   -15.6%
+InversePermute256x4     128       36.62       40.86     +4.24        1.030        1.149    +0.119   +11.6%
+InversePermute512x4     256      110.80      111.40     +0.60        1.558        1.567    +0.008    +0.5%
+SoEM256x4               128       49.55       60.65    +11.10        1.394        1.706    +0.312   +22.4%
+SoEM512x4               256      101.30      100.40     -0.90        1.425        1.412    -0.013    -0.9%
+
+== 3. CPU profile attribution (go tool pprof, -benchtime=120ms)
+Tier        Samples (s)   wipeSoftwareStack (flat/cum)   clobberScratchGPRs (flat/cum)
+--------------------------------------------------------------------------------------
+purego             2.45                  0.41% / 0.41%                   0.41% / 0.41%
+aesni              2.77                  0.00% / 0.00%                   1.81% / 1.81%
+vex                2.48                  0.00% / 0.00%                   2.42% / 2.42%
+vaesavx2           2.57                  0.00% / 0.00%                   2.33% / 2.33%
+avx512             2.79                  0.00% / 0.00%                   3.23% / 3.23%

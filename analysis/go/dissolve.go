@@ -2,9 +2,10 @@ package main
 
 // Track 1: Parameterized P2^(k) dependence-dissolution spectrum across
 // reduced and full rounds (r = 1..10 for Areion-256, r = 1..15 for
-// Areion-512). Evaluates the 8-level perturbation ladder L0..L4p from
+// Areion-512). Evaluates the 11-level perturbation ladder L0..L4p from
 // identical tables (SoEM1) and column-rotated symmetry to single-byte /
-// single-round local perturbations, sparse per-round perturbations, and
+// single-round local perturbations, even/odd round-cadence perturbations,
+// sparse per-round column vs inverse-ShiftRows diagonal perturbations, and
 // the full NUMS Table 2 (shift and pi forms).
 
 import (
@@ -56,7 +57,7 @@ func rot1State512(s *State512) State512 {
 	return o
 }
 
-// buildLadder constructs the 8 parameterized P2^(k) tables relative to current roundConstantsP1.
+// buildLadder constructs the 11 parameterized P2^(k) tables relative to current roundConstantsP1.
 func buildLadder() []p2Level {
 	p1 := roundConstantsP1
 	sh := *p2Table("shift")
@@ -79,17 +80,37 @@ func buildLadder() []p2Level {
 	l2b := p1
 	l2b[0] = sh[0]
 
+	// L2c: even rounds only (rounds 0, 2, 4, ..., 14 from Table 2; odd rounds from Table 1)
+	l2c := p1
+	for r := 0; r < 15; r += 2 {
+		l2c[r] = sh[r]
+	}
+
+	// L2d: odd rounds only (rounds 1, 3, 5, ..., 13 from Table 2; even rounds from Table 1)
+	l2d := p1
+	for r := 1; r < 15; r += 2 {
+		l2d[r] = sh[r]
+	}
+
 	// L3a: sparse 1 byte per round (byte 0 of every round from Table 2)
 	l3a := p1
 	for r := 0; r < 15; r++ {
 		l3a[r][0] = sh[r][0]
 	}
 
-	// L3b: sparse 1 column (4 bytes) per round (col 0 of every round from Table 2)
+	// L3b: sparse 1 column (4 bytes) per round (col 0: bytes 0, 1, 2, 3 of every round from Table 2)
 	l3b := p1
 	for r := 0; r < 15; r++ {
 		for row := 0; row < 4; row++ {
 			l3b[r][row] = sh[r][row]
+		}
+	}
+
+	// L3c: sparse 1 inverse-ShiftRows diagonal (4 bytes: 0, 5, 10, 15) per round from Table 2
+	l3c := p1
+	for r := 0; r < 15; r++ {
+		for _, idx := range [4]int{0, 5, 10, 15} {
+			l3c[r][idx] = sh[r][idx]
 		}
 	}
 
@@ -98,8 +119,11 @@ func buildLadder() []p2Level {
 		{"L1", "rot1", "RC2 = sigma_1(RC1) (1-col rotation; commuting symmetry)", l1},
 		{"L2a", "onebyte_r0", "RC2 differs in 1 byte of round 0 only (wt(Delta_0) = 1)", l2a},
 		{"L2b", "oneround_r0", "RC2 differs in round 0 only (wt(Delta_0) = 16)", l2b},
+		{"L2c", "even_rounds", "RC2 differs in even rounds only (wt(Delta_{2k}) = 16, wt(Delta_{2k+1}) = 0)", l2c},
+		{"L2d", "odd_rounds", "RC2 differs in odd rounds only (wt(Delta_{2k}) = 0, wt(Delta_{2k+1}) = 16)", l2d},
 		{"L3a", "sparse1", "RC2 differs in 1 byte/round (wt(Delta_r) = 1)", l3a},
-		{"L3b", "sparse4", "RC2 differs in 1 col/round (wt(Delta_r) = 4)", l3b},
+		{"L3b", "sparse4_col", "RC2 differs in 1 col/round (bytes 0..3; wt(Delta_r) = 4)", l3b},
+		{"L3c", "sparse4_diag", "RC2 differs on inv-SR diagonal (0,5,10,15)/round (wt(Delta_r) = 4)", l3c},
 		{"L4", "table2_shift", "Library Table 2, shift form (wt(Delta_r) = 16)", sh},
 		{"L4p", "table2_pi", "Plain pi Table 2, pi form (wt(Delta_r) = 16)", pi},
 	}
@@ -185,16 +209,16 @@ func colFeasibleFast(delta [4]byte) (feas [16][16]bool) {
 }
 
 type levelSpecJSON struct {
-	ID    string             `json:"id"`
-	Name  string             `json:"name"`
-	Desc  string             `json:"desc"`
-	RC    [15][16]byte       `json:"rc"`
-	Masks [15]uint16         `json:"masks"`
+	ID    string              `json:"id"`
+	Name  string              `json:"name"`
+	Desc  string              `json:"desc"`
+	RC    [15][16]byte        `json:"rc"`
+	Masks [15]uint16          `json:"masks"`
 	Feas  [15][4][16][16]bool `json:"feas"`
 }
 
 // feasDissolve writes the ladder definitions, byte-activity masks, and
-// column feasibility tables for all 8 levels L0..L4p as JSON.
+// column feasibility tables for all 11 levels L0..L4p as JSON.
 func feasDissolve() {
 	ladder := buildLadder()
 	// Collect unique 4-byte column differences across all levels.
@@ -354,40 +378,40 @@ func traceDissolve(width int, levelID string, rounds, n int) {
 }
 
 type dissolveRow struct {
-	width       int
-	levelID     string
-	levelName   string
-	rounds      int
+	width     int
+	levelID   string
+	levelName string
+	rounds    int
 	// delta = 0 distribution
-	d0ConstB    int
-	d0Missing   int
-	d0MaxChi    float64
-	d0ZeroMin   int
-	d0ZeroMax   int
+	d0ConstB  int
+	d0Missing int
+	d0MaxChi  float64
+	d0ZeroMin int
+	d0ZeroMax int
 	// random delta distribution
-	drConstB    int
-	drMissing   int
-	drMaxChi    float64
-	drZeroMin   int
-	drZeroMax   int
+	drConstB  int
+	drMissing int
+	drMaxChi  float64
+	drZeroMin int
+	drZeroMax int
 	// bitwise avalanche (random delta and delta = 0)
-	d0DeadIn    int
-	d0MinHW     float64
-	d0MaxBias   float64
-	drDeadIn    int
-	drMinHW     float64
-	drMaxBias   float64
+	d0DeadIn  int
+	d0MinHW   float64
+	d0MaxBias float64
+	drDeadIn  int
+	drMinHW   float64
+	drMaxBias float64
 	// SoEM shift probe F_r(m) ^ F_r(m ^ delta)
-	shZeroFrac  float64
-	shConstB    int
-	shMaxChi    float64
+	shZeroFrac float64
+	shConstB   int
+	shMaxChi   float64
 	// Column-rotation commute & fixed-space probes
 	rotCommZero int
 	fixRot1Zero int
 	// Coset hull dimension of u -> P1_r(u) ^ P2_r(u) on 1-byte (dim 8) and Fix(sigma_1) (dim n/4)
-	hullByteD0  int
-	hullByteDR  int
-	hullFixD0   int
+	hullByteD0 int
+	hullByteDR int
+	hullFixD0  int
 }
 
 func evalPair(width, rounds int, rc2 *[15][16]byte, u, delta, out []byte) {

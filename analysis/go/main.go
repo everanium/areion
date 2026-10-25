@@ -39,6 +39,8 @@ var usage = `subcommands:
   check-inv                      instrumented InversePermute == library and round-trip
   trace-inv <256|512> <shift|pi> <rounds> <n>
                                  backward oracle activity traces (JSON lines)
+  trace-cross <256|512> <shift|pi> <rounds> <n>
+                                 coupled 2r-round cross-composition oracle traces (JSON lines)
   cross [r256 r512 [quick]]      InversePermute & cross-composition C_r(x) delta analysis
 The optional shift|pi selects the RC7 form of P2 (default shift, the library's).
 
@@ -106,6 +108,11 @@ func main() {
 		r, _ := strconv.Atoi(os.Args[4])
 		n, _ := strconv.Atoi(os.Args[5])
 		traceInv(w, os.Args[3], r, n)
+	case "trace-cross":
+		w, _ := strconv.Atoi(os.Args[2])
+		r, _ := strconv.Atoi(os.Args[4])
+		n, _ := strconv.Atoi(os.Args[5])
+		traceCross(w, os.Args[3], r, n)
 	case "cross":
 		crossMain()
 	default:

@@ -1,7 +1,8 @@
 $ python3 analysis/run.py inverse
 instrumented InversePermute vs library (2000 x {256 P1, 256 P2, 512 P1, 512 P2}): 0 mismatches
 reduced-round P_r^-1(P_r(x)) == x (r=1..10 for 256, r=1..15 for 512): 0 mismatches
-algebraic cross-composition check (Areion-512, 500 x r=1..15): d=1 closed-form mismatches=0, d=2 constant MC^2(Delta_{r-1}) mismatches=0
+algebraic cross-composition check (Areion-256, 500 x r=1..10): d=1 mismatches=0, d=2 mismatches=0, pair-conservation mismatches=0
+algebraic cross-composition check (Areion-512, 500 x r=1..15): d=1 closed-form mismatches=0, d=2 constant MC^2(Delta_{r-1}) mismatches=0, d=1..3 pair-conservation mismatches=0
 
 == Track 2.1: Cross-Composition C_r(x) = P2_r^-1(P1_r(x)) Intermediate-State & End-to-End Deltas (samples=262144)
 Areion-256 C_1  end-to-end (k=0, d= 1) | invol(C_r^2=id)=1.000 | zeroB=16/32 constNZ= 0/32 halfB(<=128)= 0/32 fullB(256)=16/32 miss= 4080 maxChi(nonConst)=     340.7
@@ -98,6 +99,26 @@ Areion-256 | L2b  oneround_r0  | C_7  | idBits=128/256 meanHW=0.1289 minHW=0.003
 Areion-256 | L2b  oneround_r0  | C_8  | idBits=128/256 meanHW=0.1289 minHW=0.0039 maxBias=0.5000
 Areion-256 | L2b  oneround_r0  | C_9  | idBits=128/256 meanHW=0.1290 minHW=0.0039 maxBias=0.5000
 Areion-256 | L2b  oneround_r0  | C_10 | idBits=128/256 meanHW=0.1289 minHW=0.0039 maxBias=0.5000
+Areion-256 | L2c  even_rounds  | C_1  | idBits=128/256 meanHW=0.1289 minHW=0.0039 maxBias=0.5000
+Areion-256 | L2c  even_rounds  | C_2  | idBits=128/256 meanHW=0.1289 minHW=0.0039 maxBias=0.5000
+Areion-256 | L2c  even_rounds  | C_3  | idBits=  0/256 meanHW=0.5001 minHW=0.4969 maxBias=0.0664
+Areion-256 | L2c  even_rounds  | C_4  | idBits=  0/256 meanHW=0.5000 minHW=0.4961 maxBias=0.0713
+Areion-256 | L2c  even_rounds  | C_5  | idBits=  0/256 meanHW=0.4998 minHW=0.4972 maxBias=0.0693
+Areion-256 | L2c  even_rounds  | C_6  | idBits=  0/256 meanHW=0.5000 minHW=0.4978 maxBias=0.0674
+Areion-256 | L2c  even_rounds  | C_7  | idBits=  0/256 meanHW=0.4999 minHW=0.4969 maxBias=0.0674
+Areion-256 | L2c  even_rounds  | C_8  | idBits=  0/256 meanHW=0.5001 minHW=0.4969 maxBias=0.0664
+Areion-256 | L2c  even_rounds  | C_9  | idBits=  0/256 meanHW=0.5000 minHW=0.4976 maxBias=0.0742
+Areion-256 | L2c  even_rounds  | C_10 | idBits=  0/256 meanHW=0.5000 minHW=0.4963 maxBias=0.0635
+Areion-256 | L2d  odd_rounds   | C_1  | idBits=256/256 meanHW=0.0039 minHW=0.0039 maxBias=0.5000
+Areion-256 | L2d  odd_rounds   | C_2  | idBits=  0/256 meanHW=0.4385 minHW=0.3732 maxBias=0.5000
+Areion-256 | L2d  odd_rounds   | C_3  | idBits=  0/256 meanHW=0.4383 minHW=0.3728 maxBias=0.5000
+Areion-256 | L2d  odd_rounds   | C_4  | idBits=  0/256 meanHW=0.5000 minHW=0.4974 maxBias=0.0674
+Areion-256 | L2d  odd_rounds   | C_5  | idBits=  0/256 meanHW=0.5000 minHW=0.4975 maxBias=0.0781
+Areion-256 | L2d  odd_rounds   | C_6  | idBits=  0/256 meanHW=0.5001 minHW=0.4972 maxBias=0.0713
+Areion-256 | L2d  odd_rounds   | C_7  | idBits=  0/256 meanHW=0.5000 minHW=0.4977 maxBias=0.0752
+Areion-256 | L2d  odd_rounds   | C_8  | idBits=  0/256 meanHW=0.5000 minHW=0.4969 maxBias=0.0830
+Areion-256 | L2d  odd_rounds   | C_9  | idBits=  0/256 meanHW=0.4999 minHW=0.4971 maxBias=0.0693
+Areion-256 | L2d  odd_rounds   | C_10 | idBits=  0/256 meanHW=0.5000 minHW=0.4972 maxBias=0.0762
 Areion-256 | L3a  sparse1      | C_1  | idBits=224/256 meanHW=0.0117 minHW=0.0039 maxBias=0.5000
 Areion-256 | L3a  sparse1      | C_2  | idBits= 96/256 meanHW=0.1201 minHW=0.0039 maxBias=0.5000
 Areion-256 | L3a  sparse1      | C_3  | idBits=  0/256 meanHW=0.2823 minHW=0.2775 maxBias=0.5000
@@ -108,16 +129,26 @@ Areion-256 | L3a  sparse1      | C_7  | idBits=  0/256 meanHW=0.5001 minHW=0.497
 Areion-256 | L3a  sparse1      | C_8  | idBits=  0/256 meanHW=0.5001 minHW=0.4972 maxBias=0.0732
 Areion-256 | L3a  sparse1      | C_9  | idBits=  0/256 meanHW=0.5001 minHW=0.4977 maxBias=0.0664
 Areion-256 | L3a  sparse1      | C_10 | idBits=  0/256 meanHW=0.5000 minHW=0.4967 maxBias=0.0752
-Areion-256 | L3b  sparse4      | C_1  | idBits=224/256 meanHW=0.0352 minHW=0.0039 maxBias=0.5000
-Areion-256 | L3b  sparse4      | C_2  | idBits= 96/256 meanHW=0.2512 minHW=0.0039 maxBias=0.5000
-Areion-256 | L3b  sparse4      | C_3  | idBits=  0/256 meanHW=0.4528 minHW=0.3726 maxBias=0.5000
-Areion-256 | L3b  sparse4      | C_4  | idBits=  0/256 meanHW=0.4999 minHW=0.4974 maxBias=0.0732
-Areion-256 | L3b  sparse4      | C_5  | idBits=  0/256 meanHW=0.4999 minHW=0.4972 maxBias=0.0674
-Areion-256 | L3b  sparse4      | C_6  | idBits=  0/256 meanHW=0.5000 minHW=0.4973 maxBias=0.0723
-Areion-256 | L3b  sparse4      | C_7  | idBits=  0/256 meanHW=0.5000 minHW=0.4969 maxBias=0.0742
-Areion-256 | L3b  sparse4      | C_8  | idBits=  0/256 meanHW=0.5000 minHW=0.4974 maxBias=0.0684
-Areion-256 | L3b  sparse4      | C_9  | idBits=  0/256 meanHW=0.5001 minHW=0.4978 maxBias=0.0674
-Areion-256 | L3b  sparse4      | C_10 | idBits=  0/256 meanHW=0.5001 minHW=0.4971 maxBias=0.0654
+Areion-256 | L3b  sparse4_col  | C_1  | idBits=224/256 meanHW=0.0352 minHW=0.0039 maxBias=0.5000
+Areion-256 | L3b  sparse4_col  | C_2  | idBits= 96/256 meanHW=0.2512 minHW=0.0039 maxBias=0.5000
+Areion-256 | L3b  sparse4_col  | C_3  | idBits=  0/256 meanHW=0.4528 minHW=0.3726 maxBias=0.5000
+Areion-256 | L3b  sparse4_col  | C_4  | idBits=  0/256 meanHW=0.4999 minHW=0.4974 maxBias=0.0732
+Areion-256 | L3b  sparse4_col  | C_5  | idBits=  0/256 meanHW=0.4999 minHW=0.4972 maxBias=0.0674
+Areion-256 | L3b  sparse4_col  | C_6  | idBits=  0/256 meanHW=0.5000 minHW=0.4973 maxBias=0.0723
+Areion-256 | L3b  sparse4_col  | C_7  | idBits=  0/256 meanHW=0.5000 minHW=0.4969 maxBias=0.0742
+Areion-256 | L3b  sparse4_col  | C_8  | idBits=  0/256 meanHW=0.5000 minHW=0.4974 maxBias=0.0684
+Areion-256 | L3b  sparse4_col  | C_9  | idBits=  0/256 meanHW=0.5001 minHW=0.4978 maxBias=0.0674
+Areion-256 | L3b  sparse4_col  | C_10 | idBits=  0/256 meanHW=0.5001 minHW=0.4971 maxBias=0.0654
+Areion-256 | L3c  sparse4_diag | C_1  | idBits=128/256 meanHW=0.0352 minHW=0.0039 maxBias=0.5000
+Areion-256 | L3c  sparse4_diag | C_2  | idBits=  0/256 meanHW=0.2525 minHW=0.1844 maxBias=0.5000
+Areion-256 | L3c  sparse4_diag | C_3  | idBits=  0/256 meanHW=0.4769 minHW=0.4041 maxBias=0.5000
+Areion-256 | L3c  sparse4_diag | C_4  | idBits=  0/256 meanHW=0.5000 minHW=0.4972 maxBias=0.0664
+Areion-256 | L3c  sparse4_diag | C_5  | idBits=  0/256 meanHW=0.5000 minHW=0.4967 maxBias=0.0713
+Areion-256 | L3c  sparse4_diag | C_6  | idBits=  0/256 meanHW=0.5000 minHW=0.4967 maxBias=0.0684
+Areion-256 | L3c  sparse4_diag | C_7  | idBits=  0/256 meanHW=0.5000 minHW=0.4975 maxBias=0.0693
+Areion-256 | L3c  sparse4_diag | C_8  | idBits=  0/256 meanHW=0.5000 minHW=0.4973 maxBias=0.0684
+Areion-256 | L3c  sparse4_diag | C_9  | idBits=  0/256 meanHW=0.4999 minHW=0.4969 maxBias=0.0732
+Areion-256 | L3c  sparse4_diag | C_10 | idBits=  0/256 meanHW=0.5001 minHW=0.4980 maxBias=0.0732
 Areion-256 | L4   table2_shift | C_1  | idBits=128/256 meanHW=0.1289 minHW=0.0039 maxBias=0.5000
 Areion-256 | L4   table2_shift | C_2  | idBits=  0/256 meanHW=0.4385 minHW=0.3726 maxBias=0.5000
 Areion-256 | L4   table2_shift | C_3  | idBits=  0/256 meanHW=0.4999 minHW=0.4973 maxBias=0.0693
@@ -198,6 +229,36 @@ Areion-512 | L2b  oneround_r0  | C_12 | idBits=384/512 meanHW=0.0034 minHW=0.002
 Areion-512 | L2b  oneround_r0  | C_13 | idBits=384/512 meanHW=0.0034 minHW=0.0020 maxBias=0.5000
 Areion-512 | L2b  oneround_r0  | C_14 | idBits=384/512 meanHW=0.0034 minHW=0.0020 maxBias=0.5000
 Areion-512 | L2b  oneround_r0  | C_15 | idBits=384/512 meanHW=0.0034 minHW=0.0020 maxBias=0.5000
+Areion-512 | L2c  even_rounds  | C_1  | idBits=384/512 meanHW=0.0034 minHW=0.0020 maxBias=0.5000
+Areion-512 | L2c  even_rounds  | C_2  | idBits=384/512 meanHW=0.0034 minHW=0.0020 maxBias=0.5000
+Areion-512 | L2c  even_rounds  | C_3  | idBits=  0/512 meanHW=0.1001 minHW=0.0075 maxBias=0.5000
+Areion-512 | L2c  even_rounds  | C_4  | idBits=  0/512 meanHW=0.1001 minHW=0.0075 maxBias=0.5000
+Areion-512 | L2c  even_rounds  | C_5  | idBits=  0/512 meanHW=0.5000 minHW=0.4977 maxBias=0.0703
+Areion-512 | L2c  even_rounds  | C_6  | idBits=  0/512 meanHW=0.5000 minHW=0.4976 maxBias=0.0811
+Areion-512 | L2c  even_rounds  | C_7  | idBits=  0/512 meanHW=0.5000 minHW=0.4980 maxBias=0.0674
+Areion-512 | L2c  even_rounds  | C_8  | idBits=  0/512 meanHW=0.5000 minHW=0.4980 maxBias=0.0742
+Areion-512 | L2c  even_rounds  | C_9  | idBits=  0/512 meanHW=0.5000 minHW=0.4979 maxBias=0.0723
+Areion-512 | L2c  even_rounds  | C_10 | idBits=  0/512 meanHW=0.4999 minHW=0.4978 maxBias=0.0742
+Areion-512 | L2c  even_rounds  | C_11 | idBits=  0/512 meanHW=0.5000 minHW=0.4982 maxBias=0.0713
+Areion-512 | L2c  even_rounds  | C_12 | idBits=  0/512 meanHW=0.5000 minHW=0.4978 maxBias=0.0781
+Areion-512 | L2c  even_rounds  | C_13 | idBits=  0/512 meanHW=0.5000 minHW=0.4974 maxBias=0.0693
+Areion-512 | L2c  even_rounds  | C_14 | idBits=  0/512 meanHW=0.5000 minHW=0.4979 maxBias=0.0713
+Areion-512 | L2c  even_rounds  | C_15 | idBits=  0/512 meanHW=0.5000 minHW=0.4980 maxBias=0.0713
+Areion-512 | L2d  odd_rounds   | C_1  | idBits=512/512 meanHW=0.0020 minHW=0.0020 maxBias=0.5000
+Areion-512 | L2d  odd_rounds   | C_2  | idBits=128/512 meanHW=0.0127 minHW=0.0020 maxBias=0.5000
+Areion-512 | L2d  odd_rounds   | C_3  | idBits=128/512 meanHW=0.0127 minHW=0.0020 maxBias=0.5000
+Areion-512 | L2d  odd_rounds   | C_4  | idBits=  0/512 meanHW=0.3455 minHW=0.1620 maxBias=0.5000
+Areion-512 | L2d  odd_rounds   | C_5  | idBits=  0/512 meanHW=0.3456 minHW=0.1628 maxBias=0.5000
+Areion-512 | L2d  odd_rounds   | C_6  | idBits=  0/512 meanHW=0.5000 minHW=0.4980 maxBias=0.0693
+Areion-512 | L2d  odd_rounds   | C_7  | idBits=  0/512 meanHW=0.5000 minHW=0.4979 maxBias=0.0752
+Areion-512 | L2d  odd_rounds   | C_8  | idBits=  0/512 meanHW=0.5000 minHW=0.4978 maxBias=0.0742
+Areion-512 | L2d  odd_rounds   | C_9  | idBits=  0/512 meanHW=0.5000 minHW=0.4976 maxBias=0.0791
+Areion-512 | L2d  odd_rounds   | C_10 | idBits=  0/512 meanHW=0.5000 minHW=0.4975 maxBias=0.0713
+Areion-512 | L2d  odd_rounds   | C_11 | idBits=  0/512 meanHW=0.5000 minHW=0.4973 maxBias=0.0703
+Areion-512 | L2d  odd_rounds   | C_12 | idBits=  0/512 meanHW=0.5000 minHW=0.4978 maxBias=0.0791
+Areion-512 | L2d  odd_rounds   | C_13 | idBits=  0/512 meanHW=0.5000 minHW=0.4981 maxBias=0.0713
+Areion-512 | L2d  odd_rounds   | C_14 | idBits=  0/512 meanHW=0.5000 minHW=0.4978 maxBias=0.0742
+Areion-512 | L2d  odd_rounds   | C_15 | idBits=  0/512 meanHW=0.5000 minHW=0.4980 maxBias=0.0742
 Areion-512 | L3a  sparse1      | C_1  | idBits=504/512 meanHW=0.0020 minHW=0.0020 maxBias=0.5000
 Areion-512 | L3a  sparse1      | C_2  | idBits=440/512 meanHW=0.0030 minHW=0.0020 maxBias=0.5000
 Areion-512 | L3a  sparse1      | C_3  | idBits=192/512 meanHW=0.0200 minHW=0.0020 maxBias=0.5000
@@ -213,21 +274,36 @@ Areion-512 | L3a  sparse1      | C_12 | idBits=  0/512 meanHW=0.5000 minHW=0.497
 Areion-512 | L3a  sparse1      | C_13 | idBits=  0/512 meanHW=0.5000 minHW=0.4980 maxBias=0.0713
 Areion-512 | L3a  sparse1      | C_14 | idBits=  0/512 meanHW=0.5000 minHW=0.4981 maxBias=0.0684
 Areion-512 | L3a  sparse1      | C_15 | idBits=  0/512 meanHW=0.5000 minHW=0.4979 maxBias=0.0732
-Areion-512 | L3b  sparse4      | C_1  | idBits=480/512 meanHW=0.0023 minHW=0.0020 maxBias=0.5000
-Areion-512 | L3b  sparse4      | C_2  | idBits=320/512 meanHW=0.0050 minHW=0.0020 maxBias=0.5000
-Areion-512 | L3b  sparse4      | C_3  | idBits= 96/512 meanHW=0.0596 minHW=0.0020 maxBias=0.5000
-Areion-512 | L3b  sparse4      | C_4  | idBits=  0/512 meanHW=0.2414 minHW=0.1476 maxBias=0.5000
-Areion-512 | L3b  sparse4      | C_5  | idBits=  0/512 meanHW=0.4678 minHW=0.4051 maxBias=0.5000
-Areion-512 | L3b  sparse4      | C_6  | idBits=  0/512 meanHW=0.5001 minHW=0.4977 maxBias=0.0801
-Areion-512 | L3b  sparse4      | C_7  | idBits=  0/512 meanHW=0.5000 minHW=0.4979 maxBias=0.0723
-Areion-512 | L3b  sparse4      | C_8  | idBits=  0/512 meanHW=0.5000 minHW=0.4984 maxBias=0.0830
-Areion-512 | L3b  sparse4      | C_9  | idBits=  0/512 meanHW=0.5000 minHW=0.4977 maxBias=0.0762
-Areion-512 | L3b  sparse4      | C_10 | idBits=  0/512 meanHW=0.5000 minHW=0.4981 maxBias=0.0713
-Areion-512 | L3b  sparse4      | C_11 | idBits=  0/512 meanHW=0.5000 minHW=0.4975 maxBias=0.0732
-Areion-512 | L3b  sparse4      | C_12 | idBits=  0/512 meanHW=0.5000 minHW=0.4978 maxBias=0.0703
-Areion-512 | L3b  sparse4      | C_13 | idBits=  0/512 meanHW=0.5000 minHW=0.4984 maxBias=0.0713
-Areion-512 | L3b  sparse4      | C_14 | idBits=  0/512 meanHW=0.5000 minHW=0.4980 maxBias=0.0693
-Areion-512 | L3b  sparse4      | C_15 | idBits=  0/512 meanHW=0.5000 minHW=0.4981 maxBias=0.0723
+Areion-512 | L3b  sparse4_col  | C_1  | idBits=480/512 meanHW=0.0023 minHW=0.0020 maxBias=0.5000
+Areion-512 | L3b  sparse4_col  | C_2  | idBits=320/512 meanHW=0.0050 minHW=0.0020 maxBias=0.5000
+Areion-512 | L3b  sparse4_col  | C_3  | idBits= 96/512 meanHW=0.0596 minHW=0.0020 maxBias=0.5000
+Areion-512 | L3b  sparse4_col  | C_4  | idBits=  0/512 meanHW=0.2414 minHW=0.1476 maxBias=0.5000
+Areion-512 | L3b  sparse4_col  | C_5  | idBits=  0/512 meanHW=0.4678 minHW=0.4051 maxBias=0.5000
+Areion-512 | L3b  sparse4_col  | C_6  | idBits=  0/512 meanHW=0.5001 minHW=0.4977 maxBias=0.0801
+Areion-512 | L3b  sparse4_col  | C_7  | idBits=  0/512 meanHW=0.5000 minHW=0.4979 maxBias=0.0723
+Areion-512 | L3b  sparse4_col  | C_8  | idBits=  0/512 meanHW=0.5000 minHW=0.4984 maxBias=0.0830
+Areion-512 | L3b  sparse4_col  | C_9  | idBits=  0/512 meanHW=0.5000 minHW=0.4977 maxBias=0.0762
+Areion-512 | L3b  sparse4_col  | C_10 | idBits=  0/512 meanHW=0.5000 minHW=0.4981 maxBias=0.0713
+Areion-512 | L3b  sparse4_col  | C_11 | idBits=  0/512 meanHW=0.5000 minHW=0.4975 maxBias=0.0732
+Areion-512 | L3b  sparse4_col  | C_12 | idBits=  0/512 meanHW=0.5000 minHW=0.4978 maxBias=0.0703
+Areion-512 | L3b  sparse4_col  | C_13 | idBits=  0/512 meanHW=0.5000 minHW=0.4984 maxBias=0.0713
+Areion-512 | L3b  sparse4_col  | C_14 | idBits=  0/512 meanHW=0.5000 minHW=0.4980 maxBias=0.0693
+Areion-512 | L3b  sparse4_col  | C_15 | idBits=  0/512 meanHW=0.5000 minHW=0.4981 maxBias=0.0723
+Areion-512 | L3c  sparse4_diag | C_1  | idBits=480/512 meanHW=0.0023 minHW=0.0020 maxBias=0.5000
+Areion-512 | L3c  sparse4_diag | C_2  | idBits=272/512 meanHW=0.0061 minHW=0.0020 maxBias=0.5000
+Areion-512 | L3c  sparse4_diag | C_3  | idBits= 48/512 meanHW=0.0516 minHW=0.0020 maxBias=0.5000
+Areion-512 | L3c  sparse4_diag | C_4  | idBits=  0/512 meanHW=0.2754 minHW=0.1626 maxBias=0.5000
+Areion-512 | L3c  sparse4_diag | C_5  | idBits=  0/512 meanHW=0.4824 minHW=0.4048 maxBias=0.5000
+Areion-512 | L3c  sparse4_diag | C_6  | idBits=  0/512 meanHW=0.5000 minHW=0.4978 maxBias=0.0723
+Areion-512 | L3c  sparse4_diag | C_7  | idBits=  0/512 meanHW=0.5000 minHW=0.4976 maxBias=0.0703
+Areion-512 | L3c  sparse4_diag | C_8  | idBits=  0/512 meanHW=0.5000 minHW=0.4978 maxBias=0.0703
+Areion-512 | L3c  sparse4_diag | C_9  | idBits=  0/512 meanHW=0.5000 minHW=0.4976 maxBias=0.0723
+Areion-512 | L3c  sparse4_diag | C_10 | idBits=  0/512 meanHW=0.5000 minHW=0.4976 maxBias=0.0713
+Areion-512 | L3c  sparse4_diag | C_11 | idBits=  0/512 meanHW=0.5000 minHW=0.4979 maxBias=0.0752
+Areion-512 | L3c  sparse4_diag | C_12 | idBits=  0/512 meanHW=0.5000 minHW=0.4980 maxBias=0.0752
+Areion-512 | L3c  sparse4_diag | C_13 | idBits=  0/512 meanHW=0.5000 minHW=0.4978 maxBias=0.0723
+Areion-512 | L3c  sparse4_diag | C_14 | idBits=  0/512 meanHW=0.5000 minHW=0.4979 maxBias=0.0811
+Areion-512 | L3c  sparse4_diag | C_15 | idBits=  0/512 meanHW=0.5000 minHW=0.4978 maxBias=0.0703
 Areion-512 | L4   table2_shift | C_1  | idBits=384/512 meanHW=0.0034 minHW=0.0020 maxBias=0.5000
 Areion-512 | L4   table2_shift | C_2  | idBits=128/512 meanHW=0.0142 minHW=0.0020 maxBias=0.5000
 Areion-512 | L4   table2_shift | C_3  | idBits=  0/512 meanHW=0.1016 minHW=0.0075 maxBias=0.5000
@@ -330,26 +406,63 @@ Areion-512 | control sym1^-1 | full byte                                | seeds 
 {"check": "oracle-inv", "width": 512, "variant": "shift", "rounds": 15, "traces": 200, "unsat_coarse": 0, "unsat_refined": null}
 
 == Track 2.6: Forward (Permute) vs Backward (InversePermute) Active S-Box Bounds
-Areion-256 | related-coarse        | delta=free    | FWD | r1:  4 r2:  8 r3: 12 r4: 16 r5: 20 r6: 24 r7: 28 r8: 32 r9: 36 r10: 40  (0.43s)
-Areion-256 | related-coarse        | delta=free    | BWD | r1:  4 r2:  8 r3: 12 r4: 16 r5: 20 r6: 24 r7: 28 r8: 32 r9: 36 r10: 40  (0.4s)
-Areion-256 | related-coarse        | delta=zero    | FWD | r1: 16 r2: 20 r3: 25 r4: 29 r5: 36 r6: 40 r7: 46 r8: 50 r9: 56 r10: 60  (19.42s)
-Areion-256 | related-coarse        | delta=zero    | BWD | r1: 16 r2: 20 r3: 36 r4: 40 r5: 45 r6: 49 r7: 56 r8: 60 r9: 64 r10: 68  (8.79s)
-Areion-256 | related-refined-shift | delta=free    | FWD | r1: 15 r2: 31 r3: 45 r4: 61 r5: 77 r6: 93 r7:108 r8:123 r9:139 r10:154  (51.07s)
-Areion-256 | related-refined-shift | delta=free    | BWD | r1: 15 r2: 31 r3: 45 r4: 61 r5: 77 r6: 93 r7:108 r8:123 r9:139 r10:154  (52.63s)
-Areion-256 | related-refined-shift | delta=zero    | FWD | r1: 16 r2: 32 r3: 46 r4: 62 r5: 78 r6: 94 r7:109 r8:124 r9:140 r10:155  (44.21s)
-Areion-256 | related-refined-shift | delta=zero    | BWD | r1: 16 r2: 31 r3: 47 r4: 61 r5: 77 r6: 93 r7:109 r8:124 r9:140 r10:155  (45.48s)
-Areion-256 | related-refined-pi    | delta=free    | FWD | r1: 15 r2: 31 r3: 45 r4: 61 r5: 77 r6: 93 r7:108 r8:124 r9:140 r10:155  (52.44s)
-Areion-256 | related-refined-pi    | delta=free    | BWD | r1: 15 r2: 31 r3: 45 r4: 61 r5: 77 r6: 93 r7:108 r8:124 r9:140 r10:155  (53.84s)
-Areion-256 | related-refined-pi    | delta=zero    | FWD | r1: 16 r2: 32 r3: 46 r4: 62 r5: 78 r6: 94 r7:109 r8:125 r9:141 r10:156  (44.83s)
-Areion-256 | related-refined-pi    | delta=zero    | BWD | r1: 16 r2: 31 r3: 47 r4: 61 r5: 77 r6: 93 r7:109 r8:124 r9:140 r10:156  (43.39s)
-Areion-256 | single-1byte          | delta=onebyte | FWD | r1:  0 r2:  5 r3: 25 r4: 25 r5: 30 r6: 35 r7: 50 r8: 55 r9: 55* r10: 56*  (42.75s)
-Areion-256 | single-1byte          | delta=onebyte | BWD | r1:  0 r2:  5 r3: 25 r4: 25 r5: 30 r6: 35 r7: 50 r8: 50* r9: 52* r10: 52*  (36.65s)
-Areion-512 | related-coarse        | delta=free    | FWD | r1: 16 r2: 32 r3: 48 r4: 64 r5: 80 r6: 96 r7:112 r8:128 r9:144 r10:160 r11:176 r12:192 r13:208 r14:224 r15:240  (33.39s)
-Areion-512 | related-coarse        | delta=free    | BWD | r1: 16 r2: 32 r3: 48 r4: 64 r5: 80 r6: 96 r7:112 r8:128 r9:144 r10:160 r11:176 r12:192 r13:208 r14:224 r15:240  (34.19s)
-Areion-512 | related-coarse        | delta=zero    | FWD | r1: 16 r2: 32 r3: 52 r4: 68 r5: 88 r6:104 r7:123 r8:139 r9:155 r10:171 r11:187 r12:203 r13:219* r14:235 r15:251  (53.27s)
-Areion-512 | related-coarse        | delta=zero    | BWD | r1: 16 r2: 36 r3: 52 r4: 68 r5: 84 r6:100 r7:116 r8:132 r9:148 r10:164 r11:180 r12:196 r13:212 r14:228 r15:244  (28.54s)
-Areion-512 | single-1byte          | delta=onebyte | FWD | r1:  0 r2:  1 r3:  5 r4: 23 r5: 39 r6: 39 r7: 40*  (16.97s)
-Areion-512 | single-1byte          | delta=onebyte | BWD | r1:  0 r2:  1 r3:  3 r4: 15 r5: 31* r6: 31* r7: 32*  (30.99s)
+Areion-256 | related-coarse        | delta=free    | FWD | r1:  4 r2:  8 r3: 12 r4: 16 r5: 20 r6: 24 r7: 28 r8: 32 r9: 36 r10: 40  (0.01s)
+Areion-256 | related-coarse        | delta=free    | BWD | r1:  4 r2:  8 r3: 12 r4: 16 r5: 20 r6: 24 r7: 28 r8: 32 r9: 36 r10: 40  (0.0s)
+Areion-256 | related-coarse        | delta=zero    | FWD | r1: 16 r2: 20 r3: 25 r4: 29 r5: 36 r6: 40 r7: 46 r8: 50 r9: 56 r10: 60  (0.0s)
+Areion-256 | related-coarse        | delta=zero    | BWD | r1: 16 r2: 20 r3: 36 r4: 40 r5: 45 r6: 49 r7: 56 r8: 60 r9: 64 r10: 68  (0.0s)
+Areion-256 | related-refined-shift | delta=free    | FWD | r1: 15 r2: 31 r3: 45 r4: 61 r5: 77 r6: 93 r7:108 r8:123 r9:139 r10:154  (0.01s)
+Areion-256 | related-refined-shift | delta=free    | BWD | r1: 15 r2: 31 r3: 45 r4: 61 r5: 77 r6: 93 r7:108 r8:123 r9:139 r10:154  (0.0s)
+Areion-256 | related-refined-shift | delta=zero    | FWD | r1: 16 r2: 32 r3: 46 r4: 62 r5: 78 r6: 94 r7:109 r8:124 r9:140 r10:155  (0.0s)
+Areion-256 | related-refined-shift | delta=zero    | BWD | r1: 16 r2: 31 r3: 47 r4: 61 r5: 77 r6: 93 r7:109 r8:124 r9:140 r10:155  (0.0s)
+Areion-256 | related-refined-pi    | delta=free    | FWD | r1: 15 r2: 31 r3: 45 r4: 61 r5: 77 r6: 93 r7:108 r8:124 r9:140 r10:155  (0.01s)
+Areion-256 | related-refined-pi    | delta=free    | BWD | r1: 15 r2: 31 r3: 45 r4: 61 r5: 77 r6: 93 r7:108 r8:124 r9:140 r10:155  (0.0s)
+Areion-256 | related-refined-pi    | delta=zero    | FWD | r1: 16 r2: 32 r3: 46 r4: 62 r5: 78 r6: 94 r7:109 r8:125 r9:141 r10:156  (0.0s)
+Areion-256 | related-refined-pi    | delta=zero    | BWD | r1: 16 r2: 31 r3: 47 r4: 61 r5: 77 r6: 93 r7:109 r8:124 r9:140 r10:156  (0.0s)
+Areion-256 | single-nonzero        | delta=nonzero | FWD | r1:  0 r2:  5 r3: 10 r4: 25 r5: 30 r6: 35 r7: 40 r8: 55 r9: 60 r10: 65  (0.0s)
+Areion-256 | single-nonzero        | delta=nonzero | BWD | r1:  0 r2:  5 r3: 10 r4: 25 r5: 30 r6: 35 r7: 40 r8: 55 r9: 60 r10: 65  (0.0s)
+Areion-256 | single-1byte          | delta=onebyte | FWD | r1:  0 r2:  5 r3: 25 r4: 25 r5: 30 r6: 35 r7: 50 r8: 55 r9: 60 r10: 65  (0.0s)
+Areion-256 | single-1byte          | delta=onebyte | BWD | r1:  0 r2:  5 r3: 25 r4: 25 r5: 30 r6: 35 r7: 50 r8: 55 r9: 60 r10: 65  (0.0s)
+Areion-512 | related-coarse        | delta=free    | FWD | r1: 16 r2: 32 r3: 48 r4: 64 r5: 80 r6: 96 r7:112 r8:128 r9:144 r10:160 r11:176 r12:192 r13:208 r14:224 r15:240  (0.01s)
+Areion-512 | related-coarse        | delta=free    | BWD | r1: 16 r2: 32 r3: 48 r4: 64 r5: 80 r6: 96 r7:112 r8:128 r9:144 r10:160 r11:176 r12:192 r13:208 r14:224 r15:240  (0.01s)
+Areion-512 | related-coarse        | delta=zero    | FWD | r1: 16 r2: 32 r3: 52 r4: 68 r5: 88 r6:104 r7:123 r8:139 r9:155 r10:171 r11:187 r12:203 r13:219 r14:235 r15:251  (0.01s)
+Areion-512 | related-coarse        | delta=zero    | BWD | r1: 16 r2: 36 r3: 52 r4: 68 r5: 84 r6:100 r7:116 r8:132 r9:148 r10:164 r11:180 r12:196 r13:212 r14:228 r15:244  (0.01s)
+Areion-512 | single-nonzero        | delta=nonzero | FWD | r1:  0 r2:  1 r3:  3 r4:  5 r5: 13 r6: 21 r7: 36 r8: 42 r9: 52 r10: 59  (0.0s)
+Areion-512 | single-nonzero        | delta=nonzero | BWD | r1:  0 r2:  1 r3:  3 r4:  5 r5: 13 r6: 21 r7: 36 r8: 42 r9: 52 r10: 59  (0.0s)
+Areion-512 | single-1byte          | delta=onebyte | FWD | r1:  0 r2:  1 r3:  5 r4: 23 r5: 39 r6: 39 r7: 45 r8: 54 r9: 59 r10: 66  (0.0s)
+Areion-512 | single-1byte          | delta=onebyte | BWD | r1:  0 r2:  1 r3:  3 r4: 15 r5: 32 r6: 37 r7: 42 r8: 51 r9: 59 r10: 68  (0.0s)
+Areion-256 | cross-shared          | delta=nonzero | 2r  | r1:  0 r2:  6 r3: 19 r4: 44 r5: 59 r6: 69 r7: 79 r8:104 r9:119 r10:129  (0.0s)
+Areion-256 | cross-shared          | delta=onebyte | 2r  | r1:  0 r2:  9 r3: 34 r4: 50 r5: 60 r6: 69 r7: 94 r8:109 r9:120 r10:129  (0.0s)
+Areion-512 | cross-cancelled       | delta=nonzero | 2r  | r1:  0 r2:  0 r3:  2 r4:  8 r5: 16 r6: 26 r7: 50 r8: 74 r9: 94  (0.0s)
+Areion-512 | cross-cancelled       | delta=onebyte | 2r  | r1:  0 r2:  0 r3:  2 r4: 12 r5: 56 r6: 66 r7: 80 r8: 98 r9:110  (0.0s)
+Areion-512 | cross-shared          | delta=nonzero | 2r  | r1:  0 r2:  1 r3:  5 r4:  9 r5: 21 r6: 38 r7: 63 r8: 79 r9: 99  (0.0s)
+Areion-512 | cross-shared          | delta=onebyte | 2r  | r1:  0 r2:  1 r3:  6 r4: 29 r5: 67 r6: 72 r7: 89 r8:104 r9:115  (0.0s)
+== cross-shared 256 nonzero (SAT/HiGHS r=1..3): [0, 6, 19] / [0, 6, 19] -> same
+== cross-shared 256 onebyte (SAT/HiGHS r=1..3): [0, 9, 34] / [0, 9, 34] -> same
+== cross-cancelled 512 nonzero (SAT/HiGHS r=1..4): [0, 0, 2, 8] / [0, 0, 2, 8] -> same
+== cross-cancelled 512 onebyte (SAT/HiGHS r=1..4): [0, 0, 2, 12] / [0, 0, 2, 12] -> same
+== cross-shared 512 nonzero (SAT/HiGHS r=1..4): [0, 1, 5, 9] / [0, 1, 5, 9] -> same
+== cross-shared 512 onebyte (SAT/HiGHS r=1..4): [0, 1, 6, 29] / [0, 1, 6, 29] -> same
+
+== Track 2.6b: Cross-Composition Oracle Verification on C_r(x) = P2_r^-1(P1_r(x)) (n=200 traces)
+{"check": "oracle-cross", "width": 256, "rounds": 1, "traces": 200, "unsat_shared": 0, "below_bound_shared": 0, "min_obs_shared": [0, 0], "bounds_shared": [0, 0]}
+{"check": "oracle-cross", "width": 256, "rounds": 2, "traces": 200, "unsat_shared": 0, "below_bound_shared": 0, "min_obs_shared": [10, 33], "bounds_shared": [6, 9]}
+{"check": "oracle-cross", "width": 256, "rounds": 3, "traces": 200, "unsat_shared": 0, "below_bound_shared": 0, "min_obs_shared": [54, 115], "bounds_shared": [19, 34]}
+{"check": "oracle-cross", "width": 256, "rounds": 4, "traces": 200, "unsat_shared": 0, "below_bound_shared": 0, "min_obs_shared": [89, 179], "bounds_shared": [44, 50]}
+{"check": "oracle-cross", "width": 256, "rounds": 5, "traces": 200, "unsat_shared": 0, "below_bound_shared": 0, "min_obs_shared": [152, 242], "bounds_shared": [59, 60]}
+{"check": "oracle-cross", "width": 256, "rounds": 6, "traces": 200, "unsat_shared": 0, "below_bound_shared": 0, "min_obs_shared": [216, 305], "bounds_shared": [69, 69]}
+{"check": "oracle-cross", "width": 256, "rounds": 7, "traces": 200, "unsat_shared": 0, "below_bound_shared": 0, "min_obs_shared": [280, 370], "bounds_shared": [79, 94]}
+{"check": "oracle-cross", "width": 256, "rounds": 8, "traces": 200, "unsat_shared": 0, "below_bound_shared": 0, "min_obs_shared": [343, 433], "bounds_shared": [104, 109]}
+{"check": "oracle-cross", "width": 256, "rounds": 9, "traces": 200, "unsat_shared": 0, "below_bound_shared": 0, "min_obs_shared": [407, 497], "bounds_shared": [119, 120]}
+{"check": "oracle-cross", "width": 256, "rounds": 10, "traces": 200, "unsat_shared": 0, "below_bound_shared": 0, "min_obs_shared": [472, 561], "bounds_shared": [129, 129]}
+{"check": "oracle-cross", "width": 512, "rounds": 1, "traces": 200, "unsat_shared": 0, "below_bound_shared": 0, "min_obs_shared": [0, 0], "bounds_shared": [0, 0], "unsat_cancelled": 0, "below_bound_cancelled": 0, "min_obs_cancelled": [0, 0], "bounds_cancelled": [0, 0]}
+{"check": "oracle-cross", "width": 512, "rounds": 2, "traces": 200, "unsat_shared": 0, "below_bound_shared": 0, "min_obs_shared": [1, 1], "bounds_shared": [1, 1], "unsat_cancelled": 0, "below_bound_cancelled": 0, "min_obs_cancelled": [0, 0], "bounds_cancelled": [0, 0]}
+{"check": "oracle-cross", "width": 512, "rounds": 3, "traces": 200, "unsat_shared": 0, "below_bound_shared": 0, "min_obs_shared": [5, 6], "bounds_shared": [5, 6], "unsat_cancelled": 0, "below_bound_cancelled": 0, "min_obs_cancelled": [2, 2], "bounds_cancelled": [2, 2]}
+{"check": "oracle-cross", "width": 512, "rounds": 4, "traces": 200, "unsat_shared": 0, "below_bound_shared": 0, "min_obs_shared": [9, 35], "bounds_shared": [9, 29], "unsat_cancelled": 0, "below_bound_cancelled": 0, "min_obs_cancelled": [8, 18], "bounds_cancelled": [8, 12]}
+{"check": "oracle-cross", "width": 512, "rounds": 5, "traces": 200, "unsat_shared": 0, "below_bound_shared": 0, "min_obs_shared": [33, 165], "bounds_shared": [21, 67], "unsat_cancelled": 0, "below_bound_cancelled": 0, "min_obs_cancelled": [32, 141], "bounds_cancelled": [16, 56]}
+{"check": "oracle-cross", "width": 512, "rounds": 6, "traces": 200, "unsat_shared": 0, "below_bound_shared": 0, "min_obs_shared": [81, 291], "bounds_shared": [38, 72], "unsat_cancelled": 0, "below_bound_cancelled": 0, "min_obs_cancelled": [80, 252], "bounds_cancelled": [26, 66]}
+{"check": "oracle-cross", "width": 512, "rounds": 7, "traces": 200, "unsat_shared": 0, "below_bound_shared": 0, "min_obs_shared": [175, 413], "bounds_shared": [63, 89], "unsat_cancelled": 0, "below_bound_cancelled": 0, "min_obs_cancelled": [174, 365], "bounds_cancelled": [50, 80]}
+{"check": "oracle-cross", "width": 512, "rounds": 8, "traces": 200, "unsat_shared": 0, "below_bound_shared": 0, "min_obs_shared": [270, 528], "bounds_shared": [79, 104], "unsat_cancelled": 0, "below_bound_cancelled": 0, "min_obs_cancelled": [269, 481], "bounds_cancelled": [74, 98]}
+{"check": "oracle-cross", "width": 512, "rounds": 9, "traces": 200, "unsat_shared": 0, "below_bound_shared": 0, "min_obs_shared": [366, 626], "bounds_shared": [99, 115], "unsat_cancelled": 0, "below_bound_cancelled": 0, "min_obs_cancelled": [365, 578], "bounds_cancelled": [94, 110]}
 
 == Track 2.7: Forward vs Backward Byte-Level Impossible Differentials (impdiff)
 Areion-256 r= 1 delta=free | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
@@ -358,33 +471,51 @@ Areion-256 r= 3 delta=free | FWD: forced_active= 0 forced_zero= 0 allzero_sat=Tr
 Areion-256 r= 4 delta=free | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
 Areion-256 r= 5 delta=free | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
 Areion-256 r= 6 delta=free | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-256 r= 7 delta=free | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-256 r= 8 delta=free | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-256 r= 9 delta=free | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
 Areion-256 r= 1 delta=full | FWD: forced_active=16 forced_zero= 0 allzero_sat=False | BWD: forced_active=16 forced_zero= 0 allzero_sat=False
 Areion-256 r= 2 delta=full | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
 Areion-256 r= 3 delta=full | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
 Areion-256 r= 4 delta=full | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
 Areion-256 r= 5 delta=full | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
 Areion-256 r= 6 delta=full | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-256 r= 7 delta=full | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-256 r= 8 delta=full | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-256 r= 9 delta=full | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
 Areion-256 r= 1 delta=zero | FWD: forced_active= 0 forced_zero=16 allzero_sat=False | BWD: forced_active= 0 forced_zero=16 allzero_sat=False
 Areion-256 r= 2 delta=zero | FWD: forced_active= 0 forced_zero= 0 allzero_sat=False | BWD: forced_active= 0 forced_zero= 0 allzero_sat=False
 Areion-256 r= 3 delta=zero | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
 Areion-256 r= 4 delta=zero | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
 Areion-256 r= 5 delta=zero | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
 Areion-256 r= 6 delta=zero | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-256 r= 7 delta=zero | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-256 r= 8 delta=zero | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-256 r= 9 delta=zero | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
 Areion-512 r= 1 delta=free | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
 Areion-512 r= 2 delta=free | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
 Areion-512 r= 3 delta=free | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
 Areion-512 r= 4 delta=free | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
 Areion-512 r= 5 delta=free | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
 Areion-512 r= 6 delta=free | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-512 r= 7 delta=free | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-512 r= 8 delta=free | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-512 r= 9 delta=free | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
 Areion-512 r= 1 delta=full | FWD: forced_active=16 forced_zero= 0 allzero_sat=False | BWD: forced_active=16 forced_zero= 0 allzero_sat=False
 Areion-512 r= 2 delta=full | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=False
 Areion-512 r= 3 delta=full | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=False
 Areion-512 r= 4 delta=full | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
 Areion-512 r= 5 delta=full | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
 Areion-512 r= 6 delta=full | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-512 r= 7 delta=full | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-512 r= 8 delta=full | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-512 r= 9 delta=full | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
 Areion-512 r= 1 delta=zero | FWD: forced_active= 0 forced_zero=48 allzero_sat=False | BWD: forced_active=16 forced_zero=32 allzero_sat=False
 Areion-512 r= 2 delta=zero | FWD: forced_active= 0 forced_zero=32 allzero_sat=False | BWD: forced_active=16 forced_zero= 0 allzero_sat=False
 Areion-512 r= 3 delta=zero | FWD: forced_active= 0 forced_zero=16 allzero_sat=False | BWD: forced_active= 0 forced_zero= 0 allzero_sat=False
 Areion-512 r= 4 delta=zero | FWD: forced_active= 0 forced_zero= 0 allzero_sat=False | BWD: forced_active= 0 forced_zero= 0 allzero_sat=False
 Areion-512 r= 5 delta=zero | FWD: forced_active= 0 forced_zero= 0 allzero_sat=False | BWD: forced_active= 0 forced_zero= 0 allzero_sat=False
 Areion-512 r= 6 delta=zero | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-512 r= 7 delta=zero | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-512 r= 8 delta=zero | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 
+Areion-512 r= 9 delta=zero | FWD: forced_active= 0 forced_zero= 0 allzero_sat=True  | BWD: forced_active= 0 forced_zero= 0 allzero_sat=True 

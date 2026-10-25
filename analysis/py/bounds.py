@@ -46,6 +46,7 @@ which makes it slower but leaves its minimum unchanged.
     python3 analysis/py/bounds.py KIND WIDTH --upto ROUNDS --table FILE [--jobs N | --rounds-at-once N]
 """
 import argparse
+import fcntl
 import itertools
 import json
 import multiprocessing as mp
@@ -373,10 +374,17 @@ def load_table(path):
 
 
 def save_table(path, table):
-    tmp = f"{path}.{os.getpid()}.tmp"
-    with open(tmp, "w") as f:
-        json.dump({str(k): v for k, v in sorted(table.items())}, f)
-    os.replace(tmp, path)
+    lock_path = f"{path}.lock"
+    with open(lock_path, "w") as lf:
+        fcntl.flock(lf.fileno(), fcntl.LOCK_EX)
+        try:
+            merged = {**load_table(path), **table}
+            tmp = f"{path}.{os.getpid()}.tmp"
+            with open(tmp, "w") as f:
+                json.dump({str(k): v for k, v in sorted(merged.items())}, f)
+            os.replace(tmp, path)
+        finally:
+            fcntl.flock(lf.fileno(), fcntl.LOCK_UN)
 
 
 if __name__ == "__main__":
@@ -386,7 +394,10 @@ if __name__ == "__main__":
     ap.add_argument("rounds", type=int, nargs="?")
     ap.add_argument("--upto", type=int, help="fill the table for 1 .. UPTO rounds")
     ap.add_argument("--table", help="JSON table of known minima {rounds: value}, read and updated")
-    ap.add_argument("--jobs", type=int, default=1)
+    default_jobs = int(os.environ.get("AREION_THREADS", 1))
+    ap.add_argument("--jobs", type=int, default=default_jobs)
+    ap.add_argument("--threads", type=int, default=default_jobs,
+                    help="alias for --jobs (worker processes for cube-and-conquer)")
     ap.add_argument("--cube", help="comma list of round indices (0-based) to split on")
     ap.add_argument("--no-windows", action="store_true")
     ap.add_argument("--budget", type=float, default=120,
@@ -397,6 +408,8 @@ if __name__ == "__main__":
                     help="with --upto: search this many missing rounds at the same time, one solver each")
     ap.add_argument("--quiet", action="store_true")
     a = ap.parse_args()
+    if a.threads != default_jobs and a.jobs == default_jobs:
+        a.jobs = a.threads
     # SIGTERM (as from timeout) unwinds like Ctrl-C, so the finally blocks
     # stop the solver processes instead of leaving them running. A single
     # solver in this process has no children to stop and would delay a
@@ -425,7 +438,7 @@ if __name__ == "__main__":
             print(json.dumps({"kind": a.kind, "width": a.width, "rounds": r, "min_active_sboxes": table[r],
                               "cached": True}), flush=True)
     pending = [r for r in todo if not (a.upto and r in table)]
-    if a.rounds_at_once > 1:
+    if a.rounds_at_once > 1 and len(pending) > 1:
         # Rounds in parallel, each on one solver. A round started before a
         # shorter one finished searches with fewer window conditions, which
         # leaves its minimum unchanged.

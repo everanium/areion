@@ -318,6 +318,167 @@ func traceInv(width int, variant string, rounds, n int) {
 	}
 }
 
+// traceCross emits coupled 2r-round differential activity traces (JSON lines)
+// for C_r(x) = P2_r^-1(P1_r(x)) on pairs (x, y) with x != y, mixing 1-byte
+// input differences, multi-byte input differences, and turnaround-targeted
+// pairs constructed at round boundaries r-1 and r-2.
+func traceCross(width int, variant string, rounds, n int) {
+	seed := uint64(21)
+	if variant == "shift" {
+		seed = 22
+	}
+	rng := rand.New(rand.NewPCG(uint64(width*100+rounds), seed))
+	rf := func(b []byte) {
+		for i := range b {
+			b[i] = byte(rng.Uint32())
+		}
+	}
+	nzByte := func() byte {
+		var v [1]byte
+		for v[0] == 0 {
+			rf(v[:])
+		}
+		return v[0]
+	}
+	t2 := p2Table(variant)
+	enc := json.NewEncoder(os.Stdout)
+	for k := 0; k < n; k++ {
+		mode := k % 5
+		var rounds_ []map[string]uint16
+		if width == 256 {
+			var sx, sy State256
+			rf(sx[:])
+			sy = sx
+			switch mode {
+			case 0: // 1-byte input difference
+				pos := int(rng.Uint32()) % 32
+				sy[pos] ^= nzByte()
+			case 1: // 2-byte, 4-byte, or 32-byte input difference
+				cnt := []int{2, 4, 32}[(k/5)%3]
+				if cnt == 32 {
+					for sy == sx {
+						rf(sy[:])
+					}
+				} else {
+					for i := 0; i < cnt; i++ {
+						sy[(int(rng.Uint32())+i)%32] ^= nzByte()
+					}
+				}
+			case 2, 3: // 1-byte difference at turnaround round r-1 (d=1) or r-2 (d=2)
+				rTurn := rounds - 1
+				if mode == 3 && rounds >= 2 {
+					rTurn = rounds - 2
+				}
+				pos := int(rng.Uint32()) % 32
+				sy[pos] ^= nzByte()
+				invP256r(&sx, &roundConstantsP1, rTurn)
+				invP256r(&sy, &roundConstantsP1, rTurn)
+			case 4: // 1-byte T1 difference at turnaround round r-1 (wt(A)=4, wt(T1)=1)
+				rTurn := rounds - 1
+				ai := 0
+				if rTurn%2 == 1 {
+					ai = 1
+				}
+				var aBlk, sBlk, sBlkY Block
+				copy(aBlk[:], sx[16*ai:16*ai+16])
+				sBlk = aBlk
+				finalRoundNoKey(&sBlk)
+				sBlkY = sBlk
+				var dT1 Block
+				dT1[int(rng.Uint32())%16] = nzByte()
+				invMixColumns(&dT1)
+				xorBlock(&sBlkY, &sBlkY, &dT1)
+				invFinalRoundNoKey(&sBlkY)
+				copy(sy[16*ai:16*ai+16], sBlkY[:])
+				invP256r(&sx, &roundConstantsP1, rTurn)
+				invP256r(&sy, &roundConstantsP1, rTurn)
+			}
+			var p pair256
+			copy(p.x[0][:], sx[0:16])
+			copy(p.x[1][:], sx[16:32])
+			copy(p.y[0][:], sy[0:16])
+			copy(p.y[1][:], sy[16:32])
+			for r := 0; r < rounds; r++ {
+				rec := map[string]uint16{}
+				r256(&p, r, &roundConstantsP1[r], &roundConstantsP1[r], rec)
+				ai, bi := 0, 1
+				if r%2 == 1 {
+					ai, bi = 1, 0
+				}
+				rec["S"] = act(&p.x[ai], &p.y[ai])
+				rec["nb"] = act(&p.x[bi], &p.y[bi])
+				rounds_ = append(rounds_, rec)
+			}
+			for r := rounds - 1; r >= 0; r-- {
+				rec := map[string]uint16{}
+				invR256(&p, r, &t2[r], &t2[r], rec)
+				rounds_ = append(rounds_, rec)
+			}
+			fin := map[string]uint16{"x0": act(&p.x[0], &p.y[0]), "x1": act(&p.x[1], &p.y[1])}
+			rounds_ = append(rounds_, fin)
+		} else {
+			var sx, sy State512
+			rf(sx[:])
+			sy = sx
+			switch mode {
+			case 0: // 1-byte input difference
+				pos := int(rng.Uint32()) % 64
+				sy[pos] ^= nzByte()
+			case 1: // 2-byte, 4-byte, or 64-byte input difference
+				cnt := []int{2, 4, 64}[(k/5)%3]
+				if cnt == 64 {
+					for sy == sx {
+						rf(sy[:])
+					}
+				} else {
+					for i := 0; i < cnt; i++ {
+						sy[(int(rng.Uint32())+i)%64] ^= nzByte()
+					}
+				}
+			case 2, 3, 4: // 1-byte difference at turnaround round r-1, r-2, or r-3
+				rTurn := rounds - 1
+				if mode == 3 && rounds >= 2 {
+					rTurn = rounds - 2
+				} else if mode == 4 && rounds >= 3 {
+					rTurn = rounds - 3
+				}
+				// Cycle across all 4 words a, b, c, d at rTurn
+				word := (k / 5) % 4
+				pos := 16*word + int(rng.Uint32())%16
+				sy[pos] ^= nzByte()
+				invP512r(&sx, &roundConstantsP1, rTurn)
+				invP512r(&sy, &roundConstantsP1, rTurn)
+			}
+			var p pair512
+			for i := 0; i < 4; i++ {
+				copy(p.x[i][:], sx[16*i:16*i+16])
+				copy(p.y[i][:], sy[16*i:16*i+16])
+			}
+			for r := 0; r < rounds; r++ {
+				rec := map[string]uint16{}
+				r512(&p, r, &roundConstantsP1[r], &roundConstantsP1[r], rec)
+				o := r % 4
+				ia, ib, id := o, (o+1)%4, (o+3)%4
+				rec["na"] = act(&p.x[ia], &p.y[ia])
+				rec["nb"] = act(&p.x[ib], &p.y[ib])
+				rec["nd"] = act(&p.x[id], &p.y[id])
+				rounds_ = append(rounds_, rec)
+			}
+			for r := rounds - 1; r >= 0; r-- {
+				rec := map[string]uint16{}
+				invR512(&p, r, &t2[r], &t2[r], rec)
+				rounds_ = append(rounds_, rec)
+			}
+			fin := map[string]uint16{}
+			for i := 0; i < 4; i++ {
+				fin["x"+strconv.Itoa(i)] = act(&p.x[i], &p.y[i])
+			}
+			rounds_ = append(rounds_, fin)
+		}
+		enc.Encode(rounds_)
+	}
+}
+
 // --- Cross-Composition Trajectory C_r(x) = P2_r^-1(P1_r(x)) ---
 
 type crossStepStat struct {
@@ -496,6 +657,136 @@ func runCrossTrajectory(width, totalR int, rc2 *[15][16]byte, nSamples int) (ste
 	return
 }
 
+// verifyAlgebraicCross256 checks the exact closed-form turnaround identities on Areion-256:
+//  1. At d=1 (k=r-1): delta_{r,r-1}[A] == 0 (16 zero bytes) and
+//     delta_{r,r-1}[B] == MC(SR(SB(T2_{r-1}^(1)) ^ SB(T2_{r-1}^(1) ^ Delta_{r-1}))),
+//     plus differential-pair conservation Delta A_{r-1}^(2) == Delta A_{r-1}^(1) and
+//     Delta T2_{r-1}^(2) == Delta T1_{r-1}^(1) == Delta T2_{r-1}^(1).
+//  2. At d=2 (k=r-2):
+//     delta_{r,r-2}[A] == A_{r-2}^(1) ^ SB^-1(SB(A_{r-2}^(1)) ^ SR^-1(delta_{r,r-1}[B])) and
+//     delta_{r,r-2}[B] == W_{r-2}^(1) ^ W_{r-2}^(2).
+func verifyAlgebraicCross256(rc2 *[15][16]byte) {
+	rng := rand.New(rand.NewPCG(256, 1))
+	badD1, badD2, badPair := 0, 0, 0
+	for totalR := 1; totalR <= 10; totalR++ {
+		r1 := totalR - 1
+		ai1, bi1 := 0, 1
+		if r1%2 == 1 {
+			ai1, bi1 = 1, 0
+		}
+		var deltaR1 Block
+		xorBlock(&deltaR1, &roundConstantsP1[r1], &rc2[r1])
+
+		for t := 0; t < 500; t++ {
+			var x, y State256
+			for i := range x {
+				x[i] = byte(rng.Uint32())
+				y[i] = byte(rng.Uint32())
+			}
+			sR1, sTot := x, x
+			p256r(&sR1, &roundConstantsP1, r1)
+			p256r(&sTot, &roundConstantsP1, totalR)
+
+			bwd1 := sTot
+			xbBwd1 := [2]*Block{(*Block)(bwd1[0:16]), (*Block)(bwd1[16:32])}
+			invFinalRoundNoKey(xbBwd1[ai1])
+			t2Bwd1 := *xbBwd1[ai1]
+			roundNoKey(&t2Bwd1)
+			xorBlock(&t2Bwd1, &t2Bwd1, &rc2[r1])
+			wBwd1 := t2Bwd1
+			roundNoKey(&wBwd1)
+			xorBlock(xbBwd1[bi1], xbBwd1[bi1], &wBwd1)
+
+			aFwd1 := *(*Block)(sR1[16*ai1 : 16*ai1+16])
+			bFwd1 := *(*Block)(sR1[16*bi1 : 16*bi1+16])
+			t1Fwd1 := aFwd1
+			roundNoKey(&t1Fwd1)
+			var t2Fwd1 Block
+			xorBlock(&t2Fwd1, &t1Fwd1, &roundConstantsP1[r1])
+			wFwd1 := t2Fwd1
+			roundNoKey(&wFwd1)
+
+			var dA1, dB1, wantB1 Block
+			xorBlock(&dA1, &aFwd1, xbBwd1[ai1])
+			xorBlock(&dB1, &bFwd1, xbBwd1[bi1])
+			xorBlock(&wantB1, &wFwd1, &wBwd1)
+			if dA1 != (Block{}) || dB1 != wantB1 {
+				badD1++
+			}
+
+			// Pair conservation at d=1 for (x, y)
+			yR1, yTot := y, y
+			p256r(&yR1, &roundConstantsP1, r1)
+			p256r(&yTot, &roundConstantsP1, totalR)
+			yBwd1 := yTot
+			ybBwd1 := [2]*Block{(*Block)(yBwd1[0:16]), (*Block)(yBwd1[16:32])}
+			invFinalRoundNoKey(ybBwd1[ai1])
+			yt2Bwd1 := *ybBwd1[ai1]
+			roundNoKey(&yt2Bwd1)
+			xorBlock(&yt2Bwd1, &yt2Bwd1, &rc2[r1])
+
+			yaFwd1 := *(*Block)(yR1[16*ai1 : 16*ai1+16])
+			yt1Fwd1 := yaFwd1
+			roundNoKey(&yt1Fwd1)
+			var yt2Fwd1 Block
+			xorBlock(&yt2Fwd1, &yt1Fwd1, &roundConstantsP1[r1])
+
+			var delAFwd, delABwd, delT2Fwd, delT2Bwd Block
+			xorBlock(&delAFwd, &aFwd1, &yaFwd1)
+			xorBlock(&delABwd, xbBwd1[ai1], ybBwd1[ai1])
+			xorBlock(&delT2Fwd, &t2Fwd1, &yt2Fwd1)
+			xorBlock(&delT2Bwd, &t2Bwd1, &yt2Bwd1)
+			if delAFwd != delABwd || delT2Fwd != delT2Bwd {
+				badPair++
+			}
+
+			if totalR >= 2 {
+				r2 := totalR - 2
+				ai2, bi2 := 0, 1
+				if r2%2 == 1 {
+					ai2, bi2 = 1, 0
+				}
+				sR2 := x
+				p256r(&sR2, &roundConstantsP1, r2)
+				bwd2 := bwd1
+				xbBwd2 := [2]*Block{(*Block)(bwd2[0:16]), (*Block)(bwd2[16:32])}
+				invFinalRoundNoKey(xbBwd2[ai2])
+				t2Bwd2 := *xbBwd2[ai2]
+				roundNoKey(&t2Bwd2)
+				xorBlock(&t2Bwd2, &t2Bwd2, &rc2[r2])
+				wBwd2 := t2Bwd2
+				roundNoKey(&wBwd2)
+				xorBlock(xbBwd2[bi2], xbBwd2[bi2], &wBwd2)
+
+				aFwd2 := *(*Block)(sR2[16*ai2 : 16*ai2+16])
+				bFwd2 := *(*Block)(sR2[16*bi2 : 16*bi2+16])
+				wFwd2 := aFwd2
+				roundNoKey(&wFwd2)
+				xorBlock(&wFwd2, &wFwd2, &roundConstantsP1[r2])
+				roundNoKey(&wFwd2)
+
+				isrDB1 := dB1
+				invShiftRows(&isrDB1)
+				var wantA2, wantB2, dA2, dB2 Block
+				for j := 0; j < 16; j++ {
+					wantA2[j] = aFwd2[j] ^ invSbox[sbox[aFwd2[j]]^isrDB1[j]]
+				}
+				xorBlock(&wantB2, &wFwd2, &wBwd2)
+				xorBlock(&dA2, &aFwd2, xbBwd2[ai2])
+				xorBlock(&dB2, &bFwd2, xbBwd2[bi2])
+				if dA2 != wantA2 || dB2 != wantB2 {
+					badD2++
+				}
+			}
+		}
+	}
+	fmt.Printf("algebraic cross-composition check (Areion-256, 500 x r=1..10): d=1 mismatches=%d, d=2 mismatches=%d, pair-conservation mismatches=%d\n",
+		badD1, badD2, badPair)
+	if badD1 != 0 || badD2 != 0 || badPair != 0 {
+		os.Exit(1)
+	}
+}
+
 // verifyAlgebraicCross512 checks the exact closed-form identities on Areion-512:
 //  1. At d=1 (k=r-1): delta_{r,r-1}[a] == 0, delta_{r,r-1}[b] == 0,
 //     delta_{r,r-1}[d] == MC(Delta_{r-1}) (constant), and
@@ -505,9 +796,15 @@ func runCrossTrajectory(width, totalR int, rc2 *[15][16]byte, nSamples int) (ste
 //     delta_{r,r-2}[b] == MC^2(Delta_{r-1}) (constant nonzero),
 //     delta_{r,r-2}[c] == c_{r-2} ^ SB^-1(SB(c_{r-2}) ^ SR^-1(Delta_{r-2})), and
 //     delta_{r,r-2}[d] == MC(Delta_{r-2}) ^ delta_{r,r-1}[c_{r-1}].
+//  3. Differential-pair turnaround conservation laws across d=1, 2, 3:
+//     at d=1: Delta a^(2) == Delta a^(1), Delta b^(2) == Delta b^(1), Delta d^(2) == Delta d^(1),
+//     Delta c2^(2) == Delta c2^(1), supp(Delta c^(2)) == supp(Delta c^(1));
+//     at d=2: Delta b^(2) == Delta b^(1), Delta c2^(2) == Delta c2^(1),
+//     supp(Delta a^(2)) == supp(Delta a^(1)), supp(Delta c^(2)) == supp(Delta c^(1));
+//     at d=3: supp(Delta c2^(2)) == supp(Delta c2^(1)).
 func verifyAlgebraicCross512(rc2 *[15][16]byte) {
 	rng := rand.New(rand.NewPCG(512, 1))
-	badD1, badD2 := 0, 0
+	badD1, badD2, badPair := 0, 0, 0
 	for totalR := 1; totalR <= 15; totalR++ {
 		r1 := totalR - 1
 		o1 := r1 % 4
@@ -524,9 +821,10 @@ func verifyAlgebraicCross512(rc2 *[15][16]byte) {
 		invShiftRows(&isrMcDelta1)
 
 		for t := 0; t < 500; t++ {
-			var x State512
+			var x, y State512
 			for i := range x {
 				x[i] = byte(rng.Uint32())
+				y[i] = byte(rng.Uint32())
 			}
 			// Forward to r1 and totalR
 			sR1 := x
@@ -553,6 +851,22 @@ func verifyAlgebraicCross512(rc2 *[15][16]byte) {
 			}
 			if dA != (Block{}) || dB != (Block{}) || dD != mcDelta1 || dC != wantC {
 				badD1++
+			}
+
+			// Pair conservation at d=1 for (x, y)
+			yR1 := y
+			p512r(&yR1, &roundConstantsP1, r1)
+			yTot := yR1
+			yb := [4]*Block{(*Block)(yTot[0:16]), (*Block)(yTot[16:32]), (*Block)(yTot[32:48]), (*Block)(yTot[48:64])}
+			areion512Round(yb[ia1], yb[ib1], yb[ic1], yb[id1], &roundConstantsP1[r1])
+			yBwd1 := yTot
+			ybBwd1 := [4]*Block{(*Block)(yBwd1[0:16]), (*Block)(yBwd1[16:32]), (*Block)(yBwd1[32:48]), (*Block)(yBwd1[48:64])}
+			invRound512(ybBwd1[ia1], ybBwd1[ib1], ybBwd1[ic1], ybBwd1[id1], &rc2[r1])
+			if act((*Block)(sR1[16*ia1:16*ia1+16]), (*Block)(yR1[16*ia1:16*ia1+16])) != act(xbBwd1[ia1], ybBwd1[ia1]) ||
+				act((*Block)(sR1[16*ib1:16*ib1+16]), (*Block)(yR1[16*ib1:16*ib1+16])) != act(xbBwd1[ib1], ybBwd1[ib1]) ||
+				act((*Block)(sR1[16*ic1:16*ic1+16]), (*Block)(yR1[16*ic1:16*ic1+16])) != act(xbBwd1[ic1], ybBwd1[ic1]) ||
+				act((*Block)(sR1[16*id1:16*id1+16]), (*Block)(yR1[16*id1:16*id1+16])) != act(xbBwd1[id1], ybBwd1[id1]) {
+				badPair++
 			}
 
 			if totalR >= 2 {
@@ -589,12 +903,51 @@ func verifyAlgebraicCross512(rc2 *[15][16]byte) {
 				if dA2 != wantA2 || dB2 != mc2Delta1 || dC2 != wantC2 || dD2 != wantD2 {
 					badD2++
 				}
+
+				yR2 := y
+				p512r(&yR2, &roundConstantsP1, r2)
+				yBwd2 := yBwd1
+				ybBwd2 := [4]*Block{(*Block)(yBwd2[0:16]), (*Block)(yBwd2[16:32]), (*Block)(yBwd2[32:48]), (*Block)(yBwd2[48:64])}
+				invRound512(ybBwd2[ia2], ybBwd2[ib2], ybBwd2[ic2], ybBwd2[id2], &rc2[r2])
+				if act((*Block)(sR2[16*ia2:16*ia2+16]), (*Block)(yR2[16*ia2:16*ia2+16])) != act(xbBwd2[ia2], ybBwd2[ia2]) ||
+					act((*Block)(sR2[16*ib2:16*ib2+16]), (*Block)(yR2[16*ib2:16*ib2+16])) != act(xbBwd2[ib2], ybBwd2[ib2]) ||
+					act((*Block)(sR2[16*ic2:16*ic2+16]), (*Block)(yR2[16*ic2:16*ic2+16])) != act(xbBwd2[ic2], ybBwd2[ic2]) {
+					badPair++
+				}
+
+				if totalR >= 3 {
+					r3 := totalR - 3
+					o3 := r3 % 4
+					ic3 := (o3 + 2) % 4
+					// At d=3, cf_{r-3}^(2) == b_{r-2}^(2) == b_{r-2}^(1) ^ MC^2(Delta_{r-1}),
+					// so c2_{r-3}^(2) = SB^-1(ISR(IMC(cf_{r-3}^(2)))) has the same byte support as c2_{r-3}^(1).
+					sR3 := x
+					p512r(&sR3, &roundConstantsP1, r3)
+					yR3 := y
+					p512r(&yR3, &roundConstantsP1, r3)
+					c1x := *(*Block)(sR3[16*ic3 : 16*ic3+16])
+					c1y := *(*Block)(yR3[16*ic3 : 16*ic3+16])
+					finalRoundNoKey(&c1x)
+					finalRoundNoKey(&c1y)
+					xorBlock(&c1x, &c1x, &roundConstantsP1[r3])
+					xorBlock(&c1y, &c1y, &roundConstantsP1[r3])
+
+					c2x := *xbBwd2[ic3]
+					c2y := *ybBwd2[ic3]
+					invMixColumns(&c2x)
+					invMixColumns(&c2y)
+					invFinalRoundNoKey(&c2x)
+					invFinalRoundNoKey(&c2y)
+					if act(&c1x, &c1y) != act(&c2x, &c2y) {
+						badPair++
+					}
+				}
 			}
 		}
 	}
-	fmt.Printf("algebraic cross-composition check (Areion-512, 500 x r=1..15): d=1 closed-form mismatches=%d, d=2 constant MC^2(Delta_{r-1}) mismatches=%d\n",
-		badD1, badD2)
-	if badD1 != 0 || badD2 != 0 {
+	fmt.Printf("algebraic cross-composition check (Areion-512, 500 x r=1..15): d=1 closed-form mismatches=%d, d=2 constant MC^2(Delta_{r-1}) mismatches=%d, d=1..3 pair-conservation mismatches=%d\n",
+		badD1, badD2, badPair)
+	if badD1 != 0 || badD2 != 0 || badPair != 0 {
 		os.Exit(1)
 	}
 }
@@ -953,6 +1306,7 @@ func crossMain() {
 
 	checkInv()
 	sh := p2Table("shift")
+	verifyAlgebraicCross256(sh)
 	verifyAlgebraicCross512(sh)
 
 	// 1. Step-by-step intermediate state delta trajectory delta_{r,k}(x) = s_k^(1)(x) ^ s_k^(2)(x)
@@ -983,7 +1337,7 @@ func crossMain() {
 	// 2. End-to-end differential avalanche of C_r(x) ^ C_r(x ^ e_i) across L0..L4p and r=1..R
 	fmt.Printf("\n== Track 2.2: Cross-Composition Differential Avalanche C_r(x) ^ C_r(x ^ e_i) Across Ladder Levels (pairs=%d)\n", nAval)
 	ladder := buildLadder()
-	// Select representative ladder levels for cross-composition avalanche: L0, L1, L2a, L3a, L3b, L4, L4p
+	// Evaluate cross-composition avalanche across all 11 ladder levels L0..L4p:
 	type avalJob struct {
 		idx    int
 		width  int
