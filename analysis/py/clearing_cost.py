@@ -6,6 +6,7 @@ commit c74d39a).
 import argparse
 import os
 import pathlib
+import platform
 import re
 import shutil
 import statistics
@@ -18,7 +19,8 @@ ROOT = HERE.parent.parent
 
 PRE_COMMIT = "c74d39a"
 POST_COMMIT = "72a892a"
-REF_GHZ = 3.60
+REF_GHZ_AMD64 = 3.60
+REF_GHZ_ARM64 = 2.80
 
 INTERFACES = [
     # (bench_name, display_name, input_bytes)
@@ -38,7 +40,8 @@ INTERFACES = [
     ("BenchmarkSoEM512x4", "SoEM512x4", 256),
 ]
 
-TIERS = ["purego", "aesni", "vex", "vaesavx2", "avx512"]
+TIERS_AMD64 = ["purego", "aesni", "vex", "vaesavx2", "avx512"]
+TIERS_ARM64 = ["purego", "arm64"]
 
 # Mapping from (interface_display_name, tier_or_arch) to (.abi0 kernel symbol, wrapper symbol, wrapper_clobber_calls, wrapper_wipe_calls)
 KERNEL_MAP = {
@@ -276,7 +279,7 @@ def print_static_audit(v011_dir, v012_dir, f11_amd64, f12_amd64, f11_arm64, f12_
     print(
         f"  wipeSoftwareStack (purego, 1024 B = [128]uint64 stack scrub): "
         f"amd64={w_static_amd64} static insns (94 dynamic insns/call: 16x4 MOVUPS X15 loop); "
-        f"arm64={w_static_arm64} static insns"
+        f"arm64={w_static_arm64} static insns (109 dynamic insns/call: 16x4 STP.P (ZR, ZR) loop)"
     )
     print(
         f"  clobberScratchGPRs.abi0 (register scrub helper):              "
@@ -286,43 +289,45 @@ def print_static_audit(v011_dir, v012_dir, f11_amd64, f12_amd64, f11_arm64, f12_
 
     print("\n-- 1c. Per-interface instruction delta (+dInsn: kernel / Go wrapper+helpers) --")
     row_hdr = (
-        f"{'Interface':22s} {'B':>4s} | {'purego (static/dyn)':>20s} | "
+        f"{'Interface':22s} {'B':>4s} | {'purego-amd64 (st/dyn)':>21s} | {'purego-arm64 (st/dyn)':>21s} | "
         f"{'aesni':>10s} | {'vex':>10s} | {'vaesavx2':>10s} | {'avx512':>10s} | {'arm64':>10s}"
     )
     print(row_hdr)
     print("-" * len(row_hdr))
     for _, iface, nbytes in INTERFACES:
         cells = {}
-        for tier in ["purego", "aesni", "vex", "vaesavx2", "avx512", "arm64"]:
-            ksym, wsym, n_clobber, n_wipe = KERNEL_MAP[iface][tier]
+        # purego on amd64 and arm64
+        _, wsym_pg, n_clobber_pg, n_wipe_pg = KERNEL_MAP[iface]["purego"]
+        for arch_tag, f11, f12, w_st, w_dyn, c_st, disp_dw in [
+            ("purego-amd64", f11_amd64, f12_amd64, w_static_amd64, 94, c_static_amd64, 4),
+            ("purego-arm64", f11_arm64, f12_arm64, w_static_arm64, 109, c_static_arm64, 1),
+        ]:
+            dw = len(f12.get(wsym_pg, [])) - len(f11.get(wsym_pg, []))
+            sub_dw = 0
+            if iface == "SoEM256x4":
+                sub_dw = 2 * (len(f12["areion256Permutex4SoftwareRC"]) - len(f11["areion256Permutex4SoftwareRC"]))
+            elif iface == "SoEM512x4":
+                sub_dw = 2 * (len(f12["areion512Permutex4SoftwareRC"]) - len(f11["areion512Permutex4SoftwareRC"]))
+            elif iface in ("Permute256x4", "InversePermute256x4", "Permute512x4", "InversePermute512x4"):
+                sub_dw = disp_dw
+            static_tot = dw + sub_dw + n_wipe_pg * w_st + n_clobber_pg * c_st
+            dyn_tot = dw + sub_dw + n_wipe_pg * w_dyn + n_clobber_pg * c_st
+            cells[arch_tag] = f"+{static_tot} (+{dyn_tot}d)"
+
+        for tier in ["aesni", "vex", "vaesavx2", "avx512", "arm64"]:
+            ksym, wsym, n_clobber, _ = KERNEL_MAP[iface][tier]
             f11 = f11_arm64 if tier == "arm64" else f11_amd64
             f12 = f12_arm64 if tier == "arm64" else f12_amd64
             dk = (len(f12.get(ksym, [])) - len(f11.get(ksym, []))) if ksym else 0
             dw = len(f12.get(wsym, [])) - len(f11.get(wsym, []))
-            if tier == "purego":
-                # In purego, soem256x4Software and soem512x4Software also call areion*Permutex4SoftwareRC twice
-                sub_dw = 0
-                if iface == "SoEM256x4":
-                    sub_dw = 2 * (len(f12["areion256Permutex4SoftwareRC"]) - len(f11["areion256Permutex4SoftwareRC"]))
-                elif iface == "SoEM512x4":
-                    sub_dw = 2 * (len(f12["areion512Permutex4SoftwareRC"]) - len(f11["areion512Permutex4SoftwareRC"]))
-                elif iface in ("Permute256x4", "InversePermute256x4", "Permute512x4", "InversePermute512x4"):
-                    # Dispatch wrapper in areion_amd64.go also adds +4 insns (clobberScratchGPRs call) on purego branch
-                    sub_dw = 4
-                static_tot = dw + sub_dw + n_wipe * w_static_amd64 + n_clobber * c_static_amd64
-                dyn_tot = dw + sub_dw + n_wipe * 94 + n_clobber * c_static_amd64
-                cells[tier] = f"+{static_tot} (+{dyn_tot}d)"
-            else:
-                # On hardware tiers of Permute*x4, dw includes +4 insns on the purego fallback branch;
-                # the hardware path itself adds (dw - 4) wrapper insns + clobberScratchGPRs.
-                hw_dw = dw - 4 if iface.endswith("x4") and "Permute" in iface and tier != "arm64" else (
-                    dw - 1 if iface.endswith("x4") and "Permute" in iface and tier == "arm64" else dw
-                )
-                c_insns = c_static_arm64 if tier == "arm64" else c_static_amd64
-                wrapper_tot = hw_dw + n_clobber * c_insns
-                cells[tier] = f"+{dk}/+{wrapper_tot}"
+            hw_dw = dw - 4 if iface.endswith("x4") and "Permute" in iface and tier != "arm64" else (
+                dw - 1 if iface.endswith("x4") and "Permute" in iface and tier == "arm64" else dw
+            )
+            c_insns = c_static_arm64 if tier == "arm64" else c_static_amd64
+            wrapper_tot = hw_dw + n_clobber * c_insns
+            cells[tier] = f"+{dk}/+{wrapper_tot}"
         print(
-            f"{iface:22s} {nbytes:4d} | {cells['purego']:>20s} | "
+            f"{iface:22s} {nbytes:4d} | {cells['purego-amd64']:>21s} | {cells['purego-arm64']:>21s} | "
             f"{cells['aesni']:>10s} | {cells['vex']:>10s} | {cells['vaesavx2']:>10s} | "
             f"{cells['avx512']:>10s} | {cells['arm64']:>10s}"
         )
@@ -343,10 +348,10 @@ def run_cmd_pinned(cmd, env, cpu_pin):
     return subprocess.check_output(cmd, env=env, text=True, stderr=subprocess.STDOUT)
 
 
-def run_ab_benchmarks(bin_v011, bin_v012, repeats, benchtime, cpu_pin):
-    samples = {t: {"pre": {b: [] for b, _, _ in INTERFACES}, "post": {b: [] for b, _, _ in INTERFACES}} for t in TIERS}
+def run_ab_benchmarks(bin_v011, bin_v012, tiers, repeats, benchtime, cpu_pin):
+    samples = {t: {"pre": {b: [] for b, _, _ in INTERFACES}, "post": {b: [] for b, _, _ in INTERFACES}} for t in tiers}
 
-    for tier in TIERS:
+    for tier in tiers:
         env = os.environ.copy()
         env["AREION_FORCE_TIER"] = tier
         env["GOMAXPROCS"] = "1"
@@ -372,10 +377,10 @@ def run_ab_benchmarks(bin_v011, bin_v012, repeats, benchtime, cpu_pin):
     return samples
 
 
-def run_pprof_attribution(bin_v012, prof_dir, benchtime, cpu_pin):
+def run_pprof_attribution(bin_v012, tiers, prof_dir, benchtime, cpu_pin):
     bench_regex = "^(" + "|".join(b for b, _, _ in INTERFACES) + ")$"
     results = {}
-    for tier in TIERS:
+    for tier in tiers:
         env = os.environ.copy()
         env["AREION_FORCE_TIER"] = tier
         env["GOMAXPROCS"] = "1"
@@ -449,6 +454,12 @@ def main():
     benchtime = args.benchtime if args.benchtime is not None else ("25ms" if args.quick else "60ms")
     prof_benchtime = "40ms" if args.quick else "120ms"
 
+    is_arm64_host = platform.machine() in ("aarch64", "arm64")
+    active_tiers = TIERS_ARM64 if is_arm64_host else TIERS_AMD64
+    ref_ghz = REF_GHZ_ARM64 if is_arm64_host else REF_GHZ_AMD64
+    host_label = "AWS Graviton 4 (Neoverse V2)" if is_arm64_host else "Intel Core i7-11700K"
+    sec_label = "2b" if is_arm64_host else "2a"
+
     tmpdir = pathlib.Path(tempfile.mkdtemp(prefix="areion-clearing-"))
     wt_dir = tmpdir / "v011"
     try:
@@ -464,8 +475,10 @@ def main():
         bin_v011_arm64 = tmpdir / "bench_v011_arm64.test"
         bin_v012_arm64 = tmpdir / "bench_v012_arm64.test"
 
-        subprocess.run(["go", "test", "-c", "-o", str(bin_v011_amd64), "."], cwd=wt_dir, check=True)
-        subprocess.run(["go", "test", "-c", "-o", str(bin_v012_amd64), "."], cwd=ROOT, check=True)
+        env_amd = os.environ.copy()
+        env_amd["GOARCH"] = "amd64"
+        subprocess.run(["go", "test", "-c", "-o", str(bin_v011_amd64), "."], cwd=wt_dir, env=env_amd, check=True)
+        subprocess.run(["go", "test", "-c", "-o", str(bin_v012_amd64), "."], cwd=ROOT, env=env_amd, check=True)
 
         env_arm = os.environ.copy()
         env_arm["GOARCH"] = "arm64"
@@ -479,13 +492,16 @@ def main():
 
         print_static_audit(wt_dir, ROOT, f11_amd64, f12_amd64, f11_arm64, f12_arm64)
 
-        print(
-            f"\n== 2. Interleaved A/B microbenchmarks ({repeats} interleaved pairs/tier, "
-            f"-benchtime={benchtime}, CPU core {args.cpu}, c/B at {REF_GHZ:.2f} GHz)"
-        )
-        samples = run_ab_benchmarks(bin_v011_amd64, bin_v012_amd64, repeats, benchtime, args.cpu)
+        bin_v011_live = bin_v011_arm64 if is_arm64_host else bin_v011_amd64
+        bin_v012_live = bin_v012_arm64 if is_arm64_host else bin_v012_amd64
 
-        for tier in TIERS:
+        print(
+            f"\n== {sec_label}. Interleaved A/B microbenchmarks — {host_label} ({repeats} interleaved pairs/tier, "
+            f"-benchtime={benchtime}, CPU core {args.cpu}, c/B at {ref_ghz:.2f} GHz)"
+        )
+        samples = run_ab_benchmarks(bin_v011_live, bin_v012_live, active_tiers, repeats, benchtime, args.cpu)
+
+        for tier in active_tiers:
             print(f"\n-- Tier: {tier} --")
             hdr = (
                 f"{'Interface':22s} {'B':>4s} {'c74d39a ns':>11s} {'72a892a ns':>11s} "
@@ -499,8 +515,8 @@ def main():
                 pre_ns = statistics.median(pre_list)
                 post_ns = statistics.median(post_list)
                 dns = post_ns - pre_ns
-                pre_cb = (pre_ns * REF_GHZ) / nbytes
-                post_cb = (post_ns * REF_GHZ) / nbytes
+                pre_cb = (pre_ns * ref_ghz) / nbytes
+                post_cb = (post_ns * ref_ghz) / nbytes
                 dcb = post_cb - pre_cb
                 dpct = (dns / pre_ns) * 100.0 if pre_ns else 0.0
                 print(
@@ -509,18 +525,18 @@ def main():
                 )
 
         print(f"\n== 3. CPU profile attribution (go tool pprof, -benchtime={prof_benchtime})")
-        pprof_res = run_pprof_attribution(bin_v012_amd64, tmpdir, prof_benchtime, args.cpu)
+        pprof_res = run_pprof_attribution(bin_v012_live, active_tiers, tmpdir, prof_benchtime, args.cpu)
         phdr = (
-            f"{'Tier':10s} {'Samples (s)':>12s} {'wipeSoftwareStack (flat/cum)':>30s} "
+            f"{'Tier':14s} {'Samples (s)':>12s} {'wipeSoftwareStack (flat/cum)':>30s} "
             f"{'clobberScratchGPRs (flat/cum)':>31s}"
         )
         print(phdr)
         print("-" * len(phdr))
-        for tier in TIERS:
+        for tier in active_tiers:
             pr = pprof_res[tier]
             w_str = f"{pr['wipe_flat_pct']:.2f}% / {pr['wipe_cum_pct']:.2f}%"
             c_str = f"{pr['clobber_flat_pct']:.2f}% / {pr['clobber_cum_pct']:.2f}%"
-            print(f"{tier:10s} {pr['total_s']:12.2f} {w_str:>30s} {c_str:>31s}")
+            print(f"{tier:14s} {pr['total_s']:12.2f} {w_str:>30s} {c_str:>31s}")
     finally:
         subprocess.run(
             ["git", "worktree", "remove", "--force", str(wt_dir)],
