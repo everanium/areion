@@ -4,7 +4,6 @@ package areion
 
 import (
 	"runtime"
-	"unsafe"
 )
 
 //go:noescape
@@ -168,6 +167,102 @@ func areion256SoEMPermutex4AesNi(s1b0, s1b1, s2b0, s2b1 *Block4)
 
 //go:noescape
 func areion512SoEMPermutex4AesNi(a1, b1, c1, d1, a2, b2, c2, d2 *Block4)
+
+//go:noescape
+func areion256EMEncryptAESNI(out *[32]byte, m *[32]byte, k *[64]byte)
+
+//go:noescape
+func areion256EMEncryptVEX(out *[32]byte, m *[32]byte, k *[64]byte)
+
+//go:noescape
+func areion256EMDecryptAESNI(out *[32]byte, c *[32]byte, k *[64]byte)
+
+//go:noescape
+func areion256EMDecryptVEX(out *[32]byte, c *[32]byte, k *[64]byte)
+
+//go:noescape
+func areion512EMEncryptAESNI(out *[64]byte, m *[64]byte, k *[128]byte)
+
+//go:noescape
+func areion512EMEncryptVEX(out *[64]byte, m *[64]byte, k *[128]byte)
+
+//go:noescape
+func areion512EMDecryptAESNI(out *[64]byte, c *[64]byte, k *[128]byte)
+
+//go:noescape
+func areion512EMDecryptVEX(out *[64]byte, c *[64]byte, k *[128]byte)
+
+//go:noescape
+func areion256EM2EncryptAESNI(out *[32]byte, m *[32]byte, k *[64]byte)
+
+//go:noescape
+func areion256EM2EncryptVEX(out *[32]byte, m *[32]byte, k *[64]byte)
+
+//go:noescape
+func areion256EM2DecryptAESNI(out *[32]byte, c *[32]byte, k *[64]byte)
+
+//go:noescape
+func areion256EM2DecryptVEX(out *[32]byte, c *[32]byte, k *[64]byte)
+
+//go:noescape
+func areion512EM2EncryptAESNI(out *[64]byte, m *[64]byte, k *[128]byte)
+
+//go:noescape
+func areion512EM2EncryptVEX(out *[64]byte, m *[64]byte, k *[128]byte)
+
+//go:noescape
+func areion512EM2DecryptAESNI(out *[64]byte, c *[64]byte, k *[128]byte)
+
+//go:noescape
+func areion512EM2DecryptVEX(out *[64]byte, c *[64]byte, k *[128]byte)
+
+//go:noescape
+func areion256TEMEncryptAESNI(out *[32]byte, m *[32]byte, k *[64]byte, t *[32]byte)
+
+//go:noescape
+func areion256TEMEncryptVEX(out *[32]byte, m *[32]byte, k *[64]byte, t *[32]byte)
+
+//go:noescape
+func areion256TEMDecryptAESNI(out *[32]byte, c *[32]byte, k *[64]byte, t *[32]byte)
+
+//go:noescape
+func areion256TEMDecryptVEX(out *[32]byte, c *[32]byte, k *[64]byte, t *[32]byte)
+
+//go:noescape
+func areion512TEMEncryptAESNI(out *[64]byte, m *[64]byte, k *[128]byte, t *[64]byte)
+
+//go:noescape
+func areion512TEMEncryptVEX(out *[64]byte, m *[64]byte, k *[128]byte, t *[64]byte)
+
+//go:noescape
+func areion512TEMDecryptAESNI(out *[64]byte, c *[64]byte, k *[128]byte, t *[64]byte)
+
+//go:noescape
+func areion512TEMDecryptVEX(out *[64]byte, c *[64]byte, k *[128]byte, t *[64]byte)
+
+//go:noescape
+func areion256TEM2EncryptAESNI(out *[32]byte, m *[32]byte, k *[64]byte, t *[32]byte)
+
+//go:noescape
+func areion256TEM2EncryptVEX(out *[32]byte, m *[32]byte, k *[64]byte, t *[32]byte)
+
+//go:noescape
+func areion256TEM2DecryptAESNI(out *[32]byte, c *[32]byte, k *[64]byte, t *[32]byte)
+
+//go:noescape
+func areion256TEM2DecryptVEX(out *[32]byte, c *[32]byte, k *[64]byte, t *[32]byte)
+
+//go:noescape
+func areion512TEM2EncryptAESNI(out *[64]byte, m *[64]byte, k *[128]byte, t *[64]byte)
+
+//go:noescape
+func areion512TEM2EncryptVEX(out *[64]byte, m *[64]byte, k *[128]byte, t *[64]byte)
+
+//go:noescape
+func areion512TEM2DecryptAESNI(out *[64]byte, c *[64]byte, k *[128]byte, t *[64]byte)
+
+//go:noescape
+func areion512TEM2DecryptVEX(out *[64]byte, c *[64]byte, k *[128]byte, t *[64]byte)
 
 func aesRoundHW(block, roundKey *Block) {
 	tier := TierCode()
@@ -529,25 +624,15 @@ func areionSoEM256x4(keys *[4][64]byte, inputs *[4][32]byte) [4][32]byte {
 		return soem256x4Software(keys, inputs)
 	}
 
-	keysU64 := (*[4][8]uint64)(unsafe.Pointer(keys))
-	inputsU64 := (*[4][4]uint64)(unsafe.Pointer(inputs))
 
 	var s1b0, s1b1, s2b0, s2b1 Block4
 	for lane := 0; lane < 4; lane++ {
-		s1b0U64 := (*[2]uint64)(unsafe.Pointer(&s1b0[lane*16]))
-		s1b1U64 := (*[2]uint64)(unsafe.Pointer(&s1b1[lane*16]))
-		s2b0U64 := (*[2]uint64)(unsafe.Pointer(&s2b0[lane*16]))
-		s2b1U64 := (*[2]uint64)(unsafe.Pointer(&s2b1[lane*16]))
 
-		s1b0U64[0] = inputsU64[lane][0] ^ keysU64[lane][0]
-		s1b0U64[1] = inputsU64[lane][1] ^ keysU64[lane][1]
-		s1b1U64[0] = inputsU64[lane][2] ^ keysU64[lane][2]
-		s1b1U64[1] = inputsU64[lane][3] ^ keysU64[lane][3]
+		xorBlock16(s1b0[lane*16:lane*16+16], inputs[lane][0:16], keys[lane][0:16])
+		xorBlock16(s1b1[lane*16:lane*16+16], inputs[lane][16:32], keys[lane][16:32])
 
-		s2b0U64[0] = inputsU64[lane][0] ^ keysU64[lane][4]
-		s2b0U64[1] = inputsU64[lane][1] ^ keysU64[lane][5]
-		s2b1U64[0] = inputsU64[lane][2] ^ keysU64[lane][6]
-		s2b1U64[1] = inputsU64[lane][3] ^ keysU64[lane][7]
+		xorBlock16(s2b0[lane*16:lane*16+16], inputs[lane][0:16], keys[lane][32:48])
+		xorBlock16(s2b1[lane*16:lane*16+16], inputs[lane][16:32], keys[lane][48:64])
 	}
 
 	switch {
@@ -563,15 +648,9 @@ func areionSoEM256x4(keys *[4][64]byte, inputs *[4][32]byte) [4][32]byte {
 
 	var buf [4][32]byte
 	for lane := 0; lane < 4; lane++ {
-		s1b0U64 := (*[2]uint64)(unsafe.Pointer(&s1b0[lane*16]))
-		s1b1U64 := (*[2]uint64)(unsafe.Pointer(&s1b1[lane*16]))
-		outU64 := (*[4]uint64)(unsafe.Pointer(&buf[lane]))
-		k := &keysU64[lane]
 
-		outU64[0] = s1b0U64[0] ^ k[0] ^ k[4]
-		outU64[1] = s1b0U64[1] ^ k[1] ^ k[5]
-		outU64[2] = s1b1U64[0] ^ k[2] ^ k[6]
-		outU64[3] = s1b1U64[1] ^ k[3] ^ k[7]
+		xorBlock16_3(buf[lane][0:16], s1b0[lane*16:lane*16+16], keys[lane][0:16], keys[lane][32:48])
+		xorBlock16_3(buf[lane][16:32], s1b1[lane*16:lane*16+16], keys[lane][16:32], keys[lane][48:64])
 	}
 	out := buf
 	clear(buf[:])
@@ -594,38 +673,20 @@ func areionSoEM512x4(keys *[4][128]byte, inputs *[4][64]byte) [4][64]byte {
 		return soem512x4Software(keys, inputs)
 	}
 
-	keysU64 := (*[4][16]uint64)(unsafe.Pointer(keys))
-	inputsU64 := (*[4][8]uint64)(unsafe.Pointer(inputs))
 
 	var a1, b1, c1, d1, a2, b2, c2, d2 Block4
 	for lane := 0; lane < 4; lane++ {
-		a1U64 := (*[2]uint64)(unsafe.Pointer(&a1[lane*16]))
-		b1U64 := (*[2]uint64)(unsafe.Pointer(&b1[lane*16]))
-		c1U64 := (*[2]uint64)(unsafe.Pointer(&c1[lane*16]))
-		d1U64 := (*[2]uint64)(unsafe.Pointer(&d1[lane*16]))
 
-		a2U64 := (*[2]uint64)(unsafe.Pointer(&a2[lane*16]))
-		b2U64 := (*[2]uint64)(unsafe.Pointer(&b2[lane*16]))
-		c2U64 := (*[2]uint64)(unsafe.Pointer(&c2[lane*16]))
-		d2U64 := (*[2]uint64)(unsafe.Pointer(&d2[lane*16]))
 
-		a1U64[0] = inputsU64[lane][0] ^ keysU64[lane][0]
-		a1U64[1] = inputsU64[lane][1] ^ keysU64[lane][1]
-		b1U64[0] = inputsU64[lane][2] ^ keysU64[lane][2]
-		b1U64[1] = inputsU64[lane][3] ^ keysU64[lane][3]
-		c1U64[0] = inputsU64[lane][4] ^ keysU64[lane][4]
-		c1U64[1] = inputsU64[lane][5] ^ keysU64[lane][5]
-		d1U64[0] = inputsU64[lane][6] ^ keysU64[lane][6]
-		d1U64[1] = inputsU64[lane][7] ^ keysU64[lane][7]
+		xorBlock16(a1[lane*16:lane*16+16], inputs[lane][0:16], keys[lane][0:16])
+		xorBlock16(b1[lane*16:lane*16+16], inputs[lane][16:32], keys[lane][16:32])
+		xorBlock16(c1[lane*16:lane*16+16], inputs[lane][32:48], keys[lane][32:48])
+		xorBlock16(d1[lane*16:lane*16+16], inputs[lane][48:64], keys[lane][48:64])
 
-		a2U64[0] = inputsU64[lane][0] ^ keysU64[lane][8]
-		a2U64[1] = inputsU64[lane][1] ^ keysU64[lane][9]
-		b2U64[0] = inputsU64[lane][2] ^ keysU64[lane][10]
-		b2U64[1] = inputsU64[lane][3] ^ keysU64[lane][11]
-		c2U64[0] = inputsU64[lane][4] ^ keysU64[lane][12]
-		c2U64[1] = inputsU64[lane][5] ^ keysU64[lane][13]
-		d2U64[0] = inputsU64[lane][6] ^ keysU64[lane][14]
-		d2U64[1] = inputsU64[lane][7] ^ keysU64[lane][15]
+		xorBlock16(a2[lane*16:lane*16+16], inputs[lane][0:16], keys[lane][64:80])
+		xorBlock16(b2[lane*16:lane*16+16], inputs[lane][16:32], keys[lane][80:96])
+		xorBlock16(c2[lane*16:lane*16+16], inputs[lane][32:48], keys[lane][96:112])
+		xorBlock16(d2[lane*16:lane*16+16], inputs[lane][48:64], keys[lane][112:128])
 	}
 
 	switch {
@@ -641,21 +702,11 @@ func areionSoEM512x4(keys *[4][128]byte, inputs *[4][64]byte) [4][64]byte {
 
 	var buf [4][64]byte
 	for lane := 0; lane < 4; lane++ {
-		a1U64 := (*[2]uint64)(unsafe.Pointer(&a1[lane*16]))
-		b1U64 := (*[2]uint64)(unsafe.Pointer(&b1[lane*16]))
-		c1U64 := (*[2]uint64)(unsafe.Pointer(&c1[lane*16]))
-		d1U64 := (*[2]uint64)(unsafe.Pointer(&d1[lane*16]))
-		outU64 := (*[8]uint64)(unsafe.Pointer(&buf[lane]))
-		k := &keysU64[lane]
 
-		outU64[0] = a1U64[0] ^ k[0] ^ k[8]
-		outU64[1] = a1U64[1] ^ k[1] ^ k[9]
-		outU64[2] = b1U64[0] ^ k[2] ^ k[10]
-		outU64[3] = b1U64[1] ^ k[3] ^ k[11]
-		outU64[4] = c1U64[0] ^ k[4] ^ k[12]
-		outU64[5] = c1U64[1] ^ k[5] ^ k[13]
-		outU64[6] = d1U64[0] ^ k[6] ^ k[14]
-		outU64[7] = d1U64[1] ^ k[7] ^ k[15]
+		xorBlock16_3(buf[lane][0:16], a1[lane*16:lane*16+16], keys[lane][0:16], keys[lane][64:80])
+		xorBlock16_3(buf[lane][16:32], b1[lane*16:lane*16+16], keys[lane][16:32], keys[lane][80:96])
+		xorBlock16_3(buf[lane][32:48], c1[lane*16:lane*16+16], keys[lane][32:48], keys[lane][96:112])
+		xorBlock16_3(buf[lane][48:64], d1[lane*16:lane*16+16], keys[lane][48:64], keys[lane][112:128])
 	}
 	out := buf
 	clear(buf[:])
@@ -678,4 +729,932 @@ func areionSoEM512x4(keys *[4][128]byte, inputs *[4][64]byte) [4][64]byte {
 	runtime.KeepAlive(&d2)
 	clobberScratchGPRs()
 	return out
+}
+
+func areion256Permutex4Block4(b0, b1 *Block4, rc4 *[15 * 64]byte, tier int32) {
+	switch {
+	case hasAVX512 && hasVAESAVX2 && tier >= TierAVX512:
+		areion256Permutex4RC(b0, b1, rc4)
+	case hasVAESAVX2 && tier >= TierVAESAVX2:
+		areion256Permutex4Avx2RC(b0, b1, rc4)
+	case hasVEX && tier >= TierVEX:
+		areion256Permutex4VexRC(b0, b1, rc4)
+	default:
+		areion256Permutex4AesNiRC(b0, b1, rc4)
+	}
+}
+
+func areion256InversePermutex4Block4(b0, b1 *Block4, rc4 *[15 * 64]byte, tier int32) {
+	switch {
+	case hasAVX512 && hasVAESAVX2 && tier >= TierAVX512:
+		areion256InversePermutex4RC(b0, b1, rc4)
+	case hasVAESAVX2 && tier >= TierVAESAVX2:
+		areion256InversePermutex4Avx2RC(b0, b1, rc4)
+	case hasVEX && tier >= TierVEX:
+		areion256InversePermutex4VexRC(b0, b1, rc4)
+	default:
+		areion256InversePermutex4AesNiRC(b0, b1, rc4)
+	}
+}
+
+func areion512Permutex4Block4(b0, b1, b2, b3 *Block4, rc4 *[15 * 64]byte, tier int32) {
+	switch {
+	case hasAVX512 && hasVAESAVX2 && tier >= TierAVX512:
+		areion512Permutex4RC(b0, b1, b2, b3, rc4)
+	case hasVAESAVX2 && tier >= TierVAESAVX2:
+		areion512Permutex4Avx2RC(b0, b1, b2, b3, rc4)
+	case hasVEX && tier >= TierVEX:
+		areion512Permutex4VexRC(b0, b1, b2, b3, rc4)
+	default:
+		areion512Permutex4AesNiRC(b0, b1, b2, b3, rc4)
+	}
+}
+
+func areion512InversePermutex4Block4(b0, b1, b2, b3 *Block4, rc4 *[15 * 64]byte, tier int32) {
+	switch {
+	case hasAVX512 && hasVAESAVX2 && tier >= TierAVX512:
+		areion512InversePermutex4RC(b0, b1, b2, b3, rc4)
+	case hasVAESAVX2 && tier >= TierVAESAVX2:
+		areion512InversePermutex4Avx2RC(b0, b1, b2, b3, rc4)
+	case hasVEX && tier >= TierVEX:
+		areion512InversePermutex4VexRC(b0, b1, b2, b3, rc4)
+	default:
+		areion512InversePermutex4AesNiRC(b0, b1, b2, b3, rc4)
+	}
+}
+
+func areionEMEncrypt256(out *[32]byte, m *[32]byte, k *[64]byte) {
+	tier := TierCode()
+	if tier == TierPureGo || !hasAESNI {
+		emEncrypt256Software(out, m, k)
+		return
+	}
+	if hasVEX && tier >= TierVEX {
+		areion256EMEncryptVEX(out, m, k)
+	} else {
+		areion256EMEncryptAESNI(out, m, k)
+	}
+	clobberScratchGPRs()
+}
+
+func areionEMDecrypt256(out *[32]byte, c *[32]byte, k *[64]byte) {
+	tier := TierCode()
+	if tier == TierPureGo || !hasAESNI {
+		emDecrypt256Software(out, c, k)
+		return
+	}
+	if hasVEX && tier >= TierVEX {
+		areion256EMDecryptVEX(out, c, k)
+	} else {
+		areion256EMDecryptAESNI(out, c, k)
+	}
+	clobberScratchGPRs()
+}
+
+func areionEMEncrypt512(out *[64]byte, m *[64]byte, k *[128]byte) {
+	tier := TierCode()
+	if tier == TierPureGo || !hasAESNI {
+		emEncrypt512Software(out, m, k)
+		return
+	}
+	if hasVEX && tier >= TierVEX {
+		areion512EMEncryptVEX(out, m, k)
+	} else {
+		areion512EMEncryptAESNI(out, m, k)
+	}
+	clobberScratchGPRs()
+}
+
+func areionEMDecrypt512(out *[64]byte, c *[64]byte, k *[128]byte) {
+	tier := TierCode()
+	if tier == TierPureGo || !hasAESNI {
+		emDecrypt512Software(out, c, k)
+		return
+	}
+	if hasVEX && tier >= TierVEX {
+		areion512EMDecryptVEX(out, c, k)
+	} else {
+		areion512EMDecryptAESNI(out, c, k)
+	}
+	clobberScratchGPRs()
+}
+
+func areionEM2Encrypt256(out *[32]byte, m *[32]byte, k *[64]byte) {
+	tier := TierCode()
+	if tier == TierPureGo || !hasAESNI {
+		em2Encrypt256Software(out, m, k)
+		return
+	}
+	if hasVEX && tier >= TierVEX {
+		areion256EM2EncryptVEX(out, m, k)
+	} else {
+		areion256EM2EncryptAESNI(out, m, k)
+	}
+	clobberScratchGPRs()
+}
+
+func areionEM2Decrypt256(out *[32]byte, c *[32]byte, k *[64]byte) {
+	tier := TierCode()
+	if tier == TierPureGo || !hasAESNI {
+		em2Decrypt256Software(out, c, k)
+		return
+	}
+	if hasVEX && tier >= TierVEX {
+		areion256EM2DecryptVEX(out, c, k)
+	} else {
+		areion256EM2DecryptAESNI(out, c, k)
+	}
+	clobberScratchGPRs()
+}
+
+func areionEM2Encrypt512(out *[64]byte, m *[64]byte, k *[128]byte) {
+	tier := TierCode()
+	if tier == TierPureGo || !hasAESNI {
+		em2Encrypt512Software(out, m, k)
+		return
+	}
+	if hasVEX && tier >= TierVEX {
+		areion512EM2EncryptVEX(out, m, k)
+	} else {
+		areion512EM2EncryptAESNI(out, m, k)
+	}
+	clobberScratchGPRs()
+}
+
+func areionEM2Decrypt512(out *[64]byte, c *[64]byte, k *[128]byte) {
+	tier := TierCode()
+	if tier == TierPureGo || !hasAESNI {
+		em2Decrypt512Software(out, c, k)
+		return
+	}
+	if hasVEX && tier >= TierVEX {
+		areion512EM2DecryptVEX(out, c, k)
+	} else {
+		areion512EM2DecryptAESNI(out, c, k)
+	}
+	clobberScratchGPRs()
+}
+
+func areionTEMEncrypt256(out *[32]byte, m *[32]byte, k *[64]byte, t *[32]byte) {
+	tier := TierCode()
+	if tier == TierPureGo || !hasAESNI {
+		temEncrypt256Software(out, m, k, t)
+		return
+	}
+	if hasVEX && tier >= TierVEX {
+		areion256TEMEncryptVEX(out, m, k, t)
+	} else {
+		areion256TEMEncryptAESNI(out, m, k, t)
+	}
+	clobberScratchGPRs()
+}
+
+func areionTEMDecrypt256(out *[32]byte, c *[32]byte, k *[64]byte, t *[32]byte) {
+	tier := TierCode()
+	if tier == TierPureGo || !hasAESNI {
+		temDecrypt256Software(out, c, k, t)
+		return
+	}
+	if hasVEX && tier >= TierVEX {
+		areion256TEMDecryptVEX(out, c, k, t)
+	} else {
+		areion256TEMDecryptAESNI(out, c, k, t)
+	}
+	clobberScratchGPRs()
+}
+
+func areionTEMEncrypt512(out *[64]byte, m *[64]byte, k *[128]byte, t *[64]byte) {
+	tier := TierCode()
+	if tier == TierPureGo || !hasAESNI {
+		temEncrypt512Software(out, m, k, t)
+		return
+	}
+	if hasVEX && tier >= TierVEX {
+		areion512TEMEncryptVEX(out, m, k, t)
+	} else {
+		areion512TEMEncryptAESNI(out, m, k, t)
+	}
+	clobberScratchGPRs()
+}
+
+func areionTEMDecrypt512(out *[64]byte, c *[64]byte, k *[128]byte, t *[64]byte) {
+	tier := TierCode()
+	if tier == TierPureGo || !hasAESNI {
+		temDecrypt512Software(out, c, k, t)
+		return
+	}
+	if hasVEX && tier >= TierVEX {
+		areion512TEMDecryptVEX(out, c, k, t)
+	} else {
+		areion512TEMDecryptAESNI(out, c, k, t)
+	}
+	clobberScratchGPRs()
+}
+
+func areionTEM2Encrypt256(out *[32]byte, m *[32]byte, k *[64]byte, t *[32]byte) {
+	tier := TierCode()
+	if tier == TierPureGo || !hasAESNI {
+		tem2Encrypt256Software(out, m, k, t)
+		return
+	}
+	if hasVEX && tier >= TierVEX {
+		areion256TEM2EncryptVEX(out, m, k, t)
+	} else {
+		areion256TEM2EncryptAESNI(out, m, k, t)
+	}
+	clobberScratchGPRs()
+}
+
+func areionTEM2Decrypt256(out *[32]byte, c *[32]byte, k *[64]byte, t *[32]byte) {
+	tier := TierCode()
+	if tier == TierPureGo || !hasAESNI {
+		tem2Decrypt256Software(out, c, k, t)
+		return
+	}
+	if hasVEX && tier >= TierVEX {
+		areion256TEM2DecryptVEX(out, c, k, t)
+	} else {
+		areion256TEM2DecryptAESNI(out, c, k, t)
+	}
+	clobberScratchGPRs()
+}
+
+func areionTEM2Encrypt512(out *[64]byte, m *[64]byte, k *[128]byte, t *[64]byte) {
+	tier := TierCode()
+	if tier == TierPureGo || !hasAESNI {
+		tem2Encrypt512Software(out, m, k, t)
+		return
+	}
+	if hasVEX && tier >= TierVEX {
+		areion512TEM2EncryptVEX(out, m, k, t)
+	} else {
+		areion512TEM2EncryptAESNI(out, m, k, t)
+	}
+	clobberScratchGPRs()
+}
+
+func areionTEM2Decrypt512(out *[64]byte, c *[64]byte, k *[128]byte, t *[64]byte) {
+	tier := TierCode()
+	if tier == TierPureGo || !hasAESNI {
+		tem2Decrypt512Software(out, c, k, t)
+		return
+	}
+	if hasVEX && tier >= TierVEX {
+		areion512TEM2DecryptVEX(out, c, k, t)
+	} else {
+		areion512TEM2DecryptAESNI(out, c, k, t)
+	}
+	clobberScratchGPRs()
+}
+
+func areionEMEncrypt256x4(out *[4][32]byte, msgs *[4][32]byte, keys *[4][64]byte) {
+	tier := TierCode()
+	if tier == TierPureGo || !hasAESNI {
+		emEncrypt256x4Software(out, msgs, keys)
+		return
+	}
+	var b0, b1 Block4
+	for lane := 0; lane < 4; lane++ {
+		xorBlock16(b0[lane*16:lane*16+16], msgs[lane][0:16], keys[lane][0:16])
+		xorBlock16(b1[lane*16:lane*16+16], msgs[lane][16:32], keys[lane][16:32])
+	}
+	areion256Permutex4Block4(&b0, &b1, &areionRC4x, tier)
+	for lane := 0; lane < 4; lane++ {
+		xorBlock16(out[lane][0:16], b0[lane*16:lane*16+16], keys[lane][32:48])
+		xorBlock16(out[lane][16:32], b1[lane*16:lane*16+16], keys[lane][48:64])
+	}
+	clear(b0[:])
+	clear(b1[:])
+	runtime.KeepAlive(&b0)
+	runtime.KeepAlive(&b1)
+	clobberScratchGPRs()
+}
+
+func areionEMDecrypt256x4(out *[4][32]byte, ct *[4][32]byte, keys *[4][64]byte) {
+	tier := TierCode()
+	if tier == TierPureGo || !hasAESNI {
+		emDecrypt256x4Software(out, ct, keys)
+		return
+	}
+	var b0, b1 Block4
+	for lane := 0; lane < 4; lane++ {
+		xorBlock16(b0[lane*16:lane*16+16], ct[lane][0:16], keys[lane][32:48])
+		xorBlock16(b1[lane*16:lane*16+16], ct[lane][16:32], keys[lane][48:64])
+	}
+	areion256InversePermutex4Block4(&b0, &b1, &areionRC4x, tier)
+	for lane := 0; lane < 4; lane++ {
+		xorBlock16(out[lane][0:16], b0[lane*16:lane*16+16], keys[lane][0:16])
+		xorBlock16(out[lane][16:32], b1[lane*16:lane*16+16], keys[lane][16:32])
+	}
+	clear(b0[:])
+	clear(b1[:])
+	runtime.KeepAlive(&b0)
+	runtime.KeepAlive(&b1)
+	clobberScratchGPRs()
+}
+
+func areionEMEncrypt512x4(out *[4][64]byte, msgs *[4][64]byte, keys *[4][128]byte) {
+	tier := TierCode()
+	if tier == TierPureGo || !hasAESNI {
+		emEncrypt512x4Software(out, msgs, keys)
+		return
+	}
+	var b0, b1, b2, b3 Block4
+	for lane := 0; lane < 4; lane++ {
+		xorBlock16(b0[lane*16:lane*16+16], msgs[lane][0:16], keys[lane][0:16])
+		xorBlock16(b1[lane*16:lane*16+16], msgs[lane][16:32], keys[lane][16:32])
+		xorBlock16(b2[lane*16:lane*16+16], msgs[lane][32:48], keys[lane][32:48])
+		xorBlock16(b3[lane*16:lane*16+16], msgs[lane][48:64], keys[lane][48:64])
+	}
+	areion512Permutex4Block4(&b0, &b1, &b2, &b3, &areionRC4x, tier)
+	for lane := 0; lane < 4; lane++ {
+		xorBlock16(out[lane][0:16], b0[lane*16:lane*16+16], keys[lane][64:80])
+		xorBlock16(out[lane][16:32], b1[lane*16:lane*16+16], keys[lane][80:96])
+		xorBlock16(out[lane][32:48], b2[lane*16:lane*16+16], keys[lane][96:112])
+		xorBlock16(out[lane][48:64], b3[lane*16:lane*16+16], keys[lane][112:128])
+	}
+	clear(b0[:])
+	clear(b1[:])
+	clear(b2[:])
+	clear(b3[:])
+	runtime.KeepAlive(&b0)
+	runtime.KeepAlive(&b1)
+	runtime.KeepAlive(&b2)
+	runtime.KeepAlive(&b3)
+	clobberScratchGPRs()
+}
+
+func areionEMDecrypt512x4(out *[4][64]byte, ct *[4][64]byte, keys *[4][128]byte) {
+	tier := TierCode()
+	if tier == TierPureGo || !hasAESNI {
+		emDecrypt512x4Software(out, ct, keys)
+		return
+	}
+	var b0, b1, b2, b3 Block4
+	for lane := 0; lane < 4; lane++ {
+		xorBlock16(b0[lane*16:lane*16+16], ct[lane][0:16], keys[lane][64:80])
+		xorBlock16(b1[lane*16:lane*16+16], ct[lane][16:32], keys[lane][80:96])
+		xorBlock16(b2[lane*16:lane*16+16], ct[lane][32:48], keys[lane][96:112])
+		xorBlock16(b3[lane*16:lane*16+16], ct[lane][48:64], keys[lane][112:128])
+	}
+	areion512InversePermutex4Block4(&b0, &b1, &b2, &b3, &areionRC4x, tier)
+	for lane := 0; lane < 4; lane++ {
+		xorBlock16(out[lane][0:16], b0[lane*16:lane*16+16], keys[lane][0:16])
+		xorBlock16(out[lane][16:32], b1[lane*16:lane*16+16], keys[lane][16:32])
+		xorBlock16(out[lane][32:48], b2[lane*16:lane*16+16], keys[lane][32:48])
+		xorBlock16(out[lane][48:64], b3[lane*16:lane*16+16], keys[lane][48:64])
+	}
+	clear(b0[:])
+	clear(b1[:])
+	clear(b2[:])
+	clear(b3[:])
+	runtime.KeepAlive(&b0)
+	runtime.KeepAlive(&b1)
+	runtime.KeepAlive(&b2)
+	runtime.KeepAlive(&b3)
+	clobberScratchGPRs()
+}
+
+func areionEM2Encrypt256x4(out *[4][32]byte, msgs *[4][32]byte, keys *[4][64]byte) {
+	tier := TierCode()
+	if tier == TierPureGo || !hasAESNI {
+		em2Encrypt256x4Software(out, msgs, keys)
+		return
+	}
+	var b0, b1 Block4
+	for lane := 0; lane < 4; lane++ {
+		xorBlock16(b0[lane*16:lane*16+16], msgs[lane][0:16], keys[lane][0:16])
+		xorBlock16(b1[lane*16:lane*16+16], msgs[lane][16:32], keys[lane][16:32])
+	}
+	areion256Permutex4Block4(&b0, &b1, &areionRC4x, tier)
+	for lane := 0; lane < 4; lane++ {
+		xorInto16(b0[lane*16:lane*16+16], keys[lane][32:48])
+		xorInto16(b1[lane*16:lane*16+16], keys[lane][48:64])
+	}
+	areion256Permutex4Block4(&b0, &b1, &areionRC4x2, tier)
+	for lane := 0; lane < 4; lane++ {
+		xorBlock16_3(out[lane][0:16], b0[lane*16:lane*16+16], keys[lane][0:16], keys[lane][32:48])
+		xorBlock16_3(out[lane][16:32], b1[lane*16:lane*16+16], keys[lane][16:32], keys[lane][48:64])
+	}
+	clear(b0[:])
+	clear(b1[:])
+	runtime.KeepAlive(&b0)
+	runtime.KeepAlive(&b1)
+	clobberScratchGPRs()
+}
+
+func areionEM2Decrypt256x4(out *[4][32]byte, ct *[4][32]byte, keys *[4][64]byte) {
+	tier := TierCode()
+	if tier == TierPureGo || !hasAESNI {
+		em2Decrypt256x4Software(out, ct, keys)
+		return
+	}
+	var b0, b1 Block4
+	for lane := 0; lane < 4; lane++ {
+		xorBlock16_3(b0[lane*16:lane*16+16], ct[lane][0:16], keys[lane][0:16], keys[lane][32:48])
+		xorBlock16_3(b1[lane*16:lane*16+16], ct[lane][16:32], keys[lane][16:32], keys[lane][48:64])
+	}
+	areion256InversePermutex4Block4(&b0, &b1, &areionRC4x2, tier)
+	for lane := 0; lane < 4; lane++ {
+		xorInto16(b0[lane*16:lane*16+16], keys[lane][32:48])
+		xorInto16(b1[lane*16:lane*16+16], keys[lane][48:64])
+	}
+	areion256InversePermutex4Block4(&b0, &b1, &areionRC4x, tier)
+	for lane := 0; lane < 4; lane++ {
+		xorBlock16(out[lane][0:16], b0[lane*16:lane*16+16], keys[lane][0:16])
+		xorBlock16(out[lane][16:32], b1[lane*16:lane*16+16], keys[lane][16:32])
+	}
+	clear(b0[:])
+	clear(b1[:])
+	runtime.KeepAlive(&b0)
+	runtime.KeepAlive(&b1)
+	clobberScratchGPRs()
+}
+
+func areionEM2Encrypt512x4(out *[4][64]byte, msgs *[4][64]byte, keys *[4][128]byte) {
+	tier := TierCode()
+	if tier == TierPureGo || !hasAESNI {
+		em2Encrypt512x4Software(out, msgs, keys)
+		return
+	}
+	var b0, b1, b2, b3 Block4
+	for lane := 0; lane < 4; lane++ {
+		xorBlock16(b0[lane*16:lane*16+16], msgs[lane][0:16], keys[lane][0:16])
+		xorBlock16(b1[lane*16:lane*16+16], msgs[lane][16:32], keys[lane][16:32])
+		xorBlock16(b2[lane*16:lane*16+16], msgs[lane][32:48], keys[lane][32:48])
+		xorBlock16(b3[lane*16:lane*16+16], msgs[lane][48:64], keys[lane][48:64])
+	}
+	areion512Permutex4Block4(&b0, &b1, &b2, &b3, &areionRC4x, tier)
+	for lane := 0; lane < 4; lane++ {
+		xorInto16(b0[lane*16:lane*16+16], keys[lane][64:80])
+		xorInto16(b1[lane*16:lane*16+16], keys[lane][80:96])
+		xorInto16(b2[lane*16:lane*16+16], keys[lane][96:112])
+		xorInto16(b3[lane*16:lane*16+16], keys[lane][112:128])
+	}
+	areion512Permutex4Block4(&b0, &b1, &b2, &b3, &areionRC4x2, tier)
+	for lane := 0; lane < 4; lane++ {
+		xorBlock16_3(out[lane][0:16], b0[lane*16:lane*16+16], keys[lane][0:16], keys[lane][64:80])
+		xorBlock16_3(out[lane][16:32], b1[lane*16:lane*16+16], keys[lane][16:32], keys[lane][80:96])
+		xorBlock16_3(out[lane][32:48], b2[lane*16:lane*16+16], keys[lane][32:48], keys[lane][96:112])
+		xorBlock16_3(out[lane][48:64], b3[lane*16:lane*16+16], keys[lane][48:64], keys[lane][112:128])
+	}
+	clear(b0[:])
+	clear(b1[:])
+	clear(b2[:])
+	clear(b3[:])
+	runtime.KeepAlive(&b0)
+	runtime.KeepAlive(&b1)
+	runtime.KeepAlive(&b2)
+	runtime.KeepAlive(&b3)
+	clobberScratchGPRs()
+}
+
+func areionEM2Decrypt512x4(out *[4][64]byte, ct *[4][64]byte, keys *[4][128]byte) {
+	tier := TierCode()
+	if tier == TierPureGo || !hasAESNI {
+		em2Decrypt512x4Software(out, ct, keys)
+		return
+	}
+	var b0, b1, b2, b3 Block4
+	for lane := 0; lane < 4; lane++ {
+		xorBlock16_3(b0[lane*16:lane*16+16], ct[lane][0:16], keys[lane][0:16], keys[lane][64:80])
+		xorBlock16_3(b1[lane*16:lane*16+16], ct[lane][16:32], keys[lane][16:32], keys[lane][80:96])
+		xorBlock16_3(b2[lane*16:lane*16+16], ct[lane][32:48], keys[lane][32:48], keys[lane][96:112])
+		xorBlock16_3(b3[lane*16:lane*16+16], ct[lane][48:64], keys[lane][48:64], keys[lane][112:128])
+	}
+	areion512InversePermutex4Block4(&b0, &b1, &b2, &b3, &areionRC4x2, tier)
+	for lane := 0; lane < 4; lane++ {
+		xorInto16(b0[lane*16:lane*16+16], keys[lane][64:80])
+		xorInto16(b1[lane*16:lane*16+16], keys[lane][80:96])
+		xorInto16(b2[lane*16:lane*16+16], keys[lane][96:112])
+		xorInto16(b3[lane*16:lane*16+16], keys[lane][112:128])
+	}
+	areion512InversePermutex4Block4(&b0, &b1, &b2, &b3, &areionRC4x, tier)
+	for lane := 0; lane < 4; lane++ {
+		xorBlock16(out[lane][0:16], b0[lane*16:lane*16+16], keys[lane][0:16])
+		xorBlock16(out[lane][16:32], b1[lane*16:lane*16+16], keys[lane][16:32])
+		xorBlock16(out[lane][32:48], b2[lane*16:lane*16+16], keys[lane][32:48])
+		xorBlock16(out[lane][48:64], b3[lane*16:lane*16+16], keys[lane][48:64])
+	}
+	clear(b0[:])
+	clear(b1[:])
+	clear(b2[:])
+	clear(b3[:])
+	runtime.KeepAlive(&b0)
+	runtime.KeepAlive(&b1)
+	runtime.KeepAlive(&b2)
+	runtime.KeepAlive(&b3)
+	clobberScratchGPRs()
+}
+
+func areionTEMEncrypt256x4(out *[4][32]byte, msgs *[4][32]byte, keys *[4][64]byte, tweaks *[4][32]byte) {
+	tier := TierCode()
+	if tier == TierPureGo || !hasAESNI {
+		temEncrypt256x4Software(out, msgs, keys, tweaks)
+		return
+	}
+	var w0, w1, b0, b1 Block4
+	for lane := 0; lane < 4; lane++ {
+		xorBlock16(w0[lane*16:lane*16+16], tweaks[lane][0:16], keys[lane][32:48])
+		xorBlock16(w1[lane*16:lane*16+16], tweaks[lane][16:32], keys[lane][48:64])
+	}
+	areion256Permutex4Block4(&w0, &w1, &areionRC4x2, tier)
+	for lane := 0; lane < 4; lane++ {
+		xorInto16(w0[lane*16:lane*16+16], keys[lane][0:16])
+		xorInto16(w1[lane*16:lane*16+16], keys[lane][16:32])
+		xorBlock16(b0[lane*16:lane*16+16], msgs[lane][0:16], w0[lane*16:lane*16+16])
+		xorBlock16(b1[lane*16:lane*16+16], msgs[lane][16:32], w1[lane*16:lane*16+16])
+	}
+	areion256Permutex4Block4(&b0, &b1, &areionRC4x, tier)
+	for lane := 0; lane < 4; lane++ {
+		xorBlock16(out[lane][0:16], b0[lane*16:lane*16+16], w0[lane*16:lane*16+16])
+		xorBlock16(out[lane][16:32], b1[lane*16:lane*16+16], w1[lane*16:lane*16+16])
+	}
+	clear(w0[:])
+	clear(w1[:])
+	clear(b0[:])
+	clear(b1[:])
+	runtime.KeepAlive(&w0)
+	runtime.KeepAlive(&w1)
+	runtime.KeepAlive(&b0)
+	runtime.KeepAlive(&b1)
+	clobberScratchGPRs()
+}
+
+func areionTEMDecrypt256x4(out *[4][32]byte, ct *[4][32]byte, keys *[4][64]byte, tweaks *[4][32]byte) {
+	tier := TierCode()
+	if tier == TierPureGo || !hasAESNI {
+		temDecrypt256x4Software(out, ct, keys, tweaks)
+		return
+	}
+	var w0, w1, b0, b1 Block4
+	for lane := 0; lane < 4; lane++ {
+		xorBlock16(w0[lane*16:lane*16+16], tweaks[lane][0:16], keys[lane][32:48])
+		xorBlock16(w1[lane*16:lane*16+16], tweaks[lane][16:32], keys[lane][48:64])
+	}
+	areion256Permutex4Block4(&w0, &w1, &areionRC4x2, tier)
+	for lane := 0; lane < 4; lane++ {
+		xorInto16(w0[lane*16:lane*16+16], keys[lane][0:16])
+		xorInto16(w1[lane*16:lane*16+16], keys[lane][16:32])
+		xorBlock16(b0[lane*16:lane*16+16], ct[lane][0:16], w0[lane*16:lane*16+16])
+		xorBlock16(b1[lane*16:lane*16+16], ct[lane][16:32], w1[lane*16:lane*16+16])
+	}
+	areion256InversePermutex4Block4(&b0, &b1, &areionRC4x, tier)
+	for lane := 0; lane < 4; lane++ {
+		xorBlock16(out[lane][0:16], b0[lane*16:lane*16+16], w0[lane*16:lane*16+16])
+		xorBlock16(out[lane][16:32], b1[lane*16:lane*16+16], w1[lane*16:lane*16+16])
+	}
+	clear(w0[:])
+	clear(w1[:])
+	clear(b0[:])
+	clear(b1[:])
+	runtime.KeepAlive(&w0)
+	runtime.KeepAlive(&w1)
+	runtime.KeepAlive(&b0)
+	runtime.KeepAlive(&b1)
+	clobberScratchGPRs()
+}
+
+func areionTEMEncrypt512x4(out *[4][64]byte, msgs *[4][64]byte, keys *[4][128]byte, tweaks *[4][64]byte) {
+	tier := TierCode()
+	if tier == TierPureGo || !hasAESNI {
+		temEncrypt512x4Software(out, msgs, keys, tweaks)
+		return
+	}
+	var w0, w1, w2, w3, b0, b1, b2, b3 Block4
+	for lane := 0; lane < 4; lane++ {
+		xorBlock16(w0[lane*16:lane*16+16], tweaks[lane][0:16], keys[lane][64:80])
+		xorBlock16(w1[lane*16:lane*16+16], tweaks[lane][16:32], keys[lane][80:96])
+		xorBlock16(w2[lane*16:lane*16+16], tweaks[lane][32:48], keys[lane][96:112])
+		xorBlock16(w3[lane*16:lane*16+16], tweaks[lane][48:64], keys[lane][112:128])
+	}
+	areion512Permutex4Block4(&w0, &w1, &w2, &w3, &areionRC4x2, tier)
+	for lane := 0; lane < 4; lane++ {
+		xorInto16(w0[lane*16:lane*16+16], keys[lane][0:16])
+		xorInto16(w1[lane*16:lane*16+16], keys[lane][16:32])
+		xorInto16(w2[lane*16:lane*16+16], keys[lane][32:48])
+		xorInto16(w3[lane*16:lane*16+16], keys[lane][48:64])
+		xorBlock16(b0[lane*16:lane*16+16], msgs[lane][0:16], w0[lane*16:lane*16+16])
+		xorBlock16(b1[lane*16:lane*16+16], msgs[lane][16:32], w1[lane*16:lane*16+16])
+		xorBlock16(b2[lane*16:lane*16+16], msgs[lane][32:48], w2[lane*16:lane*16+16])
+		xorBlock16(b3[lane*16:lane*16+16], msgs[lane][48:64], w3[lane*16:lane*16+16])
+	}
+	areion512Permutex4Block4(&b0, &b1, &b2, &b3, &areionRC4x, tier)
+	for lane := 0; lane < 4; lane++ {
+		xorBlock16(out[lane][0:16], b0[lane*16:lane*16+16], w0[lane*16:lane*16+16])
+		xorBlock16(out[lane][16:32], b1[lane*16:lane*16+16], w1[lane*16:lane*16+16])
+		xorBlock16(out[lane][32:48], b2[lane*16:lane*16+16], w2[lane*16:lane*16+16])
+		xorBlock16(out[lane][48:64], b3[lane*16:lane*16+16], w3[lane*16:lane*16+16])
+	}
+	clear(w0[:])
+	clear(w1[:])
+	clear(w2[:])
+	clear(w3[:])
+	clear(b0[:])
+	clear(b1[:])
+	clear(b2[:])
+	clear(b3[:])
+	runtime.KeepAlive(&w0)
+	runtime.KeepAlive(&w1)
+	runtime.KeepAlive(&w2)
+	runtime.KeepAlive(&w3)
+	runtime.KeepAlive(&b0)
+	runtime.KeepAlive(&b1)
+	runtime.KeepAlive(&b2)
+	runtime.KeepAlive(&b3)
+	clobberScratchGPRs()
+}
+
+func areionTEMDecrypt512x4(out *[4][64]byte, ct *[4][64]byte, keys *[4][128]byte, tweaks *[4][64]byte) {
+	tier := TierCode()
+	if tier == TierPureGo || !hasAESNI {
+		temDecrypt512x4Software(out, ct, keys, tweaks)
+		return
+	}
+	var w0, w1, w2, w3, b0, b1, b2, b3 Block4
+	for lane := 0; lane < 4; lane++ {
+		xorBlock16(w0[lane*16:lane*16+16], tweaks[lane][0:16], keys[lane][64:80])
+		xorBlock16(w1[lane*16:lane*16+16], tweaks[lane][16:32], keys[lane][80:96])
+		xorBlock16(w2[lane*16:lane*16+16], tweaks[lane][32:48], keys[lane][96:112])
+		xorBlock16(w3[lane*16:lane*16+16], tweaks[lane][48:64], keys[lane][112:128])
+	}
+	areion512Permutex4Block4(&w0, &w1, &w2, &w3, &areionRC4x2, tier)
+	for lane := 0; lane < 4; lane++ {
+		xorInto16(w0[lane*16:lane*16+16], keys[lane][0:16])
+		xorInto16(w1[lane*16:lane*16+16], keys[lane][16:32])
+		xorInto16(w2[lane*16:lane*16+16], keys[lane][32:48])
+		xorInto16(w3[lane*16:lane*16+16], keys[lane][48:64])
+		xorBlock16(b0[lane*16:lane*16+16], ct[lane][0:16], w0[lane*16:lane*16+16])
+		xorBlock16(b1[lane*16:lane*16+16], ct[lane][16:32], w1[lane*16:lane*16+16])
+		xorBlock16(b2[lane*16:lane*16+16], ct[lane][32:48], w2[lane*16:lane*16+16])
+		xorBlock16(b3[lane*16:lane*16+16], ct[lane][48:64], w3[lane*16:lane*16+16])
+	}
+	areion512InversePermutex4Block4(&b0, &b1, &b2, &b3, &areionRC4x, tier)
+	for lane := 0; lane < 4; lane++ {
+		xorBlock16(out[lane][0:16], b0[lane*16:lane*16+16], w0[lane*16:lane*16+16])
+		xorBlock16(out[lane][16:32], b1[lane*16:lane*16+16], w1[lane*16:lane*16+16])
+		xorBlock16(out[lane][32:48], b2[lane*16:lane*16+16], w2[lane*16:lane*16+16])
+		xorBlock16(out[lane][48:64], b3[lane*16:lane*16+16], w3[lane*16:lane*16+16])
+	}
+	clear(w0[:])
+	clear(w1[:])
+	clear(w2[:])
+	clear(w3[:])
+	clear(b0[:])
+	clear(b1[:])
+	clear(b2[:])
+	clear(b3[:])
+	runtime.KeepAlive(&w0)
+	runtime.KeepAlive(&w1)
+	runtime.KeepAlive(&w2)
+	runtime.KeepAlive(&w3)
+	runtime.KeepAlive(&b0)
+	runtime.KeepAlive(&b1)
+	runtime.KeepAlive(&b2)
+	runtime.KeepAlive(&b3)
+	clobberScratchGPRs()
+}
+
+func areionTEM2Encrypt256x4(out *[4][32]byte, msgs *[4][32]byte, keys *[4][64]byte, tweaks *[4][32]byte) {
+	tier := TierCode()
+	if tier == TierPureGo || !hasAESNI {
+		tem2Encrypt256x4Software(out, msgs, keys, tweaks)
+		return
+	}
+	var w1b0, w1b1, w2b0, w2b1, b0, b1 Block4
+	for lane := 0; lane < 4; lane++ {
+		xorBlock16(w1b0[lane*16:lane*16+16], tweaks[lane][0:16], keys[lane][0:16])
+		xorBlock16(w1b1[lane*16:lane*16+16], tweaks[lane][16:32], keys[lane][16:32])
+		xorBlock16(w2b0[lane*16:lane*16+16], tweaks[lane][0:16], keys[lane][32:48])
+		xorBlock16(w2b1[lane*16:lane*16+16], tweaks[lane][16:32], keys[lane][48:64])
+	}
+	areion256Permutex4Block4(&w1b0, &w1b1, &areionRC4x, tier)
+	areion256Permutex4Block4(&w2b0, &w2b1, &areionRC4x2, tier)
+	for lane := 0; lane < 4; lane++ {
+		xorInto16(w1b0[lane*16:lane*16+16], keys[lane][0:16])
+		xorInto16(w1b1[lane*16:lane*16+16], keys[lane][16:32])
+		xorInto16(w2b0[lane*16:lane*16+16], keys[lane][32:48])
+		xorInto16(w2b1[lane*16:lane*16+16], keys[lane][48:64])
+		xorBlock16(b0[lane*16:lane*16+16], msgs[lane][0:16], w1b0[lane*16:lane*16+16])
+		xorBlock16(b1[lane*16:lane*16+16], msgs[lane][16:32], w1b1[lane*16:lane*16+16])
+	}
+	areion256Permutex4Block4(&b0, &b1, &areionRC4x, tier)
+	for lane := 0; lane < 4; lane++ {
+		xorInto16(b0[lane*16:lane*16+16], w2b0[lane*16:lane*16+16])
+		xorInto16(b1[lane*16:lane*16+16], w2b1[lane*16:lane*16+16])
+	}
+	areion256Permutex4Block4(&b0, &b1, &areionRC4x2, tier)
+	for lane := 0; lane < 4; lane++ {
+		xorBlock16_3(out[lane][0:16], b0[lane*16:lane*16+16], w1b0[lane*16:lane*16+16], w2b0[lane*16:lane*16+16])
+		xorBlock16_3(out[lane][16:32], b1[lane*16:lane*16+16], w1b1[lane*16:lane*16+16], w2b1[lane*16:lane*16+16])
+	}
+	clear(w1b0[:])
+	clear(w1b1[:])
+	clear(w2b0[:])
+	clear(w2b1[:])
+	clear(b0[:])
+	clear(b1[:])
+	runtime.KeepAlive(&w1b0)
+	runtime.KeepAlive(&w1b1)
+	runtime.KeepAlive(&w2b0)
+	runtime.KeepAlive(&w2b1)
+	runtime.KeepAlive(&b0)
+	runtime.KeepAlive(&b1)
+	clobberScratchGPRs()
+}
+
+func areionTEM2Decrypt256x4(out *[4][32]byte, ct *[4][32]byte, keys *[4][64]byte, tweaks *[4][32]byte) {
+	tier := TierCode()
+	if tier == TierPureGo || !hasAESNI {
+		tem2Decrypt256x4Software(out, ct, keys, tweaks)
+		return
+	}
+	var w1b0, w1b1, w2b0, w2b1, b0, b1 Block4
+	for lane := 0; lane < 4; lane++ {
+		xorBlock16(w1b0[lane*16:lane*16+16], tweaks[lane][0:16], keys[lane][0:16])
+		xorBlock16(w1b1[lane*16:lane*16+16], tweaks[lane][16:32], keys[lane][16:32])
+		xorBlock16(w2b0[lane*16:lane*16+16], tweaks[lane][0:16], keys[lane][32:48])
+		xorBlock16(w2b1[lane*16:lane*16+16], tweaks[lane][16:32], keys[lane][48:64])
+	}
+	areion256Permutex4Block4(&w1b0, &w1b1, &areionRC4x, tier)
+	areion256Permutex4Block4(&w2b0, &w2b1, &areionRC4x2, tier)
+	for lane := 0; lane < 4; lane++ {
+		xorInto16(w1b0[lane*16:lane*16+16], keys[lane][0:16])
+		xorInto16(w1b1[lane*16:lane*16+16], keys[lane][16:32])
+		xorInto16(w2b0[lane*16:lane*16+16], keys[lane][32:48])
+		xorInto16(w2b1[lane*16:lane*16+16], keys[lane][48:64])
+		xorBlock16_3(b0[lane*16:lane*16+16], ct[lane][0:16], w1b0[lane*16:lane*16+16], w2b0[lane*16:lane*16+16])
+		xorBlock16_3(b1[lane*16:lane*16+16], ct[lane][16:32], w1b1[lane*16:lane*16+16], w2b1[lane*16:lane*16+16])
+	}
+	areion256InversePermutex4Block4(&b0, &b1, &areionRC4x2, tier)
+	for lane := 0; lane < 4; lane++ {
+		xorInto16(b0[lane*16:lane*16+16], w2b0[lane*16:lane*16+16])
+		xorInto16(b1[lane*16:lane*16+16], w2b1[lane*16:lane*16+16])
+	}
+	areion256InversePermutex4Block4(&b0, &b1, &areionRC4x, tier)
+	for lane := 0; lane < 4; lane++ {
+		xorBlock16(out[lane][0:16], b0[lane*16:lane*16+16], w1b0[lane*16:lane*16+16])
+		xorBlock16(out[lane][16:32], b1[lane*16:lane*16+16], w1b1[lane*16:lane*16+16])
+	}
+	clear(w1b0[:])
+	clear(w1b1[:])
+	clear(w2b0[:])
+	clear(w2b1[:])
+	clear(b0[:])
+	clear(b1[:])
+	runtime.KeepAlive(&w1b0)
+	runtime.KeepAlive(&w1b1)
+	runtime.KeepAlive(&w2b0)
+	runtime.KeepAlive(&w2b1)
+	runtime.KeepAlive(&b0)
+	runtime.KeepAlive(&b1)
+	clobberScratchGPRs()
+}
+
+func areionTEM2Encrypt512x4(out *[4][64]byte, msgs *[4][64]byte, keys *[4][128]byte, tweaks *[4][64]byte) {
+	tier := TierCode()
+	if tier == TierPureGo || !hasAESNI {
+		tem2Encrypt512x4Software(out, msgs, keys, tweaks)
+		return
+	}
+	var w1b0, w1b1, w1b2, w1b3, w2b0, w2b1, w2b2, w2b3, b0, b1, b2, b3 Block4
+	for lane := 0; lane < 4; lane++ {
+		xorBlock16(w1b0[lane*16:lane*16+16], tweaks[lane][0:16], keys[lane][0:16])
+		xorBlock16(w1b1[lane*16:lane*16+16], tweaks[lane][16:32], keys[lane][16:32])
+		xorBlock16(w1b2[lane*16:lane*16+16], tweaks[lane][32:48], keys[lane][32:48])
+		xorBlock16(w1b3[lane*16:lane*16+16], tweaks[lane][48:64], keys[lane][48:64])
+		xorBlock16(w2b0[lane*16:lane*16+16], tweaks[lane][0:16], keys[lane][64:80])
+		xorBlock16(w2b1[lane*16:lane*16+16], tweaks[lane][16:32], keys[lane][80:96])
+		xorBlock16(w2b2[lane*16:lane*16+16], tweaks[lane][32:48], keys[lane][96:112])
+		xorBlock16(w2b3[lane*16:lane*16+16], tweaks[lane][48:64], keys[lane][112:128])
+	}
+	areion512Permutex4Block4(&w1b0, &w1b1, &w1b2, &w1b3, &areionRC4x, tier)
+	areion512Permutex4Block4(&w2b0, &w2b1, &w2b2, &w2b3, &areionRC4x2, tier)
+	for lane := 0; lane < 4; lane++ {
+		xorInto16(w1b0[lane*16:lane*16+16], keys[lane][0:16])
+		xorInto16(w1b1[lane*16:lane*16+16], keys[lane][16:32])
+		xorInto16(w1b2[lane*16:lane*16+16], keys[lane][32:48])
+		xorInto16(w1b3[lane*16:lane*16+16], keys[lane][48:64])
+		xorInto16(w2b0[lane*16:lane*16+16], keys[lane][64:80])
+		xorInto16(w2b1[lane*16:lane*16+16], keys[lane][80:96])
+		xorInto16(w2b2[lane*16:lane*16+16], keys[lane][96:112])
+		xorInto16(w2b3[lane*16:lane*16+16], keys[lane][112:128])
+		xorBlock16(b0[lane*16:lane*16+16], msgs[lane][0:16], w1b0[lane*16:lane*16+16])
+		xorBlock16(b1[lane*16:lane*16+16], msgs[lane][16:32], w1b1[lane*16:lane*16+16])
+		xorBlock16(b2[lane*16:lane*16+16], msgs[lane][32:48], w1b2[lane*16:lane*16+16])
+		xorBlock16(b3[lane*16:lane*16+16], msgs[lane][48:64], w1b3[lane*16:lane*16+16])
+	}
+	areion512Permutex4Block4(&b0, &b1, &b2, &b3, &areionRC4x, tier)
+	for lane := 0; lane < 4; lane++ {
+		xorInto16(b0[lane*16:lane*16+16], w2b0[lane*16:lane*16+16])
+		xorInto16(b1[lane*16:lane*16+16], w2b1[lane*16:lane*16+16])
+		xorInto16(b2[lane*16:lane*16+16], w2b2[lane*16:lane*16+16])
+		xorInto16(b3[lane*16:lane*16+16], w2b3[lane*16:lane*16+16])
+	}
+	areion512Permutex4Block4(&b0, &b1, &b2, &b3, &areionRC4x2, tier)
+	for lane := 0; lane < 4; lane++ {
+		xorBlock16_3(out[lane][0:16], b0[lane*16:lane*16+16], w1b0[lane*16:lane*16+16], w2b0[lane*16:lane*16+16])
+		xorBlock16_3(out[lane][16:32], b1[lane*16:lane*16+16], w1b1[lane*16:lane*16+16], w2b1[lane*16:lane*16+16])
+		xorBlock16_3(out[lane][32:48], b2[lane*16:lane*16+16], w1b2[lane*16:lane*16+16], w2b2[lane*16:lane*16+16])
+		xorBlock16_3(out[lane][48:64], b3[lane*16:lane*16+16], w1b3[lane*16:lane*16+16], w2b3[lane*16:lane*16+16])
+	}
+	clear(w1b0[:])
+	clear(w1b1[:])
+	clear(w1b2[:])
+	clear(w1b3[:])
+	clear(w2b0[:])
+	clear(w2b1[:])
+	clear(w2b2[:])
+	clear(w2b3[:])
+	clear(b0[:])
+	clear(b1[:])
+	clear(b2[:])
+	clear(b3[:])
+	runtime.KeepAlive(&w1b0)
+	runtime.KeepAlive(&w1b1)
+	runtime.KeepAlive(&w1b2)
+	runtime.KeepAlive(&w1b3)
+	runtime.KeepAlive(&w2b0)
+	runtime.KeepAlive(&w2b1)
+	runtime.KeepAlive(&w2b2)
+	runtime.KeepAlive(&w2b3)
+	runtime.KeepAlive(&b0)
+	runtime.KeepAlive(&b1)
+	runtime.KeepAlive(&b2)
+	runtime.KeepAlive(&b3)
+	clobberScratchGPRs()
+}
+
+func areionTEM2Decrypt512x4(out *[4][64]byte, ct *[4][64]byte, keys *[4][128]byte, tweaks *[4][64]byte) {
+	tier := TierCode()
+	if tier == TierPureGo || !hasAESNI {
+		tem2Decrypt512x4Software(out, ct, keys, tweaks)
+		return
+	}
+	var w1b0, w1b1, w1b2, w1b3, w2b0, w2b1, w2b2, w2b3, b0, b1, b2, b3 Block4
+	for lane := 0; lane < 4; lane++ {
+		xorBlock16(w1b0[lane*16:lane*16+16], tweaks[lane][0:16], keys[lane][0:16])
+		xorBlock16(w1b1[lane*16:lane*16+16], tweaks[lane][16:32], keys[lane][16:32])
+		xorBlock16(w1b2[lane*16:lane*16+16], tweaks[lane][32:48], keys[lane][32:48])
+		xorBlock16(w1b3[lane*16:lane*16+16], tweaks[lane][48:64], keys[lane][48:64])
+		xorBlock16(w2b0[lane*16:lane*16+16], tweaks[lane][0:16], keys[lane][64:80])
+		xorBlock16(w2b1[lane*16:lane*16+16], tweaks[lane][16:32], keys[lane][80:96])
+		xorBlock16(w2b2[lane*16:lane*16+16], tweaks[lane][32:48], keys[lane][96:112])
+		xorBlock16(w2b3[lane*16:lane*16+16], tweaks[lane][48:64], keys[lane][112:128])
+	}
+	areion512Permutex4Block4(&w1b0, &w1b1, &w1b2, &w1b3, &areionRC4x, tier)
+	areion512Permutex4Block4(&w2b0, &w2b1, &w2b2, &w2b3, &areionRC4x2, tier)
+	for lane := 0; lane < 4; lane++ {
+		xorInto16(w1b0[lane*16:lane*16+16], keys[lane][0:16])
+		xorInto16(w1b1[lane*16:lane*16+16], keys[lane][16:32])
+		xorInto16(w1b2[lane*16:lane*16+16], keys[lane][32:48])
+		xorInto16(w1b3[lane*16:lane*16+16], keys[lane][48:64])
+		xorInto16(w2b0[lane*16:lane*16+16], keys[lane][64:80])
+		xorInto16(w2b1[lane*16:lane*16+16], keys[lane][80:96])
+		xorInto16(w2b2[lane*16:lane*16+16], keys[lane][96:112])
+		xorInto16(w2b3[lane*16:lane*16+16], keys[lane][112:128])
+		xorBlock16_3(b0[lane*16:lane*16+16], ct[lane][0:16], w1b0[lane*16:lane*16+16], w2b0[lane*16:lane*16+16])
+		xorBlock16_3(b1[lane*16:lane*16+16], ct[lane][16:32], w1b1[lane*16:lane*16+16], w2b1[lane*16:lane*16+16])
+		xorBlock16_3(b2[lane*16:lane*16+16], ct[lane][32:48], w1b2[lane*16:lane*16+16], w2b2[lane*16:lane*16+16])
+		xorBlock16_3(b3[lane*16:lane*16+16], ct[lane][48:64], w1b3[lane*16:lane*16+16], w2b3[lane*16:lane*16+16])
+	}
+	areion512InversePermutex4Block4(&b0, &b1, &b2, &b3, &areionRC4x2, tier)
+	for lane := 0; lane < 4; lane++ {
+		xorInto16(b0[lane*16:lane*16+16], w2b0[lane*16:lane*16+16])
+		xorInto16(b1[lane*16:lane*16+16], w2b1[lane*16:lane*16+16])
+		xorInto16(b2[lane*16:lane*16+16], w2b2[lane*16:lane*16+16])
+		xorInto16(b3[lane*16:lane*16+16], w2b3[lane*16:lane*16+16])
+	}
+	areion512InversePermutex4Block4(&b0, &b1, &b2, &b3, &areionRC4x, tier)
+	for lane := 0; lane < 4; lane++ {
+		xorBlock16(out[lane][0:16], b0[lane*16:lane*16+16], w1b0[lane*16:lane*16+16])
+		xorBlock16(out[lane][16:32], b1[lane*16:lane*16+16], w1b1[lane*16:lane*16+16])
+		xorBlock16(out[lane][32:48], b2[lane*16:lane*16+16], w1b2[lane*16:lane*16+16])
+		xorBlock16(out[lane][48:64], b3[lane*16:lane*16+16], w1b3[lane*16:lane*16+16])
+	}
+	clear(w1b0[:])
+	clear(w1b1[:])
+	clear(w1b2[:])
+	clear(w1b3[:])
+	clear(w2b0[:])
+	clear(w2b1[:])
+	clear(w2b2[:])
+	clear(w2b3[:])
+	clear(b0[:])
+	clear(b1[:])
+	clear(b2[:])
+	clear(b3[:])
+	runtime.KeepAlive(&w1b0)
+	runtime.KeepAlive(&w1b1)
+	runtime.KeepAlive(&w1b2)
+	runtime.KeepAlive(&w1b3)
+	runtime.KeepAlive(&w2b0)
+	runtime.KeepAlive(&w2b1)
+	runtime.KeepAlive(&w2b2)
+	runtime.KeepAlive(&w2b3)
+	runtime.KeepAlive(&b0)
+	runtime.KeepAlive(&b1)
+	runtime.KeepAlive(&b2)
+	runtime.KeepAlive(&b3)
+	clobberScratchGPRs()
 }

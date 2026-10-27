@@ -1,6 +1,27 @@
-//go:build (amd64 || arm64) && !purego
-
 package areion
+
+import "encoding/binary"
+
+func xorBlock16(dst, a, b []byte) {
+	lo := binary.LittleEndian.Uint64(a[0:8]) ^ binary.LittleEndian.Uint64(b[0:8])
+	hi := binary.LittleEndian.Uint64(a[8:16]) ^ binary.LittleEndian.Uint64(b[8:16])
+	binary.LittleEndian.PutUint64(dst[0:8], lo)
+	binary.LittleEndian.PutUint64(dst[8:16], hi)
+}
+
+func xorBlock16_3(dst, a, b, c []byte) {
+	lo := binary.LittleEndian.Uint64(a[0:8]) ^ binary.LittleEndian.Uint64(b[0:8]) ^ binary.LittleEndian.Uint64(c[0:8])
+	hi := binary.LittleEndian.Uint64(a[8:16]) ^ binary.LittleEndian.Uint64(b[8:16]) ^ binary.LittleEndian.Uint64(c[8:16])
+	binary.LittleEndian.PutUint64(dst[0:8], lo)
+	binary.LittleEndian.PutUint64(dst[8:16], hi)
+}
+
+func xorInto16(dst, a []byte) {
+	lo := binary.LittleEndian.Uint64(dst[0:8]) ^ binary.LittleEndian.Uint64(a[0:8])
+	hi := binary.LittleEndian.Uint64(dst[8:16]) ^ binary.LittleEndian.Uint64(a[8:16])
+	binary.LittleEndian.PutUint64(dst[0:8], lo)
+	binary.LittleEndian.PutUint64(dst[8:16], hi)
+}
 
 func unpack256x4SoA(b0, b1 *Block4, states *[4][32]byte) {
 	for i := 0; i < 4; i++ {

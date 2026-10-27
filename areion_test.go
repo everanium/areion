@@ -4,11 +4,27 @@ import (
 	"bytes"
 	"crypto/aes"
 	"crypto/rand"
+	"encoding/binary"
 	"encoding/hex"
 	"math/bits"
+	"runtime"
+	"runtime/debug"
 	"strings"
+	"sync"
 	"testing"
+	"unsafe"
 )
+
+var raceEnabled = func() bool {
+	if info, ok := debug.ReadBuildInfo(); ok {
+		for _, s := range info.Settings {
+			if s.Key == "-race" && s.Value == "true" {
+				return true
+			}
+		}
+	}
+	return false
+}()
 
 // Known-answer tests for P1: test vectors #1 and #2 of Appendix B.1 / B.2 of Isobe et al.
 // (ePrint 2023/794, extended version of TCHES 2023).
@@ -1084,7 +1100,7 @@ func TestSetTierErrorHandlingAndAliases(t *testing.T) {
 		}
 	}
 
-	for _, alias := range []string{"purego", "scalar", "gpr", "SCALAR", " PureGo "} {
+	for _, alias := range []string{"purego", "purec", "scalar", "gpr", "SCALAR", " PureGo "} {
 		if err := SetTier(alias); err != nil {
 			t.Errorf("SetTier(%q) failed: %v", alias, err)
 		}
@@ -1443,6 +1459,1028 @@ func TestAES128PrimitivesAllTiers(t *testing.T) {
 	})
 }
 
+// --- Reference helpers for EM / EM2 / TEM / TEM2 wide-block ciphers ---
+
+func refEMEncrypt256(key *[64]byte, m *[32]byte) (out [32]byte) {
+	for i := 0; i < 32; i++ {
+		out[i] = m[i] ^ key[i]
+	}
+	Permute256(&out)
+	for i := 0; i < 32; i++ {
+		out[i] ^= key[32+i]
+	}
+	return out
+}
+
+func refEMDecrypt256(key *[64]byte, c *[32]byte) (out [32]byte) {
+	for i := 0; i < 32; i++ {
+		out[i] = c[i] ^ key[32+i]
+	}
+	InversePermute256(&out)
+	for i := 0; i < 32; i++ {
+		out[i] ^= key[i]
+	}
+	return out
+}
+
+func refEMEncrypt512(key *[128]byte, m *[64]byte) (out [64]byte) {
+	for i := 0; i < 64; i++ {
+		out[i] = m[i] ^ key[i]
+	}
+	Permute512(&out)
+	for i := 0; i < 64; i++ {
+		out[i] ^= key[64+i]
+	}
+	return out
+}
+
+func refEMDecrypt512(key *[128]byte, c *[64]byte) (out [64]byte) {
+	for i := 0; i < 64; i++ {
+		out[i] = c[i] ^ key[64+i]
+	}
+	InversePermute512(&out)
+	for i := 0; i < 64; i++ {
+		out[i] ^= key[i]
+	}
+	return out
+}
+
+func refEM2Encrypt256(key *[64]byte, m *[32]byte) (out [32]byte) {
+	for i := 0; i < 32; i++ {
+		out[i] = m[i] ^ key[i]
+	}
+	Permute256(&out)
+	for i := 0; i < 32; i++ {
+		out[i] ^= key[32+i]
+	}
+	Permute256P2(&out)
+	for i := 0; i < 32; i++ {
+		out[i] ^= key[i] ^ key[32+i]
+	}
+	return out
+}
+
+func refEM2Decrypt256(key *[64]byte, c *[32]byte) (out [32]byte) {
+	for i := 0; i < 32; i++ {
+		out[i] = c[i] ^ key[i] ^ key[32+i]
+	}
+	InversePermute256P2(&out)
+	for i := 0; i < 32; i++ {
+		out[i] ^= key[32+i]
+	}
+	InversePermute256(&out)
+	for i := 0; i < 32; i++ {
+		out[i] ^= key[i]
+	}
+	return out
+}
+
+func refEM2Encrypt512(key *[128]byte, m *[64]byte) (out [64]byte) {
+	for i := 0; i < 64; i++ {
+		out[i] = m[i] ^ key[i]
+	}
+	Permute512(&out)
+	for i := 0; i < 64; i++ {
+		out[i] ^= key[64+i]
+	}
+	Permute512P2(&out)
+	for i := 0; i < 64; i++ {
+		out[i] ^= key[i] ^ key[64+i]
+	}
+	return out
+}
+
+func refEM2Decrypt512(key *[128]byte, c *[64]byte) (out [64]byte) {
+	for i := 0; i < 64; i++ {
+		out[i] = c[i] ^ key[i] ^ key[64+i]
+	}
+	InversePermute512P2(&out)
+	for i := 0; i < 64; i++ {
+		out[i] ^= key[64+i]
+	}
+	InversePermute512(&out)
+	for i := 0; i < 64; i++ {
+		out[i] ^= key[i]
+	}
+	return out
+}
+
+func refTEMEncrypt256(key *[64]byte, tweak *[32]byte, m *[32]byte) (out [32]byte) {
+	var w [32]byte
+	for i := 0; i < 32; i++ {
+		w[i] = tweak[i] ^ key[32+i]
+	}
+	Permute256P2(&w)
+	for i := 0; i < 32; i++ {
+		w[i] ^= key[i]
+		out[i] = m[i] ^ w[i]
+	}
+	Permute256(&out)
+	for i := 0; i < 32; i++ {
+		out[i] ^= w[i]
+	}
+	return out
+}
+
+func refTEMDecrypt256(key *[64]byte, tweak *[32]byte, c *[32]byte) (out [32]byte) {
+	var w [32]byte
+	for i := 0; i < 32; i++ {
+		w[i] = tweak[i] ^ key[32+i]
+	}
+	Permute256P2(&w)
+	for i := 0; i < 32; i++ {
+		w[i] ^= key[i]
+		out[i] = c[i] ^ w[i]
+	}
+	InversePermute256(&out)
+	for i := 0; i < 32; i++ {
+		out[i] ^= w[i]
+	}
+	return out
+}
+
+func refTEMEncrypt512(key *[128]byte, tweak *[64]byte, m *[64]byte) (out [64]byte) {
+	var w [64]byte
+	for i := 0; i < 64; i++ {
+		w[i] = tweak[i] ^ key[64+i]
+	}
+	Permute512P2(&w)
+	for i := 0; i < 64; i++ {
+		w[i] ^= key[i]
+		out[i] = m[i] ^ w[i]
+	}
+	Permute512(&out)
+	for i := 0; i < 64; i++ {
+		out[i] ^= w[i]
+	}
+	return out
+}
+
+func refTEMDecrypt512(key *[128]byte, tweak *[64]byte, c *[64]byte) (out [64]byte) {
+	var w [64]byte
+	for i := 0; i < 64; i++ {
+		w[i] = tweak[i] ^ key[64+i]
+	}
+	Permute512P2(&w)
+	for i := 0; i < 64; i++ {
+		w[i] ^= key[i]
+		out[i] = c[i] ^ w[i]
+	}
+	InversePermute512(&out)
+	for i := 0; i < 64; i++ {
+		out[i] ^= w[i]
+	}
+	return out
+}
+
+func refTEM2Encrypt256(key *[64]byte, tweak *[32]byte, m *[32]byte) (out [32]byte) {
+	var w1, w2 [32]byte
+	for i := 0; i < 32; i++ {
+		w1[i] = tweak[i] ^ key[i]
+		w2[i] = tweak[i] ^ key[32+i]
+	}
+	Permute256(&w1)
+	Permute256P2(&w2)
+	for i := 0; i < 32; i++ {
+		w1[i] ^= key[i]
+		w2[i] ^= key[32+i]
+		out[i] = m[i] ^ w1[i]
+	}
+	Permute256(&out)
+	for i := 0; i < 32; i++ {
+		out[i] ^= w2[i]
+	}
+	Permute256P2(&out)
+	for i := 0; i < 32; i++ {
+		out[i] ^= w1[i] ^ w2[i]
+	}
+	return out
+}
+
+func refTEM2Decrypt256(key *[64]byte, tweak *[32]byte, c *[32]byte) (out [32]byte) {
+	var w1, w2 [32]byte
+	for i := 0; i < 32; i++ {
+		w1[i] = tweak[i] ^ key[i]
+		w2[i] = tweak[i] ^ key[32+i]
+	}
+	Permute256(&w1)
+	Permute256P2(&w2)
+	for i := 0; i < 32; i++ {
+		w1[i] ^= key[i]
+		w2[i] ^= key[32+i]
+		out[i] = c[i] ^ w1[i] ^ w2[i]
+	}
+	InversePermute256P2(&out)
+	for i := 0; i < 32; i++ {
+		out[i] ^= w2[i]
+	}
+	InversePermute256(&out)
+	for i := 0; i < 32; i++ {
+		out[i] ^= w1[i]
+	}
+	return out
+}
+
+func refTEM2Encrypt512(key *[128]byte, tweak *[64]byte, m *[64]byte) (out [64]byte) {
+	var w1, w2 [64]byte
+	for i := 0; i < 64; i++ {
+		w1[i] = tweak[i] ^ key[i]
+		w2[i] = tweak[i] ^ key[64+i]
+	}
+	Permute512(&w1)
+	Permute512P2(&w2)
+	for i := 0; i < 64; i++ {
+		w1[i] ^= key[i]
+		w2[i] ^= key[64+i]
+		out[i] = m[i] ^ w1[i]
+	}
+	Permute512(&out)
+	for i := 0; i < 64; i++ {
+		out[i] ^= w2[i]
+	}
+	Permute512P2(&out)
+	for i := 0; i < 64; i++ {
+		out[i] ^= w1[i] ^ w2[i]
+	}
+	return out
+}
+
+func refTEM2Decrypt512(key *[128]byte, tweak *[64]byte, c *[64]byte) (out [64]byte) {
+	var w1, w2 [64]byte
+	for i := 0; i < 64; i++ {
+		w1[i] = tweak[i] ^ key[i]
+		w2[i] = tweak[i] ^ key[64+i]
+	}
+	Permute512(&w1)
+	Permute512P2(&w2)
+	for i := 0; i < 64; i++ {
+		w1[i] ^= key[i]
+		w2[i] ^= key[64+i]
+		out[i] = c[i] ^ w1[i] ^ w2[i]
+	}
+	InversePermute512P2(&out)
+	for i := 0; i < 64; i++ {
+		out[i] ^= w2[i]
+	}
+	InversePermute512(&out)
+	for i := 0; i < 64; i++ {
+		out[i] ^= w1[i]
+	}
+	return out
+}
+
+// --- Rijndael-256 (NIST SP 800-197: 256-bit block, 256-bit key, 14 rounds, ShiftRows (0, 1, 3, 4)) ---
+
+var rijndaelSBox = [256]byte{
+	0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
+	0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0,
+	0xb7, 0xfd, 0x93, 0x26, 0x36, 0x3f, 0xf7, 0xcc, 0x34, 0xa5, 0xe5, 0xf1, 0x71, 0xd8, 0x31, 0x15,
+	0x04, 0xc7, 0x23, 0xc3, 0x18, 0x96, 0x05, 0x9a, 0x07, 0x12, 0x80, 0xe2, 0xeb, 0x27, 0xb2, 0x75,
+	0x09, 0x83, 0x2c, 0x1a, 0x1b, 0x6e, 0x5a, 0xa0, 0x52, 0x3b, 0xd6, 0xb3, 0x29, 0xe3, 0x2f, 0x84,
+	0x53, 0xd1, 0x00, 0xed, 0x20, 0xfc, 0xb1, 0x5b, 0x6a, 0xcb, 0xbe, 0x39, 0x4a, 0x4c, 0x58, 0xcf,
+	0xd0, 0xef, 0xaa, 0xfb, 0x43, 0x4d, 0x33, 0x85, 0x45, 0xf9, 0x02, 0x7f, 0x50, 0x3c, 0x9f, 0xa8,
+	0x51, 0xa3, 0x40, 0x8f, 0x92, 0x9d, 0x38, 0xf5, 0xbc, 0xb6, 0xda, 0x21, 0x10, 0xff, 0xf3, 0xd2,
+	0xcd, 0x0c, 0x13, 0xec, 0x5f, 0x97, 0x44, 0x17, 0xc4, 0xa7, 0x7e, 0x3d, 0x64, 0x5d, 0x19, 0x73,
+	0x60, 0x81, 0x4f, 0xdc, 0x22, 0x2a, 0x90, 0x88, 0x46, 0xee, 0xb8, 0x14, 0xde, 0x5e, 0x0b, 0xdb,
+	0xe0, 0x32, 0x3a, 0x0a, 0x49, 0x06, 0x24, 0x5c, 0xc2, 0xd3, 0xac, 0x62, 0x91, 0x95, 0xe4, 0x79,
+	0xe7, 0xc8, 0x37, 0x6d, 0x8d, 0xd5, 0x4e, 0xa9, 0x6c, 0x56, 0xf4, 0xea, 0x65, 0x7a, 0xae, 0x08,
+	0xba, 0x78, 0x25, 0x2e, 0x1c, 0xa6, 0xb4, 0xc6, 0xe8, 0xdd, 0x74, 0x1f, 0x4b, 0xbd, 0x8b, 0x8a,
+	0x70, 0x3e, 0xb5, 0x66, 0x48, 0x03, 0xf6, 0x0e, 0x61, 0x35, 0x57, 0xb9, 0x86, 0xc1, 0x1d, 0x9e,
+	0xe1, 0xf8, 0x98, 0x11, 0x69, 0xd9, 0x8e, 0x94, 0x9b, 0x1e, 0x87, 0xe9, 0xce, 0x55, 0x28, 0xdf,
+	0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16,
+}
+
+var rijndaelInvSBox = [256]byte{
+	0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38, 0xbf, 0x40, 0xa3, 0x9e, 0x81, 0xf3, 0xd7, 0xfb,
+	0x7c, 0xe3, 0x39, 0x82, 0x9b, 0x2f, 0xff, 0x87, 0x34, 0x8e, 0x43, 0x44, 0xc4, 0xde, 0xe9, 0xcb,
+	0x54, 0x7b, 0x94, 0x32, 0xa6, 0xc2, 0x23, 0x3d, 0xee, 0x4c, 0x95, 0x0b, 0x42, 0xfa, 0xc3, 0x4e,
+	0x08, 0x2e, 0xa1, 0x66, 0x28, 0xd9, 0x24, 0xb2, 0x76, 0x5b, 0xa2, 0x49, 0x6d, 0x8b, 0xd1, 0x25,
+	0x72, 0xf8, 0xf6, 0x64, 0x86, 0x68, 0x98, 0x16, 0xd4, 0xa4, 0x5c, 0xcc, 0x5d, 0x65, 0xb6, 0x92,
+	0x6c, 0x70, 0x48, 0x50, 0xfd, 0xed, 0xb9, 0xda, 0x5e, 0x15, 0x46, 0x57, 0xa7, 0x8d, 0x9d, 0x84,
+	0x90, 0xd8, 0xab, 0x00, 0x8c, 0xbc, 0xd3, 0x0a, 0xf7, 0xe4, 0x58, 0x05, 0xb8, 0xb3, 0x45, 0x06,
+	0xd0, 0x2c, 0x1e, 0x8f, 0xca, 0x3f, 0x0f, 0x02, 0xc1, 0xaf, 0xbd, 0x03, 0x01, 0x13, 0x8a, 0x6b,
+	0x3a, 0x91, 0x11, 0x41, 0x4f, 0x67, 0xdc, 0xea, 0x97, 0xf2, 0xcf, 0xce, 0xf0, 0xb4, 0xe6, 0x73,
+	0x96, 0xac, 0x74, 0x22, 0xe7, 0xad, 0x35, 0x85, 0xe2, 0xf9, 0x37, 0xe8, 0x1c, 0x75, 0xdf, 0x6e,
+	0x47, 0xf1, 0x1a, 0x71, 0x1d, 0x29, 0xc5, 0x89, 0x6f, 0xb7, 0x62, 0x0e, 0xaa, 0x18, 0xbe, 0x1b,
+	0xfc, 0x56, 0x3e, 0x4b, 0xc6, 0xd2, 0x79, 0x20, 0x9a, 0xdb, 0xc0, 0xfe, 0x78, 0xcd, 0x5a, 0xf4,
+	0x1f, 0xdd, 0xa8, 0x33, 0x88, 0x07, 0xc7, 0x31, 0xb1, 0x12, 0x10, 0x59, 0x27, 0x80, 0xec, 0x5f,
+	0x60, 0x51, 0x7f, 0xa9, 0x19, 0xb5, 0x4a, 0x0d, 0x2d, 0xe5, 0x7a, 0x9f, 0x93, 0xc9, 0x9c, 0xef,
+	0xa0, 0xe0, 0x3b, 0x4d, 0xae, 0x2a, 0xf5, 0xb0, 0xc8, 0xeb, 0xbb, 0x3c, 0x83, 0x53, 0x99, 0x61,
+	0x17, 0x2b, 0x04, 0x7e, 0xba, 0x77, 0xd6, 0x26, 0xe1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0c, 0x7d,
+}
+
+var rijndaelRcon = [15]byte{
+	0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40,
+	0x80, 0x1b, 0x36, 0x6c, 0xd8, 0xab, 0x4d,
+}
+
+func rijndael256ExpandKey(key *[32]byte, rk *[15][32]byte) {
+	var w [120][4]byte
+	for i := 0; i < 8; i++ {
+		copy(w[i][:], key[4*i:4*i+4])
+	}
+	for i := 8; i < 120; i++ {
+		tmp := w[i-1]
+		switch i % 8 {
+		case 0:
+			tmp = [4]byte{
+				rijndaelSBox[tmp[1]] ^ rijndaelRcon[i/8],
+				rijndaelSBox[tmp[2]],
+				rijndaelSBox[tmp[3]],
+				rijndaelSBox[tmp[0]],
+			}
+		case 4:
+			tmp = [4]byte{
+				rijndaelSBox[tmp[0]],
+				rijndaelSBox[tmp[1]],
+				rijndaelSBox[tmp[2]],
+				rijndaelSBox[tmp[3]],
+			}
+		}
+		for j := 0; j < 4; j++ {
+			w[i][j] = w[i-8][j] ^ tmp[j]
+		}
+	}
+	for r := 0; r < 15; r++ {
+		for c := 0; c < 8; c++ {
+			copy(rk[r][4*c:4*c+4], w[8*r+c][:])
+		}
+	}
+}
+
+func gfMul(a, b byte) byte {
+	var p byte
+	for i := 0; i < 8; i++ {
+		if b&1 != 0 {
+			p ^= a
+		}
+		hi := a & 0x80
+		a <<= 1
+		if hi != 0 {
+			a ^= 0x1b
+		}
+		b >>= 1
+	}
+	return p
+}
+
+// rijndael256EncryptBlockRef encrypts one 32-byte block using textbook Rijndael-256
+// (Nb=8, Nk=8, Nr=14, ShiftRows offsets (0, 1, 3, 4)).
+func rijndael256EncryptBlockRef(rk *[15][32]byte, dst, src *[32]byte) {
+	s := *src
+	for i := 0; i < 32; i++ {
+		s[i] ^= rk[0][i]
+	}
+	shifts := [4]int{0, 1, 3, 4}
+	for r := 1; r <= 14; r++ {
+		var t [32]byte
+		for c := 0; c < 8; c++ {
+			for row := 0; row < 4; row++ {
+				t[4*c+row] = rijndaelSBox[s[4*((c+shifts[row])&7)+row]]
+			}
+		}
+		if r < 14 {
+			for c := 0; c < 8; c++ {
+				a0, a1, a2, a3 := t[4*c+0], t[4*c+1], t[4*c+2], t[4*c+3]
+				s[4*c+0] = gfMul(2, a0) ^ gfMul(3, a1) ^ a2 ^ a3 ^ rk[r][4*c+0]
+				s[4*c+1] = a0 ^ gfMul(2, a1) ^ gfMul(3, a2) ^ a3 ^ rk[r][4*c+1]
+				s[4*c+2] = a0 ^ a1 ^ gfMul(2, a2) ^ gfMul(3, a3) ^ rk[r][4*c+2]
+				s[4*c+3] = gfMul(3, a0) ^ a1 ^ a2 ^ gfMul(2, a3) ^ rk[r][4*c+3]
+			}
+		} else {
+			for i := 0; i < 32; i++ {
+				s[i] = t[i] ^ rk[14][i]
+			}
+		}
+	}
+	*dst = s
+}
+
+// rijndael256DecryptBlockRef decrypts one 32-byte block using textbook inverse Rijndael-256.
+func rijndael256DecryptBlockRef(rk *[15][32]byte, dst, src *[32]byte) {
+	s := *src
+	for i := 0; i < 32; i++ {
+		s[i] ^= rk[14][i]
+	}
+	shifts := [4]int{0, 1, 3, 4}
+	for r := 13; r >= 0; r-- {
+		var t [32]byte
+		for c := 0; c < 8; c++ {
+			for row := 0; row < 4; row++ {
+				t[4*c+row] = rijndaelInvSBox[s[4*((c+8-shifts[row])&7)+row]] ^ rk[r][4*c+row]
+			}
+		}
+		if r > 0 {
+			for c := 0; c < 8; c++ {
+				a0, a1, a2, a3 := t[4*c+0], t[4*c+1], t[4*c+2], t[4*c+3]
+				s[4*c+0] = gfMul(0x0e, a0) ^ gfMul(0x0b, a1) ^ gfMul(0x0d, a2) ^ gfMul(0x09, a3)
+				s[4*c+1] = gfMul(0x09, a0) ^ gfMul(0x0e, a1) ^ gfMul(0x0b, a2) ^ gfMul(0x0d, a3)
+				s[4*c+2] = gfMul(0x0d, a0) ^ gfMul(0x09, a1) ^ gfMul(0x0e, a2) ^ gfMul(0x0b, a3)
+				s[4*c+3] = gfMul(0x0b, a0) ^ gfMul(0x0d, a1) ^ gfMul(0x09, a2) ^ gfMul(0x0e, a3)
+			}
+		} else {
+			s = t
+		}
+	}
+	*dst = s
+}
+
+// rijndael256PrePermute applies ShiftRows_{AES128}^{-1} ∘ ShiftRows_{R256(0,1,3,4)}
+// across the two 128-bit halves so that two subsequent AES-128 rounds (or final rounds)
+// execute a full Rijndael-256 round.
+func rijndael256PrePermute(lo, hi *Block, s *[32]byte) {
+	*lo = Block{
+		s[0], s[17], s[22], s[23],
+		s[4], s[5], s[26], s[27],
+		s[8], s[9], s[14], s[31],
+		s[12], s[13], s[18], s[19],
+	}
+	*hi = Block{
+		s[16], s[1], s[6], s[7],
+		s[20], s[21], s[10], s[11],
+		s[24], s[25], s[30], s[15],
+		s[28], s[29], s[2], s[3],
+	}
+}
+
+// rijndael256EncryptBlockHW encrypts one 32-byte block using hardware AES rounds
+// plus the mandatory cross-128-bit-half byte permutation per round.
+func rijndael256EncryptBlockHW(rk *[15][32]byte, dst, src *[32]byte) {
+	var s [32]byte
+	for i := 0; i < 32; i++ {
+		s[i] = src[i] ^ rk[0][i]
+	}
+	var lo, hi Block
+	for r := 1; r <= 13; r++ {
+		rijndael256PrePermute(&lo, &hi, &s)
+		rkLo := (*Block)(rk[r][0:16])
+		rkHi := (*Block)(rk[r][16:32])
+		AES128Round(&lo, rkLo)
+		AES128Round(&hi, rkHi)
+		copy(s[0:16], lo[:])
+		copy(s[16:32], hi[:])
+	}
+	rijndael256PrePermute(&lo, &hi, &s)
+	rkLo := (*Block)(rk[14][0:16])
+	rkHi := (*Block)(rk[14][16:32])
+	AES128FinalRound(&lo, rkLo)
+	AES128FinalRound(&hi, rkHi)
+	copy(dst[0:16], lo[:])
+	copy(dst[16:32], hi[:])
+}
+
+// rijndael256Encrypt4BlocksHW encrypts four 32-byte blocks in parallel using 4-way
+// hardware AES rounds (AES128Round4 / AES128FinalRound4) plus cross-half byte shuffles.
+func rijndael256Encrypt4BlocksHW(rk *[15][32]byte, dst, src *[4][32]byte) {
+	var s [4][32]byte
+	for b := 0; b < 4; b++ {
+		for i := 0; i < 32; i++ {
+			s[b][i] = src[b][i] ^ rk[0][i]
+		}
+	}
+	var lo4, hi4 Block4
+	var rkLo4, rkHi4 Key4
+	for r := 1; r <= 13; r++ {
+		for b := 0; b < 4; b++ {
+			var lo, hi Block
+			rijndael256PrePermute(&lo, &hi, &s[b])
+			copy(lo4[16*b:16*(b+1)], lo[:])
+			copy(hi4[16*b:16*(b+1)], hi[:])
+			copy(rkLo4[16*b:16*(b+1)], rk[r][0:16])
+			copy(rkHi4[16*b:16*(b+1)], rk[r][16:32])
+		}
+		AES128Round4(&lo4, &rkLo4)
+		AES128Round4(&hi4, &rkHi4)
+		for b := 0; b < 4; b++ {
+			copy(s[b][0:16], lo4[16*b:16*(b+1)])
+			copy(s[b][16:32], hi4[16*b:16*(b+1)])
+		}
+	}
+	for b := 0; b < 4; b++ {
+		var lo, hi Block
+		rijndael256PrePermute(&lo, &hi, &s[b])
+		copy(lo4[16*b:16*(b+1)], lo[:])
+		copy(hi4[16*b:16*(b+1)], hi[:])
+		copy(rkLo4[16*b:16*(b+1)], rk[14][0:16])
+		copy(rkHi4[16*b:16*(b+1)], rk[14][16:32])
+	}
+	AES128FinalRound4(&lo4, &rkLo4)
+	AES128FinalRound4(&hi4, &rkHi4)
+	for b := 0; b < 4; b++ {
+		copy(dst[b][0:16], lo4[16*b:16*(b+1)])
+		copy(dst[b][16:32], hi4[16*b:16*(b+1)])
+	}
+}
+
+func TestRijndael256ReferenceAndRoundTrip(t *testing.T) {
+	eachTier(t, func(t *testing.T, tier string) {
+		for trial := 0; trial < 32; trial++ {
+			var key, pt, ctRef, decRef, ctHW [32]byte
+			rand.Read(key[:])
+			rand.Read(pt[:])
+			var rk [15][32]byte
+			rijndael256ExpandKey(&key, &rk)
+			rijndael256EncryptBlockRef(&rk, &ctRef, &pt)
+			rijndael256DecryptBlockRef(&rk, &decRef, &ctRef)
+			if decRef != pt {
+				t.Fatalf("[%s] Rijndael-256 ref roundtrip failed at trial %d", tier, trial)
+			}
+			rijndael256EncryptBlockHW(&rk, &ctHW, &pt)
+			if ctHW != ctRef {
+				t.Fatalf("[%s] Rijndael-256 HW vs ref mismatch at trial %d\nHW:  %x\nRef: %x", tier, trial, ctHW, ctRef)
+			}
+		}
+
+		var key [32]byte
+		var pt4, ct4 [4][32]byte
+		rand.Read(key[:])
+		for b := 0; b < 4; b++ {
+			rand.Read(pt4[b][:])
+		}
+		var rk [15][32]byte
+		rijndael256ExpandKey(&key, &rk)
+		rijndael256Encrypt4BlocksHW(&rk, &ct4, &pt4)
+		for b := 0; b < 4; b++ {
+			var want [32]byte
+			rijndael256EncryptBlockRef(&rk, &want, &pt4[b])
+			if ct4[b] != want {
+				t.Fatalf("[%s] Rijndael-256 x4 lane %d mismatch", tier, b)
+			}
+		}
+	})
+}
+
+func TestWideBlockFormulasAndRoundTrip(t *testing.T) {
+	eachTier(t, func(t *testing.T, tier string) {
+		for trial := 0; trial < 32; trial++ {
+			var k256 [64]byte
+			var t256, m256 [32]byte
+			var k512 [128]byte
+			var t512, m512 [64]byte
+			rand.Read(k256[:])
+			rand.Read(t256[:])
+			rand.Read(m256[:])
+			rand.Read(k512[:])
+			rand.Read(t512[:])
+			rand.Read(m512[:])
+
+			// EM-256
+			c256 := EMEncrypt256(&k256, &m256)
+			if want := refEMEncrypt256(&k256, &m256); c256 != want {
+				t.Fatalf("[%s] EMEncrypt256 formula mismatch", tier)
+			}
+			if dec := EMDecrypt256(&k256, &c256); dec != m256 || dec != refEMDecrypt256(&k256, &c256) {
+				t.Fatalf("[%s] EMDecrypt256 roundtrip/formula mismatch", tier)
+			}
+			if reenc := EMEncrypt256(&k256, &m256); reenc != c256 {
+				t.Fatalf("[%s] EM-256 inverse-forward roundtrip failed", tier)
+			}
+
+			// EM-512
+			c512 := EMEncrypt512(&k512, &m512)
+			if want := refEMEncrypt512(&k512, &m512); c512 != want {
+				t.Fatalf("[%s] EMEncrypt512 formula mismatch", tier)
+			}
+			if dec := EMDecrypt512(&k512, &c512); dec != m512 || dec != refEMDecrypt512(&k512, &c512) {
+				t.Fatalf("[%s] EMDecrypt512 roundtrip/formula mismatch", tier)
+			}
+
+			// EM2-256
+			c2_256 := EM2Encrypt256(&k256, &m256)
+			if want := refEM2Encrypt256(&k256, &m256); c2_256 != want {
+				t.Fatalf("[%s] EM2Encrypt256 formula mismatch", tier)
+			}
+			if dec := EM2Decrypt256(&k256, &c2_256); dec != m256 || dec != refEM2Decrypt256(&k256, &c2_256) {
+				t.Fatalf("[%s] EM2Decrypt256 roundtrip/formula mismatch", tier)
+			}
+			if c2_256 == c256 {
+				t.Fatalf("[%s] EM2Encrypt256 collided with EMEncrypt256", tier)
+			}
+
+			// EM2-512
+			c2_512 := EM2Encrypt512(&k512, &m512)
+			if want := refEM2Encrypt512(&k512, &m512); c2_512 != want {
+				t.Fatalf("[%s] EM2Encrypt512 formula mismatch", tier)
+			}
+			if dec := EM2Decrypt512(&k512, &c2_512); dec != m512 || dec != refEM2Decrypt512(&k512, &c2_512) {
+				t.Fatalf("[%s] EM2Decrypt512 roundtrip/formula mismatch", tier)
+			}
+			if c2_512 == c512 {
+				t.Fatalf("[%s] EM2Encrypt512 collided with EMEncrypt512", tier)
+			}
+
+			// TEM-256
+			ct256 := TEMEncrypt256(&k256, &t256, &m256)
+			if want := refTEMEncrypt256(&k256, &t256, &m256); ct256 != want {
+				t.Fatalf("[%s] TEMEncrypt256 formula mismatch", tier)
+			}
+			if dec := TEMDecrypt256(&k256, &t256, &ct256); dec != m256 || dec != refTEMDecrypt256(&k256, &t256, &ct256) {
+				t.Fatalf("[%s] TEMDecrypt256 roundtrip/formula mismatch", tier)
+			}
+
+			// TEM-512
+			ct512 := TEMEncrypt512(&k512, &t512, &m512)
+			if want := refTEMEncrypt512(&k512, &t512, &m512); ct512 != want {
+				t.Fatalf("[%s] TEMEncrypt512 formula mismatch", tier)
+			}
+			if dec := TEMDecrypt512(&k512, &t512, &ct512); dec != m512 || dec != refTEMDecrypt512(&k512, &t512, &ct512) {
+				t.Fatalf("[%s] TEMDecrypt512 roundtrip/formula mismatch", tier)
+			}
+
+			// TEM2-256
+			ct2_256 := TEM2Encrypt256(&k256, &t256, &m256)
+			if want := refTEM2Encrypt256(&k256, &t256, &m256); ct2_256 != want {
+				t.Fatalf("[%s] TEM2Encrypt256 formula mismatch", tier)
+			}
+			if dec := TEM2Decrypt256(&k256, &t256, &ct2_256); dec != m256 || dec != refTEM2Decrypt256(&k256, &t256, &ct2_256) {
+				t.Fatalf("[%s] TEM2Decrypt256 roundtrip/formula mismatch", tier)
+			}
+			if ct2_256 == ct256 {
+				t.Fatalf("[%s] TEM2Encrypt256 collided with TEMEncrypt256", tier)
+			}
+
+			// TEM2-512
+			ct2_512 := TEM2Encrypt512(&k512, &t512, &m512)
+			if want := refTEM2Encrypt512(&k512, &t512, &m512); ct2_512 != want {
+				t.Fatalf("[%s] TEM2Encrypt512 formula mismatch", tier)
+			}
+			if dec := TEM2Decrypt512(&k512, &t512, &ct2_512); dec != m512 || dec != refTEM2Decrypt512(&k512, &t512, &ct2_512) {
+				t.Fatalf("[%s] TEM2Decrypt512 roundtrip/formula mismatch", tier)
+			}
+			if ct2_512 == ct512 {
+				t.Fatalf("[%s] TEM2Encrypt512 collided with TEMEncrypt512", tier)
+			}
+
+			// Inverse-first round-trip checks: Encrypt(k, Decrypt(k, c)) == c
+			if got := EMEncrypt256(&k256, &c256); EMDecrypt256(&k256, &got) != c256 {
+				t.Fatalf("[%s] EM-256 Decrypt-Encrypt roundtrip failed", tier)
+			}
+			decFirst256 := EMDecrypt256(&k256, &m256)
+			if got := EMEncrypt256(&k256, &decFirst256); got != m256 {
+				t.Fatalf("[%s] EM-256 Encrypt(Decrypt(m)) != m", tier)
+			}
+			decFirst512 := EMDecrypt512(&k512, &m512)
+			if got := EMEncrypt512(&k512, &decFirst512); got != m512 {
+				t.Fatalf("[%s] EM-512 Encrypt(Decrypt(m)) != m", tier)
+			}
+			decFirstEM2256 := EM2Decrypt256(&k256, &m256)
+			if got := EM2Encrypt256(&k256, &decFirstEM2256); got != m256 {
+				t.Fatalf("[%s] EM2-256 Encrypt(Decrypt(m)) != m", tier)
+			}
+			decFirstEM2512 := EM2Decrypt512(&k512, &m512)
+			if got := EM2Encrypt512(&k512, &decFirstEM2512); got != m512 {
+				t.Fatalf("[%s] EM2-512 Encrypt(Decrypt(m)) != m", tier)
+			}
+			decFirstTEM256 := TEMDecrypt256(&k256, &t256, &m256)
+			if got := TEMEncrypt256(&k256, &t256, &decFirstTEM256); got != m256 {
+				t.Fatalf("[%s] TEM-256 Encrypt(Decrypt(m)) != m", tier)
+			}
+			decFirstTEM512 := TEMDecrypt512(&k512, &t512, &m512)
+			if got := TEMEncrypt512(&k512, &t512, &decFirstTEM512); got != m512 {
+				t.Fatalf("[%s] TEM-512 Encrypt(Decrypt(m)) != m", tier)
+			}
+			decFirstTEM2256 := TEM2Decrypt256(&k256, &t256, &m256)
+			if got := TEM2Encrypt256(&k256, &t256, &decFirstTEM2256); got != m256 {
+				t.Fatalf("[%s] TEM2-256 Encrypt(Decrypt(m)) != m", tier)
+			}
+			decFirstTEM2512 := TEM2Decrypt512(&k512, &t512, &m512)
+			if got := TEM2Encrypt512(&k512, &t512, &decFirstTEM2512); got != m512 {
+				t.Fatalf("[%s] TEM2-512 Encrypt(Decrypt(m)) != m", tier)
+			}
+		}
+	})
+}
+
+func TestWideBlockBatchx4Parity(t *testing.T) {
+	var k256 [4][64]byte
+	var t256, m256 [4][32]byte
+	var k512 [4][128]byte
+	var t512, m512 [4][64]byte
+	for i := 0; i < 4; i++ {
+		rand.Read(k256[i][:])
+		rand.Read(t256[i][:])
+		rand.Read(m256[i][:])
+		rand.Read(k512[i][:])
+		rand.Read(t512[i][:])
+		rand.Read(m512[i][:])
+	}
+
+	eachTier(t, func(t *testing.T, tier string) {
+		em_256C := EMEncrypt256x4(&k256, &m256)
+		em_256M := EMDecrypt256x4(&k256, &em_256C)
+		em2_256C := EM2Encrypt256x4(&k256, &m256)
+		em2_256M := EM2Decrypt256x4(&k256, &em2_256C)
+		tem_256C := TEMEncrypt256x4(&k256, &t256, &m256)
+		tem_256M := TEMDecrypt256x4(&k256, &t256, &tem_256C)
+		tem2_256C := TEM2Encrypt256x4(&k256, &t256, &m256)
+		tem2_256M := TEM2Decrypt256x4(&k256, &t256, &tem2_256C)
+
+		em_512C := EMEncrypt512x4(&k512, &m512)
+		em_512M := EMDecrypt512x4(&k512, &em_512C)
+		em2_512C := EM2Encrypt512x4(&k512, &m512)
+		em2_512M := EM2Decrypt512x4(&k512, &em2_512C)
+		tem_512C := TEMEncrypt512x4(&k512, &t512, &m512)
+		tem_512M := TEMDecrypt512x4(&k512, &t512, &tem_512C)
+		tem2_512C := TEM2Encrypt512x4(&k512, &t512, &m512)
+		tem2_512M := TEM2Decrypt512x4(&k512, &t512, &tem2_512C)
+
+		if em_256M != m256 || em2_256M != m256 || tem_256M != m256 || tem2_256M != m256 {
+			t.Fatalf("[%s] 256-bit x4 roundtrip mismatch", tier)
+		}
+		if em_512M != m512 || em2_512M != m512 || tem_512M != m512 || tem2_512M != m512 {
+			t.Fatalf("[%s] 512-bit x4 roundtrip mismatch", tier)
+		}
+
+		for i := 0; i < 4; i++ {
+			if em_256C[i] != EMEncrypt256(&k256[i], &m256[i]) {
+				t.Fatalf("[%s] EMEncrypt256x4 lane %d mismatch", tier, i)
+			}
+			if em2_256C[i] != EM2Encrypt256(&k256[i], &m256[i]) {
+				t.Fatalf("[%s] EM2Encrypt256x4 lane %d mismatch", tier, i)
+			}
+			if tem_256C[i] != TEMEncrypt256(&k256[i], &t256[i], &m256[i]) {
+				t.Fatalf("[%s] TEMEncrypt256x4 lane %d mismatch", tier, i)
+			}
+			if tem2_256C[i] != TEM2Encrypt256(&k256[i], &t256[i], &m256[i]) {
+				t.Fatalf("[%s] TEM2Encrypt256x4 lane %d mismatch", tier, i)
+			}
+			if em_512C[i] != EMEncrypt512(&k512[i], &m512[i]) {
+				t.Fatalf("[%s] EMEncrypt512x4 lane %d mismatch", tier, i)
+			}
+			if em2_512C[i] != EM2Encrypt512(&k512[i], &m512[i]) {
+				t.Fatalf("[%s] EM2Encrypt512x4 lane %d mismatch", tier, i)
+			}
+			if tem_512C[i] != TEMEncrypt512(&k512[i], &t512[i], &m512[i]) {
+				t.Fatalf("[%s] TEMEncrypt512x4 lane %d mismatch", tier, i)
+			}
+			if tem2_512C[i] != TEM2Encrypt512(&k512[i], &t512[i], &m512[i]) {
+				t.Fatalf("[%s] TEM2Encrypt512x4 lane %d mismatch", tier, i)
+			}
+		}
+	})
+}
+
+func TestWideBlockCrossTierParity(t *testing.T) {
+	var k256 [64]byte
+	var t256, m256 [32]byte
+	var k512 [128]byte
+	var t512, m512 [64]byte
+	var k256x4 [4][64]byte
+	var t256x4, m256x4 [4][32]byte
+	var k512x4 [4][128]byte
+	var t512x4, m512x4 [4][64]byte
+
+	rand.Read(k256[:])
+	rand.Read(t256[:])
+	rand.Read(m256[:])
+	rand.Read(k512[:])
+	rand.Read(t512[:])
+	rand.Read(m512[:])
+	for i := 0; i < 4; i++ {
+		rand.Read(k256x4[i][:])
+		rand.Read(t256x4[i][:])
+		rand.Read(m256x4[i][:])
+		rand.Read(k512x4[i][:])
+		rand.Read(t512x4[i][:])
+		rand.Read(m512x4[i][:])
+	}
+
+	orig := Tier()
+	defer func() { _ = SetTier(orig) }()
+	if err := SetTier("purego"); err != nil {
+		t.Fatal(err)
+	}
+
+	wantEME256 := EMEncrypt256(&k256, &m256)
+	wantEMD256 := EMDecrypt256(&k256, &m256)
+	wantEME512 := EMEncrypt512(&k512, &m512)
+	wantEMD512 := EMDecrypt512(&k512, &m512)
+	wantEM2E256 := EM2Encrypt256(&k256, &m256)
+	wantEM2D256 := EM2Decrypt256(&k256, &m256)
+	wantEM2E512 := EM2Encrypt512(&k512, &m512)
+	wantEM2D512 := EM2Decrypt512(&k512, &m512)
+	wantTEME256 := TEMEncrypt256(&k256, &t256, &m256)
+	wantTEMD256 := TEMDecrypt256(&k256, &t256, &m256)
+	wantTEME512 := TEMEncrypt512(&k512, &t512, &m512)
+	wantTEMD512 := TEMDecrypt512(&k512, &t512, &m512)
+	wantTEM2E256 := TEM2Encrypt256(&k256, &t256, &m256)
+	wantTEM2D256 := TEM2Decrypt256(&k256, &t256, &m256)
+	wantTEM2E512 := TEM2Encrypt512(&k512, &t512, &m512)
+	wantTEM2D512 := TEM2Decrypt512(&k512, &t512, &m512)
+
+	wantEME256x4 := EMEncrypt256x4(&k256x4, &m256x4)
+	wantEMD256x4 := EMDecrypt256x4(&k256x4, &m256x4)
+	wantEME512x4 := EMEncrypt512x4(&k512x4, &m512x4)
+	wantEMD512x4 := EMDecrypt512x4(&k512x4, &m512x4)
+	wantEM2E256x4 := EM2Encrypt256x4(&k256x4, &m256x4)
+	wantEM2D256x4 := EM2Decrypt256x4(&k256x4, &m256x4)
+	wantEM2E512x4 := EM2Encrypt512x4(&k512x4, &m512x4)
+	wantEM2D512x4 := EM2Decrypt512x4(&k512x4, &m512x4)
+	wantTEME256x4 := TEMEncrypt256x4(&k256x4, &t256x4, &m256x4)
+	wantTEMD256x4 := TEMDecrypt256x4(&k256x4, &t256x4, &m256x4)
+	wantTEME512x4 := TEMEncrypt512x4(&k512x4, &t512x4, &m512x4)
+	wantTEMD512x4 := TEMDecrypt512x4(&k512x4, &t512x4, &m512x4)
+	wantTEM2E256x4 := TEM2Encrypt256x4(&k256x4, &t256x4, &m256x4)
+	wantTEM2D256x4 := TEM2Decrypt256x4(&k256x4, &t256x4, &m256x4)
+	wantTEM2E512x4 := TEM2Encrypt512x4(&k512x4, &t512x4, &m512x4)
+	wantTEM2D512x4 := TEM2Decrypt512x4(&k512x4, &t512x4, &m512x4)
+
+	eachTier(t, func(t *testing.T, tier string) {
+		if EMEncrypt256(&k256, &m256) != wantEME256 || EMDecrypt256(&k256, &m256) != wantEMD256 {
+			t.Fatalf("[%s] EM-256 cross-tier mismatch", tier)
+		}
+		if EMEncrypt512(&k512, &m512) != wantEME512 || EMDecrypt512(&k512, &m512) != wantEMD512 {
+			t.Fatalf("[%s] EM-512 cross-tier mismatch", tier)
+		}
+		if EM2Encrypt256(&k256, &m256) != wantEM2E256 || EM2Decrypt256(&k256, &m256) != wantEM2D256 {
+			t.Fatalf("[%s] EM2-256 cross-tier mismatch", tier)
+		}
+		if EM2Encrypt512(&k512, &m512) != wantEM2E512 || EM2Decrypt512(&k512, &m512) != wantEM2D512 {
+			t.Fatalf("[%s] EM2-512 cross-tier mismatch", tier)
+		}
+		if TEMEncrypt256(&k256, &t256, &m256) != wantTEME256 || TEMDecrypt256(&k256, &t256, &m256) != wantTEMD256 {
+			t.Fatalf("[%s] TEM-256 cross-tier mismatch", tier)
+		}
+		if TEMEncrypt512(&k512, &t512, &m512) != wantTEME512 || TEMDecrypt512(&k512, &t512, &m512) != wantTEMD512 {
+			t.Fatalf("[%s] TEM-512 cross-tier mismatch", tier)
+		}
+		if TEM2Encrypt256(&k256, &t256, &m256) != wantTEM2E256 || TEM2Decrypt256(&k256, &t256, &m256) != wantTEM2D256 {
+			t.Fatalf("[%s] TEM2-256 cross-tier mismatch", tier)
+		}
+		if TEM2Encrypt512(&k512, &t512, &m512) != wantTEM2E512 || TEM2Decrypt512(&k512, &t512, &m512) != wantTEM2D512 {
+			t.Fatalf("[%s] TEM2-512 cross-tier mismatch", tier)
+		}
+		if EMEncrypt256x4(&k256x4, &m256x4) != wantEME256x4 || EMDecrypt256x4(&k256x4, &m256x4) != wantEMD256x4 {
+			t.Fatalf("[%s] EMEncrypt256x4 cross-tier mismatch", tier)
+		}
+		if EMEncrypt512x4(&k512x4, &m512x4) != wantEME512x4 || EMDecrypt512x4(&k512x4, &m512x4) != wantEMD512x4 {
+			t.Fatalf("[%s] EMEncrypt512x4 cross-tier mismatch", tier)
+		}
+		if EM2Encrypt256x4(&k256x4, &m256x4) != wantEM2E256x4 || EM2Decrypt256x4(&k256x4, &m256x4) != wantEM2D256x4 {
+			t.Fatalf("[%s] EM2Encrypt256x4 cross-tier mismatch", tier)
+		}
+		if EM2Encrypt512x4(&k512x4, &m512x4) != wantEM2E512x4 || EM2Decrypt512x4(&k512x4, &m512x4) != wantEM2D512x4 {
+			t.Fatalf("[%s] EM2Encrypt512x4 cross-tier mismatch", tier)
+		}
+		if TEMEncrypt256x4(&k256x4, &t256x4, &m256x4) != wantTEME256x4 || TEMDecrypt256x4(&k256x4, &t256x4, &m256x4) != wantTEMD256x4 {
+			t.Fatalf("[%s] TEMEncrypt256x4 cross-tier mismatch", tier)
+		}
+		if TEMEncrypt512x4(&k512x4, &t512x4, &m512x4) != wantTEME512x4 || TEMDecrypt512x4(&k512x4, &t512x4, &m512x4) != wantTEMD512x4 {
+			t.Fatalf("[%s] TEMEncrypt512x4 cross-tier mismatch", tier)
+		}
+		if TEM2Encrypt256x4(&k256x4, &t256x4, &m256x4) != wantTEM2E256x4 || TEM2Decrypt256x4(&k256x4, &t256x4, &m256x4) != wantTEM2D256x4 {
+			t.Fatalf("[%s] TEM2Encrypt256x4 cross-tier mismatch", tier)
+		}
+		if TEM2Encrypt512x4(&k512x4, &t512x4, &m512x4) != wantTEM2E512x4 || TEM2Decrypt512x4(&k512x4, &t512x4, &m512x4) != wantTEM2D512x4 {
+			t.Fatalf("[%s] TEM2Encrypt512x4 cross-tier mismatch", tier)
+		}
+	})
+}
+
+func hammingDistSlice(a, b []byte) int {
+	d := 0
+	for i := range a {
+		d += bits.OnesCount8(a[i] ^ b[i])
+	}
+	return d
+}
+
+// TestWideBlockAvalanche verifies Key, Tweak, and Message/Ciphertext avalanche
+// across EM, EM2, TEM, and TEM2 (256-bit and 512-bit).
+func TestWideBlockAvalanche(t *testing.T) {
+	var k256 [64]byte
+	var t256, m256 [32]byte
+	var k512 [128]byte
+	var t512, m512 [64]byte
+	rand.Read(k256[:])
+	rand.Read(t256[:])
+	rand.Read(m256[:])
+	rand.Read(k512[:])
+	rand.Read(t512[:])
+	rand.Read(m512[:])
+
+	check256 := func(name string, eval func(k *[64]byte, tw, in *[32]byte) [32]byte, hasTweak bool) {
+		base := eval(&k256, &t256, &m256)
+		// Message / Ciphertext bit flips
+		totalM := 0
+		for i := 0; i < 32; i++ {
+			for b := 0; b < 8; b++ {
+				mutM := m256
+				mutM[i] ^= 1 << b
+				got := eval(&k256, &t256, &mutM)
+				d := hammingDistSlice(base[:], got[:])
+				if d == 0 {
+					t.Fatalf("%s invariant to message bit flip at (%d,%d)", name, i, b)
+				}
+				totalM += d
+			}
+		}
+		if avg := float64(totalM) / 256.0; avg < 100 || avg > 156 {
+			t.Fatalf("%s message avalanche out of bounds: avg=%.2f", name, avg)
+		}
+
+		// Key bit flips (note: in 1-round EM, K2 is post-whitening so flipping 1 bit of K2 flips 1 output bit;
+		// K1 goes through the permutation; in EM2/TEM/TEM2 both K1 and K2 go through permutations).
+		for i := 0; i < 64; i++ {
+			for b := 0; b < 8; b++ {
+				mutK := k256
+				mutK[i] ^= 1 << b
+				got := eval(&mutK, &t256, &m256)
+				if got == base {
+					t.Fatalf("%s invariant to key bit flip at (%d,%d)", name, i, b)
+				}
+			}
+		}
+
+		if hasTweak {
+			totalT := 0
+			for i := 0; i < 32; i++ {
+				for b := 0; b < 8; b++ {
+					mutT := t256
+					mutT[i] ^= 1 << b
+					got := eval(&k256, &mutT, &m256)
+					d := hammingDistSlice(base[:], got[:])
+					if d == 0 {
+						t.Fatalf("%s invariant to tweak bit flip at (%d,%d)", name, i, b)
+					}
+					totalT += d
+				}
+			}
+			if avg := float64(totalT) / 256.0; avg < 100 || avg > 156 {
+				t.Fatalf("%s tweak avalanche out of bounds: avg=%.2f", name, avg)
+			}
+		}
+	}
+
+	check512 := func(name string, eval func(k *[128]byte, tw, in *[64]byte) [64]byte, hasTweak bool) {
+		base := eval(&k512, &t512, &m512)
+		totalM := 0
+		for i := 0; i < 64; i++ {
+			for b := 0; b < 8; b++ {
+				mutM := m512
+				mutM[i] ^= 1 << b
+				got := eval(&k512, &t512, &mutM)
+				d := hammingDistSlice(base[:], got[:])
+				if d == 0 {
+					t.Fatalf("%s invariant to message bit flip at (%d,%d)", name, i, b)
+				}
+				totalM += d
+			}
+		}
+		if avg := float64(totalM) / 512.0; avg < 200 || avg > 312 {
+			t.Fatalf("%s message avalanche out of bounds: avg=%.2f", name, avg)
+		}
+
+		for i := 0; i < 128; i++ {
+			for b := 0; b < 8; b++ {
+				mutK := k512
+				mutK[i] ^= 1 << b
+				got := eval(&mutK, &t512, &m512)
+				if got == base {
+					t.Fatalf("%s invariant to key bit flip at (%d,%d)", name, i, b)
+				}
+			}
+		}
+
+		if hasTweak {
+			totalT := 0
+			for i := 0; i < 64; i++ {
+				for b := 0; b < 8; b++ {
+					mutT := t512
+					mutT[i] ^= 1 << b
+					got := eval(&k512, &mutT, &m512)
+					d := hammingDistSlice(base[:], got[:])
+					if d == 0 {
+						t.Fatalf("%s invariant to tweak bit flip at (%d,%d)", name, i, b)
+					}
+					totalT += d
+				}
+			}
+			if avg := float64(totalT) / 512.0; avg < 200 || avg > 312 {
+				t.Fatalf("%s tweak avalanche out of bounds: avg=%.2f", name, avg)
+			}
+		}
+	}
+
+	check256("EMEncrypt256", func(k *[64]byte, _, in *[32]byte) [32]byte { return EMEncrypt256(k, in) }, false)
+	check256("EMDecrypt256", func(k *[64]byte, _, in *[32]byte) [32]byte { return EMDecrypt256(k, in) }, false)
+	check256("EM2Encrypt256", func(k *[64]byte, _, in *[32]byte) [32]byte { return EM2Encrypt256(k, in) }, false)
+	check256("EM2Decrypt256", func(k *[64]byte, _, in *[32]byte) [32]byte { return EM2Decrypt256(k, in) }, false)
+	check256("TEMEncrypt256", TEMEncrypt256, true)
+	check256("TEMDecrypt256", TEMDecrypt256, true)
+	check256("TEM2Encrypt256", TEM2Encrypt256, true)
+	check256("TEM2Decrypt256", TEM2Decrypt256, true)
+
+	check512("EMEncrypt512", func(k *[128]byte, _, in *[64]byte) [64]byte { return EMEncrypt512(k, in) }, false)
+	check512("EMDecrypt512", func(k *[128]byte, _, in *[64]byte) [64]byte { return EMDecrypt512(k, in) }, false)
+	check512("EM2Encrypt512", func(k *[128]byte, _, in *[64]byte) [64]byte { return EM2Encrypt512(k, in) }, false)
+	check512("EM2Decrypt512", func(k *[128]byte, _, in *[64]byte) [64]byte { return EM2Decrypt512(k, in) }, false)
+	check512("TEMEncrypt512", TEMEncrypt512, true)
+	check512("TEMDecrypt512", TEMDecrypt512, true)
+	check512("TEM2Encrypt512", TEM2Encrypt512, true)
+	check512("TEM2Decrypt512", TEM2Decrypt512, true)
+}
+
 // --- Benchmarks ---
 
 func BenchmarkPermute256(b *testing.B) {
@@ -1694,4 +2732,2435 @@ func BenchmarkAES128Encrypt4Blocks(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		AES128Encrypt4Blocks(&rk, &state, &state)
 	}
+}
+
+
+func BenchmarkEMEncrypt256(b *testing.B) {
+	var key [64]byte
+	var m [32]byte
+	b.SetBytes(32)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		m = EMEncrypt256(&key, &m)
+	}
+}
+
+func BenchmarkEMDecrypt256(b *testing.B) {
+	var key [64]byte
+	var c [32]byte
+	b.SetBytes(32)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		c = EMDecrypt256(&key, &c)
+	}
+}
+
+func BenchmarkEMEncrypt512(b *testing.B) {
+	var key [128]byte
+	var m [64]byte
+	b.SetBytes(64)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		m = EMEncrypt512(&key, &m)
+	}
+}
+
+func BenchmarkEMDecrypt512(b *testing.B) {
+	var key [128]byte
+	var c [64]byte
+	b.SetBytes(64)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		c = EMDecrypt512(&key, &c)
+	}
+}
+
+func BenchmarkEM2Encrypt256(b *testing.B) {
+	var key [64]byte
+	var m [32]byte
+	b.SetBytes(32)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		m = EM2Encrypt256(&key, &m)
+	}
+}
+
+func BenchmarkEM2Decrypt256(b *testing.B) {
+	var key [64]byte
+	var c [32]byte
+	b.SetBytes(32)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		c = EM2Decrypt256(&key, &c)
+	}
+}
+
+func BenchmarkEM2Encrypt512(b *testing.B) {
+	var key [128]byte
+	var m [64]byte
+	b.SetBytes(64)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		m = EM2Encrypt512(&key, &m)
+	}
+}
+
+func BenchmarkEM2Decrypt512(b *testing.B) {
+	var key [128]byte
+	var c [64]byte
+	b.SetBytes(64)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		c = EM2Decrypt512(&key, &c)
+	}
+}
+
+func BenchmarkTEMEncrypt256(b *testing.B) {
+	var key [64]byte
+	var tweak, m [32]byte
+	b.SetBytes(32)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		m = TEMEncrypt256(&key, &tweak, &m)
+	}
+}
+
+func BenchmarkTEMDecrypt256(b *testing.B) {
+	var key [64]byte
+	var tweak, c [32]byte
+	b.SetBytes(32)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		c = TEMDecrypt256(&key, &tweak, &c)
+	}
+}
+
+func BenchmarkTEMEncrypt512(b *testing.B) {
+	var key [128]byte
+	var tweak, m [64]byte
+	b.SetBytes(64)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		m = TEMEncrypt512(&key, &tweak, &m)
+	}
+}
+
+func BenchmarkTEMDecrypt512(b *testing.B) {
+	var key [128]byte
+	var tweak, c [64]byte
+	b.SetBytes(64)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		c = TEMDecrypt512(&key, &tweak, &c)
+	}
+}
+
+func BenchmarkTEM2Encrypt256(b *testing.B) {
+	var key [64]byte
+	var tweak, m [32]byte
+	b.SetBytes(32)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		m = TEM2Encrypt256(&key, &tweak, &m)
+	}
+}
+
+func BenchmarkTEM2Decrypt256(b *testing.B) {
+	var key [64]byte
+	var tweak, c [32]byte
+	b.SetBytes(32)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		c = TEM2Decrypt256(&key, &tweak, &c)
+	}
+}
+
+func BenchmarkTEM2Encrypt512(b *testing.B) {
+	var key [128]byte
+	var tweak, m [64]byte
+	b.SetBytes(64)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		m = TEM2Encrypt512(&key, &tweak, &m)
+	}
+}
+
+func BenchmarkTEM2Decrypt512(b *testing.B) {
+	var key [128]byte
+	var tweak, c [64]byte
+	b.SetBytes(64)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		c = TEM2Decrypt512(&key, &tweak, &c)
+	}
+}
+
+func BenchmarkEMEncrypt256x4(b *testing.B) {
+	var keys [4][64]byte
+	var msgs [4][32]byte
+	b.SetBytes(128)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		msgs = EMEncrypt256x4(&keys, &msgs)
+	}
+}
+
+func BenchmarkEMDecrypt256x4(b *testing.B) {
+	var keys [4][64]byte
+	var ct [4][32]byte
+	b.SetBytes(128)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		ct = EMDecrypt256x4(&keys, &ct)
+	}
+}
+
+func BenchmarkEMEncrypt512x4(b *testing.B) {
+	var keys [4][128]byte
+	var msgs [4][64]byte
+	b.SetBytes(256)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		msgs = EMEncrypt512x4(&keys, &msgs)
+	}
+}
+
+func BenchmarkEMDecrypt512x4(b *testing.B) {
+	var keys [4][128]byte
+	var ct [4][64]byte
+	b.SetBytes(256)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		ct = EMDecrypt512x4(&keys, &ct)
+	}
+}
+
+func BenchmarkEM2Encrypt256x4(b *testing.B) {
+	var keys [4][64]byte
+	var msgs [4][32]byte
+	b.SetBytes(128)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		msgs = EM2Encrypt256x4(&keys, &msgs)
+	}
+}
+
+func BenchmarkEM2Decrypt256x4(b *testing.B) {
+	var keys [4][64]byte
+	var ct [4][32]byte
+	b.SetBytes(128)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		ct = EM2Decrypt256x4(&keys, &ct)
+	}
+}
+
+func BenchmarkEM2Encrypt512x4(b *testing.B) {
+	var keys [4][128]byte
+	var msgs [4][64]byte
+	b.SetBytes(256)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		msgs = EM2Encrypt512x4(&keys, &msgs)
+	}
+}
+
+func BenchmarkEM2Decrypt512x4(b *testing.B) {
+	var keys [4][128]byte
+	var ct [4][64]byte
+	b.SetBytes(256)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		ct = EM2Decrypt512x4(&keys, &ct)
+	}
+}
+
+func BenchmarkTEMEncrypt256x4(b *testing.B) {
+	var keys [4][64]byte
+	var tweaks, msgs [4][32]byte
+	b.SetBytes(128)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		msgs = TEMEncrypt256x4(&keys, &tweaks, &msgs)
+	}
+}
+
+func BenchmarkTEMDecrypt256x4(b *testing.B) {
+	var keys [4][64]byte
+	var tweaks, ct [4][32]byte
+	b.SetBytes(128)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		ct = TEMDecrypt256x4(&keys, &tweaks, &ct)
+	}
+}
+
+func BenchmarkTEMEncrypt512x4(b *testing.B) {
+	var keys [4][128]byte
+	var tweaks, msgs [4][64]byte
+	b.SetBytes(256)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		msgs = TEMEncrypt512x4(&keys, &tweaks, &msgs)
+	}
+}
+
+func BenchmarkTEMDecrypt512x4(b *testing.B) {
+	var keys [4][128]byte
+	var tweaks, ct [4][64]byte
+	b.SetBytes(256)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		ct = TEMDecrypt512x4(&keys, &tweaks, &ct)
+	}
+}
+
+func BenchmarkTEM2Encrypt256x4(b *testing.B) {
+	var keys [4][64]byte
+	var tweaks, msgs [4][32]byte
+	b.SetBytes(128)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		msgs = TEM2Encrypt256x4(&keys, &tweaks, &msgs)
+	}
+}
+
+func BenchmarkTEM2Decrypt256x4(b *testing.B) {
+	var keys [4][64]byte
+	var tweaks, ct [4][32]byte
+	b.SetBytes(128)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		ct = TEM2Decrypt256x4(&keys, &tweaks, &ct)
+	}
+}
+
+func BenchmarkTEM2Encrypt512x4(b *testing.B) {
+	var keys [4][128]byte
+	var tweaks, msgs [4][64]byte
+	b.SetBytes(256)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		msgs = TEM2Encrypt512x4(&keys, &tweaks, &msgs)
+	}
+}
+
+func BenchmarkTEM2Decrypt512x4(b *testing.B) {
+	var keys [4][128]byte
+	var tweaks, ct [4][64]byte
+	b.SetBytes(256)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		ct = TEM2Decrypt512x4(&keys, &tweaks, &ct)
+	}
+}
+
+func BenchmarkRijndael256EncryptBlockHW(b *testing.B) {
+	var key, state [32]byte
+	var rk [15][32]byte
+	rijndael256ExpandKey(&key, &rk)
+	b.SetBytes(32)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		rijndael256EncryptBlockHW(&rk, &state, &state)
+	}
+}
+
+func BenchmarkRijndael256Encrypt4BlocksHW(b *testing.B) {
+	var key [32]byte
+	var states [4][32]byte
+	var rk [15][32]byte
+	rijndael256ExpandKey(&key, &rk)
+	b.SetBytes(128)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		rijndael256Encrypt4BlocksHW(&rk, &states, &states)
+	}
+}
+
+
+func TestNISTKATVectors(t *testing.T) {
+	var k256 [64]byte
+	var t256, m256 [32]byte
+	var k512 [128]byte
+	var t512, m512 [64]byte
+	for i := range k256 {
+		k256[i] = byte(i)
+	}
+	for i := range t256 {
+		t256[i] = byte(0x80 + i)
+	}
+	for i := range m256 {
+		m256[i] = byte(0x40 + i)
+	}
+	for i := range k512 {
+		k512[i] = byte(i)
+	}
+	for i := range t512 {
+		t512[i] = byte(0x80 + i)
+	}
+	for i := range m512 {
+		m512[i] = byte(0x40 + i)
+	}
+
+	const (
+		katEM256    = "b1590de6b0ee589c39dc130140c0b38b8320605182e5f37a01e5104c4a7bfeab"
+		katEM512    = "77650fae672e2b9d12e5d4004383a162e46993489094adc4a4cea15a658d78a53b7cc457f108ce51fc2eb6f12310cfc38741efb0b0dae58fe54e9663792997e7"
+		katEM2256  = "061a5e8782647a6baecc87722ddff3beab731f41cc40091bafa683ce5f80ca78"
+		katEM2512  = "4965bb05380e69a5d77e4ee5e1b16ec59d4b38dbe44bd5f8f657d4723f0b0a0ccae921cf3ac653ca95e8bd3dbbbf3d88835c869837180e3beeccc1f9f81ba2f8"
+		katTEM256   = "de632e745419ba1eb0fb400014e4ba88314836532fcbe6911a618961d619305b"
+		katTEM512   = "90595f2a0b87fda6cc751c95dcedc8d6f39bc1830bf2918a470d701ff81b7d35e867d4d8ba3c8636b74f82f37f9b61ac8b34ab4354d349161599cb369d2edbc3"
+		katTEM2256 = "74dee40d0ae82e8f0d62675ead6c54f4976c539629c21aeb29c2db431640f954"
+		katTEM2512 = "6d6f7d5c0de2fc65779fc4794eb32075107c70b415b0093743993925559b543c8372cf001d9adc5ff4f4ad02676ce6d3908e64fdffcb8aeccd3f51ac729bb2e1"
+	)
+
+	eachTier(t, func(t *testing.T, tier string) {
+		cEM256 := EMEncrypt256(&k256, &m256)
+		if got := hex.EncodeToString(cEM256[:]); got != katEM256 {
+			t.Fatalf("[%s] EM-256 KAT mismatch:\ngot:  %s\nwant: %s", tier, got, katEM256)
+		}
+		if dec := EMDecrypt256(&k256, &cEM256); dec != m256 {
+			t.Fatalf("[%s] EM-256 KAT decrypt mismatch", tier)
+		}
+
+		cEM512 := EMEncrypt512(&k512, &m512)
+		if got := hex.EncodeToString(cEM512[:]); got != katEM512 {
+			t.Fatalf("[%s] EM-512 KAT mismatch:\ngot:  %s\nwant: %s", tier, got, katEM512)
+		}
+		if dec := EMDecrypt512(&k512, &cEM512); dec != m512 {
+			t.Fatalf("[%s] EM-512 KAT decrypt mismatch", tier)
+		}
+
+		cEM2256 := EM2Encrypt256(&k256, &m256)
+		if got := hex.EncodeToString(cEM2256[:]); got != katEM2256 {
+			t.Fatalf("[%s] EM2-256 KAT mismatch:\ngot:  %s\nwant: %s", tier, got, katEM2256)
+		}
+		if dec := EM2Decrypt256(&k256, &cEM2256); dec != m256 {
+			t.Fatalf("[%s] EM2-256 KAT decrypt mismatch", tier)
+		}
+
+		cEM2512 := EM2Encrypt512(&k512, &m512)
+		if got := hex.EncodeToString(cEM2512[:]); got != katEM2512 {
+			t.Fatalf("[%s] EM2-512 KAT mismatch:\ngot:  %s\nwant: %s", tier, got, katEM2512)
+		}
+		if dec := EM2Decrypt512(&k512, &cEM2512); dec != m512 {
+			t.Fatalf("[%s] EM2-512 KAT decrypt mismatch", tier)
+		}
+
+		cTEM256 := TEMEncrypt256(&k256, &t256, &m256)
+		if got := hex.EncodeToString(cTEM256[:]); got != katTEM256 {
+			t.Fatalf("[%s] TEM-256 KAT mismatch:\ngot:  %s\nwant: %s", tier, got, katTEM256)
+		}
+		if dec := TEMDecrypt256(&k256, &t256, &cTEM256); dec != m256 {
+			t.Fatalf("[%s] TEM-256 KAT decrypt mismatch", tier)
+		}
+
+		cTEM512 := TEMEncrypt512(&k512, &t512, &m512)
+		if got := hex.EncodeToString(cTEM512[:]); got != katTEM512 {
+			t.Fatalf("[%s] TEM-512 KAT mismatch:\ngot:  %s\nwant: %s", tier, got, katTEM512)
+		}
+		if dec := TEMDecrypt512(&k512, &t512, &cTEM512); dec != m512 {
+			t.Fatalf("[%s] TEM-512 KAT decrypt mismatch", tier)
+		}
+
+		cTEM2256 := TEM2Encrypt256(&k256, &t256, &m256)
+		if got := hex.EncodeToString(cTEM2256[:]); got != katTEM2256 {
+			t.Fatalf("[%s] TEM2-256 KAT mismatch:\ngot:  %s\nwant: %s", tier, got, katTEM2256)
+		}
+		if dec := TEM2Decrypt256(&k256, &t256, &cTEM2256); dec != m256 {
+			t.Fatalf("[%s] TEM2-256 KAT decrypt mismatch", tier)
+		}
+
+		cTEM2512 := TEM2Encrypt512(&k512, &t512, &m512)
+		if got := hex.EncodeToString(cTEM2512[:]); got != katTEM2512 {
+			t.Fatalf("[%s] TEM2-512 KAT mismatch:\ngot:  %s\nwant: %s", tier, got, katTEM2512)
+		}
+		if dec := TEM2Decrypt512(&k512, &t512, &cTEM2512); dec != m512 {
+			t.Fatalf("[%s] TEM2-512 KAT decrypt mismatch", tier)
+		}
+	})
+}
+
+func fillCrossKATPattern(buf []byte, seed byte) {
+	for i := range buf {
+		buf[i] = byte((uint(i)*37 + uint(seed)*13 + 0x5a) & 0xFF)
+	}
+}
+
+type crossKATEntry struct {
+	name string
+	want string
+}
+
+var canonicalCrossKATVectors = [81]crossKATEntry{
+	{"Permute256", "e199d6061c38e6913808ed52504ad5bd729c12635f89645ca11112071cec496a"},
+	{"InversePermute256", "1fc070770a2b2b663458540ac77efc0d8e60075e571c8a7d1cb2659ee44c8618"},
+	{"Permute512", "2c597c20e2346d29c37e0f0d29964c3934efad9a88447980913d5a2850364b292c06d8f58a4d88d7dcd234c5a1b700254c32240cd3d47668b601c4de8bc0680c"},
+	{"InversePermute512", "30dbd5833d4d5281410d2a3e58d93905da0bedffdedbfd7f82c0ede21d6618def169996f912ea10d4af2598d9a5a4a3118cdf212324063cb8a6352e2b729ce1e"},
+	{"Permute256P2", "0c9f798dca8ee57facf5112f0b7c924ea8d1a34f6d2ce221f444bef8f312196c"},
+	{"InversePermute256P2", "f35d05b75a40b7c3180a570a5a3828693b5609e0ef176500216e85375f72549e"},
+	{"Permute512P2", "3524bc0e9bfee075ed3203212fd0ca5cd945968962bd5237cca85b1d23349fbf89049ff2ee27eb8e79d234df8be2e6f34f3bb8b3ea5634bf2af690b8a11ee29c"},
+	{"InversePermute512P2", "e13892f078d482cbc4f6238388e6f6a94caef0c45f253d429bff4dd8bf2652b5f8669b0752f1e528d9a50d8a9473ffd5c7a559dcbdf6ae452f02cce94d0f696e"},
+	{"Permute256Words", "e199d6061c38e6913808ed52504ad5bd729c12635f89645ca11112071cec496a"},
+	{"InversePermute256Words", "1fc070770a2b2b663458540ac77efc0d8e60075e571c8a7d1cb2659ee44c8618"},
+	{"Permute512Words", "2c597c20e2346d29c37e0f0d29964c3934efad9a88447980913d5a2850364b292c06d8f58a4d88d7dcd234c5a1b700254c32240cd3d47668b601c4de8bc0680c"},
+	{"InversePermute512Words", "30dbd5833d4d5281410d2a3e58d93905da0bedffdedbfd7f82c0ede21d6618def169996f912ea10d4af2598d9a5a4a3118cdf212324063cb8a6352e2b729ce1e"},
+	{"DM256", "fb7f20b195d3640aa1ce1497ef186d8bd18344374bf867123c5ba64bdaba18a0"},
+	{"DM512", "aac80bf21ac01e09f114eb0e0e11f9688b7bfbf50f10ea35ba18ea2041365755"},
+	{"SoEM256", "5b6706f2e5d047f9c1c929bd661a69403afa83f36025628065716bb6d59d2f0d"},
+	{"SoEM512", "5075dbbbac57f12a0683ea239140ca8dcb1aa085af8fb44b6c7ad8ecf07afc8578bd800b3a02440e5a00dc37cb5d68eb2eb3f4750553a948325661b2386675aa"},
+	{"SoEM256x4", "0217fda139f7e2185b82d12e0fae5055aea035110f7006e789885915eaaa73b3e4dce235a6ec40f0d94e8b4f2e58a90182e17825211d988e4e67913fe3ce5f7813d6e861e7b1a25237b122fb28104c71c8991f1c5028ad0c8b95b8ef86b305dc846b4295d8db07a83961c3f2cc357c8d282e3f39fd7c4fc188aacf281d4e5a5e"},
+	{"SoEM512x4", "7e75ac5953406269b9727bf9c25fde4c34a871e33061b5f3c8db1c4a019949ebc9e6cc9a2a2ec3092cf5e1aaae62ef0932ff3bd15f39c5131a01728e1ce8618888b1958b880e461fe7ac162093fa83b72bcbb5c9f1e114dafdce6a4e35973a6aabc812115673811bb1af0346ca34b451d4165128eb7177c6799d7953b338bf9589ab09c0be8974229b5e13268fa2a44eb7de0e581c45707767f776c0e7d85f7c3804dd73406e6f431ca30cdc546078f5b2de46dca859d270155827ec5646de12a7571419496155568c4373bcd61117a1e9002b829ed862aa94557e5414b3a9ab4e4506258de1c82d89da350efe4855f70c43fbf7723aa6c2444165a62d4034e8"},
+	{"Permute256x4", "0ec7749ed19e7db10014db932949420ff46537f780a95d8846b541b0cb24041b99b896346376816e64749c2f8e1b7efd09d8b18470a22d758bcf54f59fc5dfde315cc46022b861aa59826f42ecf91ddc35e88596a9e3bcceb8f5ff8f7e7573b2eebf589c854f8382bd66d2f0f13bac8246a4e43f27e306ff164edcc22c02a785"},
+	{"Permute256P2x4", "0eac98ee8b1c30b23827f94c9ae1e530e01f9291443e8a6fcf21f4b4823bf1196581df8ed8ae6c176ccef1178254f44fb44fdab285e8b9cd3f696664f959ff8565dcf68eab1981f58c3604fd72dbfff36eac374b0752ecd94acb6749df34ba9f9578d53db2e936d63b09beddb2b6b0d4266b99f9be950a6e4ca91a5157e44a04"},
+	{"InversePermute256x4", "743006c18cab5d58c3f1c826b62a924580be86b45ef5fb529dede1ed86b1566204439242da073af5077723dccfe225063ee9187d2716141de880a5c0c66bfa30bc61933c325133221b4829588eb5322df2542bf92e619d362e6b7341a8cf6733ed52f9bf1cf023b052912674a089324e9c04a4dced9bea4defeac83373431b92"},
+	{"InversePermute256P2x4", "e0e40b4ef76de2d6b10b02081c21b584a25b6456678455930e3f155d3244715184e24dd022d6980ee09df6da8567ed279f02e3820b3977825a683bf0f78773f30bcd8d3ecd9303ea0b0ce4acd31625dbfbe75602d9bd6560e06895ffda6c73ef105852c110016ea84ff41385d676d82ff1cd1e8d002c1ce750ab96d32d3d662f"},
+	{"Permute512x4", "e80117449c5ff10f4ec98c12899a00e734f567584fdab29f55b1988d6710264e240c7dcc5aff094d86ab05bcafaae6c40c53f3bc34fdd3ed3e59f9dcd5dc0bba2877d33b59a50c742f8b2ab8d63b7c4b86bfe905ce301ea2c00179576208dde3561582a3472d0a3fccf435fd15e8a9dc307890bab58bdb4aa16360196afb28b03a7dedc776cc10e9786ede6b0eac32676703e74906dc6ecda78b62965a14b776162f918d386fe6e4b00a2b30e2d8575698af5a2850ba7aab20ac7ddfb0238c204d840d4056897daa41c09de285767a5c476b8af74f6535e2fc72aa913ddeb00c0152860b594f574b8dc02e9bf50e34b9b24856ad75a706ec9b39713b27e7fc43"},
+	{"Permute512P2x4", "bcb54df4f9927301c6be14e1cbc2b326478bf859304413e151e37fea8fce9cb1ec0175175f1e6d257f1265276c7fc305ab1580e9e3da5c2ebb5c456dd8ffee54cb72cba5ea52299795b73533d0fa06a0c88129057de0055b630c7764c393ca5eb8bd16905a25b22222afaa6e2da6b82b15abdd905918c7e3e639c5eefcd192e7a84cf879b79939e22a296cecb1b99d812ddfee0587906d3b9cd57cfe47ad7b06284ed78081b64abfe145275fb0b76fdb52e89753e8ed2958a053b5142bf4175ed546a07a5e9b7c19d9d05819db19108059a486e079d65846a288d576fd1250fc893abe8e6bce12ba42093c722d16c962eb073ec6add6f70f05941f7ac16383c3"},
+	{"InversePermute512x4", "83d814e4f822c03eddab54cec2bd2cc0f373bee965a7c6a1d8228a5a71f0340311bead6aad2ebd8451b1c47da42f476905679d9216c341cace2624e03e9b4fbedc6e968aa5864f5e0d5ec34845efdc52902670e8980f6c11727bc121703a220fe85ae3106ca1fa1c80057d28ff406819d7181955a251b15ca2c1b05b27857770b29a75332e85879f29884e38599675f15aa77c442a8f6007e17d27030b48cd846796f90605e71aa2b1cbefb2bab315e7e7606f019ece7f9fe21ebd50d52b66ac750d84573951f0cfdc6af42aa12ccdda80e229bd2113b607504406eccdeebcf417a8fa480466e597f632a3777b78fcffe483f980be671abf7e3e12a30a695dd8"},
+	{"InversePermute512P2x4", "1ec437508ee3bd6c95e41ba831eb5cca655b93c15e764ac065f36fefdfe2096f61e2fd81be04ac13e9cfc01e6f38173d058a685bb7fc5e37f65cb1dd51d6adff7dfcce2c6ab2fc952ab3448562cad961c8a2c4610f90417f68c6164f6b9e9d52b7608deee73a57d3710099ec4122ccc657d84d1fec42eeedf719d16f05238838c0fd97dd1f7d0b5108be07c80ff93d31d16b1b8b6ddf9e520c3e0bed7e2cf0b703d151c6b1e78058b58cbf14e8c29ee46fec23db2478bb858eb82aaffc405835776cc3faa587f18c470e86907fbcbf9da269eeef9dd3ba7b95b0219ab17b1945c217242b9b6f063b47f1240a4911c6f1b81c09fe2e014af83e88465a8900f65f"},
+	{"Round", "734d67dffe30ef5668cddb9ae40bb624"},
+	{"FinalRound", "85bd8638dff4207c462326a7ca6e62bb"},
+	{"RoundHW", "bd67569024fd0ee197f600967539e44b"},
+	{"FinalRoundHW", "7d4b97b25cd0d413e2bf4c478a07a1ac"},
+	{"Round4HW", "c2f54df2e934ef44e182b9974e9ba4dbd9e5836a03875b99b15d34cbb3d01831ecae7776705e78b6729ae84079fe7f2766de0effb2e58c12f724194793a8bab0"},
+	{"FinalRound4HW", "0b5bcadd23e949d7b4d29b32be2e10966243a4f67541c8a26664e6e48570a72c6ca3e511296baecce1ee77ea92c19084a6f39a8ccbc91f18552476e80c870a4a"},
+	{"AESRoundHW", "26aae89a452d1f521cb722431bf49316"},
+	{"AES128Round", "26aae89a452d1f521cb722431bf49316"},
+	{"AESFinalRoundHW", "25ac9c06e96c18ded9e19a90a7de2834"},
+	{"AES128FinalRound", "25ac9c06e96c18ded9e19a90a7de2834"},
+	{"AESRound4HW", "da5037e470ae0828ef7eaefa9bfe9eedffe0cec8095d61977fea6d4ff77f6f9a60c9872f53d5be419d10eba0643430560b285686d03b8c84596429f246e0fe18"},
+	{"AES128Round4", "da5037e470ae0828ef7eaefa9bfe9eedffe0cec8095d61977fea6d4ff77f6f9a60c9872f53d5be419d10eba0643430560b285686d03b8c84596429f246e0fe18"},
+	{"AESFinalRound4HW", "95e3b597e9297acca2d310022337395e362434a2dd38f99d352e2f5d4918d68be0ca43fe24de1b4fab882386fb90198f1b79be1a60721bc623463d8e3ce6b82d"},
+	{"AES128FinalRound4", "95e3b597e9297acca2d310022337395e362434a2dd38f99d352e2f5d4918d68be0ca43fe24de1b4fab882386fb90198f1b79be1a60721bc623463d8e3ce6b82d"},
+	{"XorBlock", "a8e8b868a89868a8f8b868989868b8f8"},
+	{"XorBlock4", "a8e8b868a89868a8f8b868989868b8f8b8e89898e8b878a8e898a8e8b868a89898a868b8e8a89898a878b8e89898e8a8f8b868989868a8f8a86898a868b8f8a8"},
+	{"ExpandKey128", "0a2f54799ec3e80d32577ca1c6eb1035e2e5c2cd7c262ac04e715661889a465458bfe2092499c8c96ae89ea8e272d8fc1cde529138479a5852af04f0b0dddc0cd558ac76ed1f362ebfb032de0f6deed2f9701900146f2f2eabdf1df0a4b2f322ee7d8a49fa12a56751cdb897f57f4bb57cce5faf86dcfac8d711425f226e09ea63cfd83ce51322f4320260ab106c694128365bf6cd257902ff2719a9ef4b70e8ad67c0296042b92b9f65a082702ed06a"},
+	{"AES128EncryptBlock", "c9fce4ccc4ca59266d73ed19e390c1aa"},
+	{"AES128Encrypt4Blocks", "eca38d1787d711da9be585f98098b2a4626e8a83fdc17293c0fe8350c40310c441e90ac262e4558ff0cf4c1c4cd50917e983ac1d457b2d43be54c7ec560a76fe"},
+	{"EMEncrypt256", "78d2d5b64170af7c29a96d92433e14ae030c2618621039fabdaf013953a62df2"},
+	{"EMDecrypt256", "9a796e0258c290794a7b1f7acce4e292b3a47c9c5aceb75a3b45a03afd10ce1f"},
+	{"EMEncrypt512", "bb4beeba170fff96e900147822afb22d6bc147550f04eecf53c55782f8065457169df26837ba20766c7cffe916e5e7476c4481e9b4f04325d9a61918ac6e3cd3"},
+	{"EMDecrypt512", "522228aad890411b63e3f20ae556a6e6dbd6e32cc59581cd788698785c2de6f6d16854df68ecfba6c7af2caacd98b2293c35dbd55e778371d8da348405e84b74"},
+	{"EM2Encrypt256", "3673151869c2c07f5c39f27b7908ba2067083d7f6edf6a9cee0dbd6d35f24b58"},
+	{"EM2Decrypt256", "2bef27ad641b7c24c735045926e729aa25c19fde56df95ff333869c09fa1bfc7"},
+	{"EM2Encrypt512", "2d6128705ba22a4085bbcf8a023560231919181d34effa0975f8dbff60a663508082a336901311c7ecac12ba0099dec540faac2770e10f07b28e33146f990da9"},
+	{"EM2Decrypt512", "8ea6f350613a2e7aaf381a6989d2e3685d83ecc1886e20b29a5c22337685c76eaefadeb08ddbe8aaa97b745807391cfd0ca927b82805ef4f5929a4e5abb76e83"},
+	{"TEMEncrypt256", "70fca88d6edbfafdabfe4f648adb3113367a811fd6ae44ec1d0a3b942d22ee45"},
+	{"TEMDecrypt256", "e0094d9fc07e7221034539da14cc785369f28cbf301d058faa75d535e391412f"},
+	{"TEMEncrypt512", "fea90d01225f9869c6b1c5dafd585a9dc42b6263ff2c092949b3f2d146484ee440f11e46ed92fbc8a5779d2049b004c327a6d95b77fa85a82e6c64f4e5b6f5b1"},
+	{"TEMDecrypt512", "25b8b2d72ad2c285c8a4b5195a2a2098c6ab64a60746a1ff3074f27856aaf8d2d7bb4ea8f51812ca15a1c7fa3e38ddf02d73eab7ea8bd24f79c4ffda1f5d8843"},
+	{"TEM2Encrypt256", "01a338b3980b05cbbcf4562aee51cf8a7ecef3a94f0916347990c208a4210f70"},
+	{"TEM2Decrypt256", "27e5da2662727c05ec184e1e4caf4300b3aecbc652b9ce5f0cb7be76b57736ae"},
+	{"TEM2Encrypt512", "bbfbaeed2b751c56246ef303454211b82dfde2d57f1759d1af2a4096bc75376dfb4c14078b7dd3568c9797cfe005c3b5e9a036b2121d556c3dd0540dd7d72112"},
+	{"TEM2Decrypt512", "e25503e980d1d003896d5c312663e3e56836e4a447eae43c4c0a1c06c5563581b1fda8c59c57672e4d10474ba15330150b565ba5299087e3cbf485d2e62c90a6"},
+	{"EMEncrypt256x4", "0bdfdf80fab9b82a41e271bb570aae47f2ca868bade606315e45afa668892f0fce4a09a97bb517d6f0b978436ab7600042929f2af36799e8523a24fde19e3f79fb6a4c4b4a0947a69a39d3ec6e2b8448ddd77ef01be94db05a0ee08851af7fb2608db1fe37e6169d6cde7347272d22ace19be717c2fb6814d36b03b4ebf0d454"},
+	{"EMDecrypt256x4", "1a1d528ef496c9b85a6c9e37e6718c77cda72262fdb134f6804ef5222e0d0512c5fe119b0cace4b75d3217499d99c68b46e1985f9248d0259a61e86b6bc42ed96f7305e8954e5d18340ed8b6e8b6c3158a208869d9fe282108e7031a2f4934aa49dcb714c60407d0c7af9bd24e4b0a8347c1a534672daa2625fafb5390e002ca"},
+	{"EMEncrypt512x4", "817932ee142bfa903aec62a133ccbf238bd5110fa67f90853edfed13ad403e42cd875e23a3f7c6472b8987fc8a8db713840895df797678afc2a1691ac1f19251c9bdc6ef002d38879fa1c7e3ea9142c4e4423b0300bbfb5a49deccbe6dfe51e1c70d46351841b28d4b37c7f7c47c35fa417aa049f67d69c3616ae6b2bf188f507059ffe0e26c7e10c1850aa6e7a0eb2c30fa2c01a0ab2a26ee3a99a6df0cd8725e593c737ed4e946c79620d31a8f89c914ae6cafee29c0511a931753ed8ebc9ec0d91a57cef5cb174fa6b12d59ac89093ebbffd0a2d118209f434deeb482c375c0cbc67ace12c23a21b74a997f7380b0cb0c63bd827a42af5c846c0723d18058"},
+	{"EMDecrypt512x4", "fbc6ee6a000a69280dd44e6eb9ee5aa5fb1d340a223992ee64eaf10d5ecc38ba05f659dbd378f9db277c3782c325baac761911c0afd33083b10fd2cdc3b1bd624a420bc1f618c78ea555211b884f80f3aabf92e45f932351e9ebdda1593d3cbbccb17e3979675f0a6f572cac107ed2fb0669484c504a567f6e80e55244f9bc6774f230ec0d5573af05d0cc4766e4d19c3edfa2b823b27312e1d96e383acddf96047ae77b9853b0b393dedf4a51b22f88c4d794b3d3beccd84828e46163566ecf72c29ce5dbf2bd64fad7990021b5bca9ee7171b39c0822cb355be2b403b57265e4be2510cbf080b7e971398037832e19eb4541c1aee21b794e6055396b7e5653"},
+	{"EM2Encrypt256x4", "6a52e2b74b172972aac7bfda88eeba8b2d2d1480e0106e7bdef2fa156c985985493a084b58079f7a1564ebde7cb31f9a2b2a7e5a3e4452defe5b050bcd02a2dc5122b9bf51b31184847133b2453d824010db6cd2ca298bc1b46e2e8ef8ad1c367ac6394aa8a6453788df8c50b0a993d3f4f189136afdb565704ec17a2fb59fdf"},
+	{"EM2Decrypt256x4", "f135d4f5ecc6bbe8ee73d9240a536fea3572afa54ca904c153b6c14335720dcce88b573ecc198d8ec391c65b01aa712c8ef2c8f337fc29173f74dc12102383464fd69191d2f7ab6372c02dd8dfba1ebd9f52ae2b0d9600febc1a0b7f42029b8e296ce0c25cc94e46f3ac6a8e6ae0362b3732811ecee8f6165f922bf8509bc401"},
+	{"EM2Encrypt512x4", "3cb55ff90ccc17115e123027f22fac6c9a4212bfe0c731bf49c0fe2a9772a0bd2ebf9456a5f0a9ad3202a41a6df312db103113a5fb393286ccf0aeb4d8a032c6dc7377e3af0bdf898132cf76261cbde399bb7f25c540e2f793aebca6b429dacc489ee98e8a6402e901f01a2c062cab000b44a3003d668de285e922ba4e3775722bd4057144d1ee1ef219bbedcb5f7d4c727e402572e02f15ce36e80c38b3b78597d073c018ba3d535e6125db6b2e6be226ed794486c108e3832ffca0500f9f4a82f7d13f62ac459a9a07272c7fd83bbb9b22d2e039573068cee032900308735d0808e701610c2f647099db8039e2c52a53679312ab795790e7fe343f9b7ad41b"},
+	{"EM2Decrypt512x4", "301f6dd30ca42f18a364a377c65205f61cc443b1ddbeb939127a94b24914585beba623d84b64c594222b94d1e82710cd0269dfeb3249ddb04ef79877bdc04b5e24bf77f8a68cc8481db71084aa60380e5c26a9ce7decc7c64e877927a56d8f92835de4df6283da148289b5b0a8502234094c5bec1809823764e27c8bb614879b8f727cee83595805cd0b9e57c034aadba293b1b3495b802c2c16fa17c0b38902263423df223aff8a4021fdfb7aecf26fcb4429ba08e6477723dd6f7b4ded41560d4718bfe6e06c7c9fbad51b48a323a4ef6e66aac4ac86365e4c635f666b56631668ad31cb5b3110bf1f6e23841e6e0cf4271a1f83bce425d58def2612f64911"},
+	{"TEMEncrypt256x4", "e5b1dc24ec69f4f24197356710349c06e0d6a854e9e2d143517ffe7b4352166235e6e83042de44621fc6316c926d0e3a71880f9a4a496560049171407ee4882375f9374d8e082bea752e564c883a21b0661ffdf6a0d54fcacabef7f0f2cbd112d32c7dcdf0a05d78dd8f7f7380101e926892f17538003a7201bcc13d770171fe"},
+	{"TEMDecrypt256x4", "efd9fca25056eca294badd07bd007002e35553c28f55a1549d3534c82a2bb64e5f19e4eba81017192e3e84bd8b6e503c640fc2553893a839e0e38375b84ff319574b9fe34140a19bf13ef1e0d2dfdd232e102e98ecde3bc941d3c41fc5dd815d8e20e295c44041bac5e184834af24ea3e2fb8800a6ff1dbe3f9969ab0391774f"},
+	{"TEMEncrypt512x4", "6b4295c6393490afb362b93e54f11843e0e6b4b31bc77330b84f03e1391c9b8b8903a77f2dae9e0b4bb86232e9b66270e8ce345c3751d22e4e376382143f015266da423a21df144bba183c596273c50fe256e6b73c522929f4262dd58fc095cf1e3d89c99bde8166efc975f1b79aa41dd96aeb6c15da20911d077ff06d86984b16063db792d63aa3b2280c989185c3447428cde71dc578c93f28bd5b6dd69ee56fd711e65013c5a441d6c65654294c9a4b8ff823740985eafce87a3237ffd30372d2364569700cfb3d5fffbadb28be0f0a09d51313fb8496b027bbc1dc99949f0a39d4920fcf470a4803a1e7acaa36d5d424de0468acd977cb43769d94c66c3a"},
+	{"TEMDecrypt512x4", "b6fc54c6e5f190f75f902761dd987a890163a4cf159cc5f30913a66bdbf569bf394d228e2da4498c232b9606686cb52efe68f3f48f760c4cfb619ff9a34156085ec0e977c0911181436bae48bff0188931f0e2a2cd6ec090867272fc6b6504a2e2b48ea62279735797a86d7989e3b1c934b204aa18ed62082370c60526c10e605af97ada69780d2b3a209b722b6fc7c3cf8c28f5d7012eb85d360834620de1c69b925a502d7687d41dbe22468a868d70dc175d88381f5422b50cda52bb34068181235e1e61e3dc3fb29577a8b4059e00d0e457afd4ec1bea65ffd52c567b506ab2f7872277e50014ed882602cbc17cc8ffebd4dd4c0e811fc72509b4dda6a42a"},
+	{"TEM2Encrypt256x4", "af08311f1e7d4be99f5f2e6c470635002f1f0ba45400a8f99536c8093febeb44eefa88424a496a04d9036e51eafcbb874f887e2bf3d4f0b46140475194fa5b04e63b08a292bf2fdec0c00c88d4318dc76b0aebfbeae1c9f18e4279d37cf38ab81232c363de71795b367597dea34728574035d02270f00ffa94c9396e3584225d"},
+	{"TEM2Decrypt256x4", "ab428c1415f3e2bf85b828eab317299b05cf713c0b1452e96553abdc272aabc4b085c5a88983f0c85a6aeffc39af1e3c87630013d7e040eddc619667fdd44c460a843d6f819cf0ab04d73123f8556a1840e8edecf2e1df0ea6fdd803d6cf0468efc8042f16d4ad10f2b9aa4245503c1d5d691f186b7a6ef6a95b58b9289800a1"},
+	{"TEM2Encrypt512x4", "1becffac351f90200272eaaaec9931d863a7986d86dea7a77fe5448800b5af294ba4bc4c2bb519610891042589d91c5ab1582215daf25d30b92b8cca6993c4caa755546e03a84e7615b1dd413caa17e18a9d03169be80093eafd20f9061b0e74ee00cbe1aefabf2a41b20cede2d2a7ea96b1b2edb1373aaa495e33b0902aa4f594bcf3be748fcbfdd872fcc395e37d7355097a9889fa27ebe22b60e0e1c0fbb6738e02320bc87f4d46667f33cbdf3d5e9ccc6110a24d431a5960416319a66699e14eb82bb5cd99665983f56fcaf65acca55d63eb09dbb692ccc05a08a3c95d8b39abc5f3c0ce3228b5128a05b1b0b3be60128eccd776c6e79cd7dfa912a5a2f2"},
+	{"TEM2Decrypt512x4", "93ec234be3ae42ac3f72dc5ce20c445f164fbef3aeb17925b9109723ea5de76222588f3c03f63184f715d7fc8922537e978131a2bd18e1e5dc87c0cf92f47a8af55618a98ab8ee0dad6e736b1af40ba8c4b5a6ab10ce882d6f8904854d8f38209ad4a17ecf3195b58735fb6544e83bc372fce2b885d9fa94e1112ea078c7e982ff092b4f75e8814596a488c264b74d46cfe3b601602ce20753063ce7327438043692e91478462a65c47e87f9203d4c99fb6c28b2888d72ee7c2b63ed95f483f321aac6ec8665796bddcf26df135b4d303ccb8a64b3435322883af8f42081029091e05095800a05ff42d455aec702ff1dbf06439bce2250800c3c85523390ae15"},
+	{"Pack256x4SoA", "ea0f34597ea3c8ed12375c81a6cbf015f71c41668bb0d5fa1f44698eb3d8fd2204294e7398bde2072c51769bc0e50a2f11365b80a5caef14395e83a8cdf2173c3a5f84a9cef3183d6287acd1f61b4065476c91b6db00254a6f94b9de03284d7254799ec3e80d32577ca1c6eb10355a7f6186abd0f51a3f6489aed3f81d42678c"},
+	{"Unpack256x4SoA", "ea0f34597ea3c8ed12375c81a6cbf0153a5f84a9cef3183d6287acd1f61b4065f71c41668bb0d5fa1f44698eb3d8fd22476c91b6db00254a6f94b9de03284d7204294e7398bde2072c51769bc0e50a2f54799ec3e80d32577ca1c6eb10355a7f11365b80a5caef14395e83a8cdf2173c6186abd0f51a3f6489aed3f81d42678c"},
+	{"Pack512x4SoA", "1e43688db2d7fc21466b90b5daff24492b50759abfe4092e53789dc2e70c3156385d82a7ccf1163b6085aacff4193e63456a8fb4d9fe23486d92b7dc01264b706e93b8dd02274c7196bbe0052a4f74997ba0c5ea0f34597ea3c8ed12375c81a688add2f71c41668bb0d5fa1f44698eb395badf04294e7398bde2072c51769bc0bee3082d52779cc1e60b30557a9fc4e9cbf0153a5f84a9cef3183d6287acd1f6d8fd22476c91b6db00254a6f94b9de03e50a2f54799ec3e80d32577ca1c6eb100e33587da2c7ec11365b80a5caef14391b40658aafd4f91e43688db2d7fc2146284d7297bce1062b50759abfe4092e53355a7fa4c9ee13385d82a7ccf1163b60"},
+	{"Unpack512x4SoA", "1e43688db2d7fc21466b90b5daff24496e93b8dd02274c7196bbe0052a4f7499bee3082d52779cc1e60b30557a9fc4e90e33587da2c7ec11365b80a5caef14392b50759abfe4092e53789dc2e70c31567ba0c5ea0f34597ea3c8ed12375c81a6cbf0153a5f84a9cef3183d6287acd1f61b40658aafd4f91e43688db2d7fc2146385d82a7ccf1163b6085aacff4193e6388add2f71c41668bb0d5fa1f44698eb3d8fd22476c91b6db00254a6f94b9de03284d7297bce1062b50759abfe4092e53456a8fb4d9fe23486d92b7dc01264b7095badf04294e7398bde2072c51769bc0e50a2f54799ec3e80d32577ca1c6eb10355a7fa4c9ee13385d82a7ccf1163b60"},
+}
+
+func evalAllCrossKATFunctions() [81]string {
+	var out [81]string
+	idx := 0
+	rec := func(b []byte) {
+		out[idx] = hex.EncodeToString(b)
+		idx++
+	}
+
+	var s256 [32]byte
+	var s512 [64]byte
+	var key256 [64]byte
+	var key512 [128]byte
+
+	fillCrossKATPattern(s256[:], 0x01)
+	Permute256(&s256)
+	rec(s256[:])
+
+	fillCrossKATPattern(s256[:], 0x02)
+	InversePermute256(&s256)
+	rec(s256[:])
+
+	fillCrossKATPattern(s512[:], 0x03)
+	Permute512(&s512)
+	rec(s512[:])
+
+	fillCrossKATPattern(s512[:], 0x04)
+	InversePermute512(&s512)
+	rec(s512[:])
+
+	fillCrossKATPattern(s256[:], 0x05)
+	Permute256P2(&s256)
+	rec(s256[:])
+
+	fillCrossKATPattern(s256[:], 0x06)
+	InversePermute256P2(&s256)
+	rec(s256[:])
+
+	fillCrossKATPattern(s512[:], 0x07)
+	Permute512P2(&s512)
+	rec(s512[:])
+
+	fillCrossKATPattern(s512[:], 0x08)
+	InversePermute512P2(&s512)
+	rec(s512[:])
+
+	fillCrossKATPattern(s256[:], 0x01)
+	Permute256(&s256)
+	rec(s256[:])
+
+	fillCrossKATPattern(s256[:], 0x02)
+	InversePermute256(&s256)
+	rec(s256[:])
+
+	fillCrossKATPattern(s512[:], 0x03)
+	Permute512(&s512)
+	rec(s512[:])
+
+	fillCrossKATPattern(s512[:], 0x04)
+	InversePermute512(&s512)
+	rec(s512[:])
+
+	fillCrossKATPattern(s256[:], 0x09)
+	out256 := DM256(&s256)
+	rec(out256[:])
+
+	fillCrossKATPattern(s512[:], 0x0A)
+	out256 = DM512(&s512)
+	rec(out256[:])
+
+	fillCrossKATPattern(key256[:], 0x0B)
+	fillCrossKATPattern(s256[:], 0x0C)
+	out256 = SoEM256(&key256, &s256)
+	rec(out256[:])
+
+	fillCrossKATPattern(key512[:], 0x0D)
+	fillCrossKATPattern(s512[:], 0x0E)
+	out512 := SoEM512(&key512, &s512)
+	rec(out512[:])
+
+	var keys256x4 [4][64]byte
+	var keys512x4 [4][128]byte
+	var in256x4 [4][32]byte
+	var in512x4 [4][64]byte
+	for m := 0; m < 4; m++ {
+		fillCrossKATPattern(keys256x4[m][:], byte(0x10+m))
+		fillCrossKATPattern(keys512x4[m][:], byte(0x18+m))
+		fillCrossKATPattern(in256x4[m][:], byte(0x20+m))
+		fillCrossKATPattern(in512x4[m][:], byte(0x30+m))
+	}
+	out256x4 := SoEM256x4(&keys256x4, &in256x4)
+	var flat128 [128]byte
+	for m := 0; m < 4; m++ {
+		copy(flat128[m*32:(m+1)*32], out256x4[m][:])
+	}
+	rec(flat128[:])
+
+	out512x4 := SoEM512x4(&keys512x4, &in512x4)
+	var flat256 [256]byte
+	for m := 0; m < 4; m++ {
+		copy(flat256[m*64:(m+1)*64], out512x4[m][:])
+	}
+	rec(flat256[:])
+
+	var b256 [4][32]byte
+	for m := 0; m < 4; m++ {
+		fillCrossKATPattern(b256[m][:], byte(0x40+m))
+	}
+	Permute256x4(&b256)
+	for m := 0; m < 4; m++ {
+		copy(flat128[m*32:(m+1)*32], b256[m][:])
+	}
+	rec(flat128[:])
+
+	for m := 0; m < 4; m++ {
+		fillCrossKATPattern(b256[m][:], byte(0x44+m))
+	}
+	Permute256P2x4(&b256)
+	for m := 0; m < 4; m++ {
+		copy(flat128[m*32:(m+1)*32], b256[m][:])
+	}
+	rec(flat128[:])
+
+	for m := 0; m < 4; m++ {
+		fillCrossKATPattern(b256[m][:], byte(0x48+m))
+	}
+	InversePermute256x4(&b256)
+	for m := 0; m < 4; m++ {
+		copy(flat128[m*32:(m+1)*32], b256[m][:])
+	}
+	rec(flat128[:])
+
+	for m := 0; m < 4; m++ {
+		fillCrossKATPattern(b256[m][:], byte(0x4C+m))
+	}
+	InversePermute256P2x4(&b256)
+	for m := 0; m < 4; m++ {
+		copy(flat128[m*32:(m+1)*32], b256[m][:])
+	}
+	rec(flat128[:])
+
+	var b512 [4][64]byte
+	for m := 0; m < 4; m++ {
+		fillCrossKATPattern(b512[m][:], byte(0x50+m))
+	}
+	Permute512x4(&b512)
+	for m := 0; m < 4; m++ {
+		copy(flat256[m*64:(m+1)*64], b512[m][:])
+	}
+	rec(flat256[:])
+
+	for m := 0; m < 4; m++ {
+		fillCrossKATPattern(b512[m][:], byte(0x54+m))
+	}
+	Permute512P2x4(&b512)
+	for m := 0; m < 4; m++ {
+		copy(flat256[m*64:(m+1)*64], b512[m][:])
+	}
+	rec(flat256[:])
+
+	for m := 0; m < 4; m++ {
+		fillCrossKATPattern(b512[m][:], byte(0x58+m))
+	}
+	InversePermute512x4(&b512)
+	for m := 0; m < 4; m++ {
+		copy(flat256[m*64:(m+1)*64], b512[m][:])
+	}
+	rec(flat256[:])
+
+	for m := 0; m < 4; m++ {
+		fillCrossKATPattern(b512[m][:], byte(0x5C+m))
+	}
+	InversePermute512P2x4(&b512)
+	for m := 0; m < 4; m++ {
+		copy(flat256[m*64:(m+1)*64], b512[m][:])
+	}
+	rec(flat256[:])
+
+	rwIn := [4]uint32{0x01234567, 0x89abcdef, 0xfedcba98, 0x76543210}
+	var rwBlk, zeroRk [16]byte
+	for i := 0; i < 4; i++ {
+		binary.LittleEndian.PutUint32(rwBlk[i*4:], rwIn[i])
+	}
+	blk := rwBlk
+	Round(&blk, &zeroRk)
+	rec(blk[:])
+
+	blk = rwBlk
+	FinalRound(&blk, &zeroRk)
+	rec(blk[:])
+
+	var ab, ark [16]byte
+	var ab4, ark4, zeroRk4 [64]byte
+
+	fillCrossKATPattern(ab[:], 0x5C)
+	RoundHW(&ab, &zeroRk)
+	rec(ab[:])
+
+	fillCrossKATPattern(ab[:], 0x5D)
+	FinalRoundHW(&ab, &zeroRk)
+	rec(ab[:])
+
+	for m := 0; m < 4; m++ {
+		fillCrossKATPattern(ab4[m*16:(m+1)*16], byte(0x50+m))
+	}
+	Round4HW(&ab4, &zeroRk4)
+	rec(ab4[:])
+
+	for m := 0; m < 4; m++ {
+		fillCrossKATPattern(ab4[m*16:(m+1)*16], byte(0x54+m))
+	}
+	FinalRound4HW(&ab4, &zeroRk4)
+	rec(ab4[:])
+
+	fillCrossKATPattern(ab[:], 0x5E)
+	fillCrossKATPattern(ark[:], 0x6E)
+	AES128Round(&ab, &ark)
+	rec(ab[:])
+	rec(ab[:])
+
+	fillCrossKATPattern(ab[:], 0x5F)
+	fillCrossKATPattern(ark[:], 0x6F)
+	AES128FinalRound(&ab, &ark)
+	rec(ab[:])
+	rec(ab[:])
+
+	for m := 0; m < 4; m++ {
+		fillCrossKATPattern(ab4[m*16:(m+1)*16], byte(0x60+m))
+		fillCrossKATPattern(ark4[m*16:(m+1)*16], byte(0x70+m))
+	}
+	AES128Round4(&ab4, &ark4)
+	rec(ab4[:])
+	rec(ab4[:])
+
+	for m := 0; m < 4; m++ {
+		fillCrossKATPattern(ab4[m*16:(m+1)*16], byte(0x64+m))
+	}
+	AES128FinalRound4(&ab4, &ark4)
+	rec(ab4[:])
+	rec(ab4[:])
+
+	fillCrossKATPattern(ab[:], 0x68)
+	copy(ark[:], ark4[0:16])
+	XorBlock(&ab, &ab, &ark)
+	rec(ab[:])
+
+	for m := 0; m < 4; m++ {
+		fillCrossKATPattern(ab4[m*16:(m+1)*16], byte(0x68+m))
+	}
+	XorBlock4(&ab4, &ab4, &ark4)
+	rec(ab4[:])
+
+	var rk [11][16]byte
+	var rk0 [16]byte
+	copy(rk0[:], ark4[0:16])
+	ExpandKey128(&rk0, &rk)
+	var flatRk [176]byte
+	for r := 0; r < 11; r++ {
+		copy(flatRk[r*16:(r+1)*16], rk[r][:])
+	}
+	rec(flatRk[:])
+
+	var ct, pt0 [16]byte
+	fillCrossKATPattern(pt0[:], 0x7C)
+	AES128EncryptBlock(&rk, &ct, &pt0)
+	rec(ct[:])
+
+	for m := 0; m < 4; m++ {
+		fillCrossKATPattern(ab4[m*16:(m+1)*16], byte(0x80+m))
+	}
+	var ct4 [64]byte
+	AES128Encrypt4Blocks(&rk, &ct4, &ab4)
+	rec(ct4[:])
+
+	var tw256 [32]byte
+	var tw512 [64]byte
+	var tw256x4 [4][32]byte
+	var tw512x4 [4][64]byte
+
+	fillCrossKATPattern(key256[:], 0x90)
+	fillCrossKATPattern(s256[:], 0x91)
+	out256 = EMEncrypt256(&key256, &s256)
+	rec(out256[:])
+	fillCrossKATPattern(s256[:], 0x92)
+	out256 = EMDecrypt256(&key256, &s256)
+	rec(out256[:])
+
+	fillCrossKATPattern(key512[:], 0x93)
+	fillCrossKATPattern(s512[:], 0x94)
+	out512 = EMEncrypt512(&key512, &s512)
+	rec(out512[:])
+	fillCrossKATPattern(s512[:], 0x95)
+	out512 = EMDecrypt512(&key512, &s512)
+	rec(out512[:])
+
+	fillCrossKATPattern(key256[:], 0x96)
+	fillCrossKATPattern(s256[:], 0x97)
+	out256 = EM2Encrypt256(&key256, &s256)
+	rec(out256[:])
+	fillCrossKATPattern(s256[:], 0x98)
+	out256 = EM2Decrypt256(&key256, &s256)
+	rec(out256[:])
+
+	fillCrossKATPattern(key512[:], 0x99)
+	fillCrossKATPattern(s512[:], 0x9A)
+	out512 = EM2Encrypt512(&key512, &s512)
+	rec(out512[:])
+	fillCrossKATPattern(s512[:], 0x9B)
+	out512 = EM2Decrypt512(&key512, &s512)
+	rec(out512[:])
+
+	fillCrossKATPattern(key256[:], 0x9C)
+	fillCrossKATPattern(tw256[:], 0x9D)
+	fillCrossKATPattern(s256[:], 0x9E)
+	out256 = TEMEncrypt256(&key256, &tw256, &s256)
+	rec(out256[:])
+	fillCrossKATPattern(s256[:], 0x9F)
+	out256 = TEMDecrypt256(&key256, &tw256, &s256)
+	rec(out256[:])
+
+	fillCrossKATPattern(key512[:], 0xA0)
+	fillCrossKATPattern(tw512[:], 0xA1)
+	fillCrossKATPattern(s512[:], 0xA2)
+	out512 = TEMEncrypt512(&key512, &tw512, &s512)
+	rec(out512[:])
+	fillCrossKATPattern(s512[:], 0xA3)
+	out512 = TEMDecrypt512(&key512, &tw512, &s512)
+	rec(out512[:])
+
+	fillCrossKATPattern(key256[:], 0xA4)
+	fillCrossKATPattern(tw256[:], 0xA5)
+	fillCrossKATPattern(s256[:], 0xA6)
+	out256 = TEM2Encrypt256(&key256, &tw256, &s256)
+	rec(out256[:])
+	fillCrossKATPattern(s256[:], 0xA7)
+	out256 = TEM2Decrypt256(&key256, &tw256, &s256)
+	rec(out256[:])
+
+	fillCrossKATPattern(key512[:], 0xA8)
+	fillCrossKATPattern(tw512[:], 0xA9)
+	fillCrossKATPattern(s512[:], 0xAA)
+	out512 = TEM2Encrypt512(&key512, &tw512, &s512)
+	rec(out512[:])
+	fillCrossKATPattern(s512[:], 0xAB)
+	out512 = TEM2Decrypt512(&key512, &tw512, &s512)
+	rec(out512[:])
+
+	for m := 0; m < 4; m++ {
+		fillCrossKATPattern(keys256x4[m][:], byte(0xB0+m))
+		fillCrossKATPattern(keys512x4[m][:], byte(0xB4+m))
+		fillCrossKATPattern(tw256x4[m][:], byte(0xB8+m))
+		fillCrossKATPattern(tw512x4[m][:], byte(0xBC+m))
+		fillCrossKATPattern(in256x4[m][:], byte(0xC0+m))
+		fillCrossKATPattern(in512x4[m][:], byte(0xC4+m))
+	}
+
+	out256x4 = EMEncrypt256x4(&keys256x4, &in256x4)
+	for m := 0; m < 4; m++ {
+		copy(flat128[m*32:(m+1)*32], out256x4[m][:])
+	}
+	rec(flat128[:])
+
+	out256x4 = EMDecrypt256x4(&keys256x4, &in256x4)
+	for m := 0; m < 4; m++ {
+		copy(flat128[m*32:(m+1)*32], out256x4[m][:])
+	}
+	rec(flat128[:])
+
+	out512x4 = EMEncrypt512x4(&keys512x4, &in512x4)
+	for m := 0; m < 4; m++ {
+		copy(flat256[m*64:(m+1)*64], out512x4[m][:])
+	}
+	rec(flat256[:])
+
+	out512x4 = EMDecrypt512x4(&keys512x4, &in512x4)
+	for m := 0; m < 4; m++ {
+		copy(flat256[m*64:(m+1)*64], out512x4[m][:])
+	}
+	rec(flat256[:])
+
+	out256x4 = EM2Encrypt256x4(&keys256x4, &in256x4)
+	for m := 0; m < 4; m++ {
+		copy(flat128[m*32:(m+1)*32], out256x4[m][:])
+	}
+	rec(flat128[:])
+
+	out256x4 = EM2Decrypt256x4(&keys256x4, &in256x4)
+	for m := 0; m < 4; m++ {
+		copy(flat128[m*32:(m+1)*32], out256x4[m][:])
+	}
+	rec(flat128[:])
+
+	out512x4 = EM2Encrypt512x4(&keys512x4, &in512x4)
+	for m := 0; m < 4; m++ {
+		copy(flat256[m*64:(m+1)*64], out512x4[m][:])
+	}
+	rec(flat256[:])
+
+	out512x4 = EM2Decrypt512x4(&keys512x4, &in512x4)
+	for m := 0; m < 4; m++ {
+		copy(flat256[m*64:(m+1)*64], out512x4[m][:])
+	}
+	rec(flat256[:])
+
+	out256x4 = TEMEncrypt256x4(&keys256x4, &tw256x4, &in256x4)
+	for m := 0; m < 4; m++ {
+		copy(flat128[m*32:(m+1)*32], out256x4[m][:])
+	}
+	rec(flat128[:])
+
+	out256x4 = TEMDecrypt256x4(&keys256x4, &tw256x4, &in256x4)
+	for m := 0; m < 4; m++ {
+		copy(flat128[m*32:(m+1)*32], out256x4[m][:])
+	}
+	rec(flat128[:])
+
+	out512x4 = TEMEncrypt512x4(&keys512x4, &tw512x4, &in512x4)
+	for m := 0; m < 4; m++ {
+		copy(flat256[m*64:(m+1)*64], out512x4[m][:])
+	}
+	rec(flat256[:])
+
+	out512x4 = TEMDecrypt512x4(&keys512x4, &tw512x4, &in512x4)
+	for m := 0; m < 4; m++ {
+		copy(flat256[m*64:(m+1)*64], out512x4[m][:])
+	}
+	rec(flat256[:])
+
+	out256x4 = TEM2Encrypt256x4(&keys256x4, &tw256x4, &in256x4)
+	for m := 0; m < 4; m++ {
+		copy(flat128[m*32:(m+1)*32], out256x4[m][:])
+	}
+	rec(flat128[:])
+
+	out256x4 = TEM2Decrypt256x4(&keys256x4, &tw256x4, &in256x4)
+	for m := 0; m < 4; m++ {
+		copy(flat128[m*32:(m+1)*32], out256x4[m][:])
+	}
+	rec(flat128[:])
+
+	out512x4 = TEM2Encrypt512x4(&keys512x4, &tw512x4, &in512x4)
+	for m := 0; m < 4; m++ {
+		copy(flat256[m*64:(m+1)*64], out512x4[m][:])
+	}
+	rec(flat256[:])
+
+	out512x4 = TEM2Decrypt512x4(&keys512x4, &tw512x4, &in512x4)
+	for m := 0; m < 4; m++ {
+		copy(flat256[m*64:(m+1)*64], out512x4[m][:])
+	}
+	rec(flat256[:])
+
+	var soa256 [4][32]byte
+	for m := 0; m < 4; m++ {
+		fillCrossKATPattern(soa256[m][:], byte(0xD0+m))
+	}
+	var sb0, sb1 Block4
+	pack256x4SoAInto(&soa256, &sb0, &sb1)
+	copy(flat128[0:64], sb0[:])
+	copy(flat128[64:128], sb1[:])
+	rec(flat128[:])
+
+	clear(soa256[:])
+	unpack256x4SoA(&sb0, &sb1, &soa256)
+	for m := 0; m < 4; m++ {
+		copy(flat128[m*32:(m+1)*32], soa256[m][:])
+	}
+	rec(flat128[:])
+
+	var soa512 [4][64]byte
+	for m := 0; m < 4; m++ {
+		fillCrossKATPattern(soa512[m][:], byte(0xD4+m))
+	}
+	var sa, sb, sc, sd Block4
+	pack512x4SoAInto(&soa512, &sa, &sb, &sc, &sd)
+	copy(flat256[0:64], sa[:])
+	copy(flat256[64:128], sb[:])
+	copy(flat256[128:192], sc[:])
+	copy(flat256[192:256], sd[:])
+	rec(flat256[:])
+
+	clear(soa512[:])
+	unpack512x4SoA(&sa, &sb, &sc, &sd, &soa512)
+	for m := 0; m < 4; m++ {
+		copy(flat256[m*64:(m+1)*64], soa512[m][:])
+	}
+	rec(flat256[:])
+
+	return out
+}
+
+func TestAllFunctionsCrossKATAndTierMatrix(t *testing.T) {
+	tiers := availableTiers()
+	origTier := Tier()
+	defer func() { _ = SetTier(origTier) }()
+
+	wantCodeForTier := map[string]int32{
+		"purego":   TierPureGo,
+		"aesni":    TierAESNI,
+		"arm64":    TierARMCrypto,
+		"vex":      TierVEX,
+		"vaesavx2": TierVAESAVX2,
+		"avx512":   TierAVX512,
+	}
+
+	resultsByTier := make(map[string][81]string, len(tiers))
+
+	// Part 1: Deterministic Cross-Language KAT Suite across all 81 KAT entries
+	// (73 Go data-transforming functions + 8 C cross-language alias entries)
+	// plus tier/hardware introspection functions (Tier, TierCode, SetTier, UseHardwareAcceleration).
+	for _, tier := range tiers {
+		if err := SetTier(tier); err != nil {
+			t.Fatalf("SetTier(%q) failed: %v", tier, err)
+		}
+		if gotTier := Tier(); gotTier != tier {
+			t.Fatalf("Tier() = %q after SetTier(%q)", gotTier, tier)
+		}
+		if wantCode, ok := wantCodeForTier[tier]; ok {
+			if gotCode := TierCode(); gotCode != wantCode {
+				t.Fatalf("TierCode() = %d on tier %q, want %d", gotCode, tier, wantCode)
+			}
+		}
+		wantHW := tier != "purego"
+		if gotHW := UseHardwareAcceleration(); gotHW != wantHW {
+			t.Fatalf("UseHardwareAcceleration() = %v on tier %q, want %v", gotHW, tier, wantHW)
+		}
+
+		got := evalAllCrossKATFunctions()
+		for k, entry := range canonicalCrossKATVectors {
+			if got[k] != entry.want {
+				t.Fatalf("[tier=%s] %s cross-KAT mismatch:\ngot:  %s\nwant: %s", tier, entry.name, got[k], entry.want)
+			}
+		}
+		resultsByTier[tier] = got
+		t.Logf("Verified cross-language KAT suite on tier %s (81/81 KAT vectors matched)", tier)
+	}
+
+	// Part 2: Explicit Pairwise tier_A x tier_B Matrix across all functions.
+	for i, tierA := range tiers {
+		for j, tierB := range tiers {
+			resA := resultsByTier[tierA]
+			resB := resultsByTier[tierB]
+			for k, entry := range canonicalCrossKATVectors {
+				if resA[k] != resB[k] {
+					t.Fatalf("Pairwise tier×tier mismatch [%s (idx %d) <-> %s (idx %d)] on %s:\n%s: %s\n%s: %s",
+						tierA, i, tierB, j, entry.name, tierA, resA[k], tierB, resB[k])
+				}
+			}
+			t.Logf("Verified pairwise tier×tier matrix: %s <-> %s (81/81 functions identical)", tierA, tierB)
+		}
+	}
+}
+
+func TestSelfTestAllTiers(t *testing.T) {
+	eachTier(t, func(t *testing.T, tier string) {
+		if err := SelfTest(); err != nil {
+			t.Fatalf("[tier=%s] SelfTest() returned error: %v", tier, err)
+		}
+	})
+
+	var buf [97]byte
+	for i := range buf {
+		buf[i] = byte(i + 1)
+	}
+	Zeroize(buf[:])
+	for i, b := range buf {
+		if b != 0 {
+			t.Fatalf("Zeroize failed at index %d: got 0x%02x, want 0", i, b)
+		}
+	}
+	Zeroize(nil)
+	Zeroize(buf[:0])
+}
+
+func TestUnalignedAndAliasedPointersAllTiers(t *testing.T) {
+	offsets := []int{1, 2, 3, 5, 7}
+	arena := make([]byte, 4096)
+
+	checkGuard := func(t *testing.T, tier, name string, off, start, size int, before, after byte) {
+		t.Helper()
+		if arena[start-1] != before {
+			t.Fatalf("[tier=%s off=%d] %s corrupted pre-guard byte: got 0x%02x, want 0x%02x",
+				tier, off, name, arena[start-1], before)
+		}
+		if arena[start+size] != after {
+			t.Fatalf("[tier=%s off=%d] %s corrupted post-guard byte: got 0x%02x, want 0x%02x",
+				tier, off, name, arena[start+size], after)
+		}
+	}
+
+	eachTier(t, func(t *testing.T, tier string) {
+		for _, off := range offsets {
+			for i := range arena {
+				arena[i] = byte((i*73 + off*19 + 0xa5) & 0xFF)
+			}
+
+			// 1. Unaligned single-block and 4-block permutations, DM, SoEM, AES primitives, and EM/EM2/TEM/TEM2
+			p16A := (*[16]byte)(arena[64+off : 64+off+16])
+			p16B := (*[16]byte)(arena[128+off : 128+off+16])
+			p16C := (*[16]byte)(arena[192+off : 192+off+16])
+			p32A := (*[32]byte)(arena[256+off : 256+off+32])
+			p32B := (*[32]byte)(arena[320+off : 320+off+32])
+			p64A := (*[64]byte)(arena[384+off : 384+off+64])
+			p64B := (*[64]byte)(arena[512+off : 512+off+64])
+			p64C := (*[64]byte)(arena[640+off : 640+off+64])
+			p128A := (*[128]byte)(arena[768+off : 768+off+128])
+			p4x32A := (*[4][32]byte)(unsafe.Pointer(&arena[1024+off]))
+			p4x32B := (*[4][32]byte)(unsafe.Pointer(&arena[1280+off]))
+			p4x64A := (*[4][64]byte)(unsafe.Pointer(&arena[1536+off]))
+			p4x64B := (*[4][64]byte)(unsafe.Pointer(&arena[1920+off]))
+			p4x128A := (*[4][128]byte)(unsafe.Pointer(&arena[2304+off]))
+			pRk := (*[11][16]byte)(unsafe.Pointer(&arena[3072+off]))
+
+			// Permute256 / InversePermute256 / P2
+			ref32 := *p32A
+			pre, post := arena[256+off-1], arena[256+off+32]
+			Permute256(&ref32)
+			Permute256(p32A)
+			checkGuard(t, tier, "Permute256", off, 256+off, 32, pre, post)
+			if *p32A != ref32 {
+				t.Fatalf("[tier=%s off=%d] Permute256 unaligned mismatch", tier, off)
+			}
+			InversePermute256(&ref32)
+			InversePermute256(p32A)
+			checkGuard(t, tier, "InversePermute256", off, 256+off, 32, pre, post)
+			if *p32A != ref32 {
+				t.Fatalf("[tier=%s off=%d] InversePermute256 unaligned mismatch", tier, off)
+			}
+			Permute256P2(&ref32)
+			Permute256P2(p32A)
+			checkGuard(t, tier, "Permute256P2", off, 256+off, 32, pre, post)
+			if *p32A != ref32 {
+				t.Fatalf("[tier=%s off=%d] Permute256P2 unaligned mismatch", tier, off)
+			}
+			InversePermute256P2(&ref32)
+			InversePermute256P2(p32A)
+			checkGuard(t, tier, "InversePermute256P2", off, 256+off, 32, pre, post)
+			if *p32A != ref32 {
+				t.Fatalf("[tier=%s off=%d] InversePermute256P2 unaligned mismatch", tier, off)
+			}
+
+			// Permute512 / InversePermute512 / P2
+			ref64 := *p64A
+			pre, post = arena[384+off-1], arena[384+off+64]
+			Permute512(&ref64)
+			Permute512(p64A)
+			checkGuard(t, tier, "Permute512", off, 384+off, 64, pre, post)
+			if *p64A != ref64 {
+				t.Fatalf("[tier=%s off=%d] Permute512 unaligned mismatch", tier, off)
+			}
+			InversePermute512(&ref64)
+			InversePermute512(p64A)
+			checkGuard(t, tier, "InversePermute512", off, 384+off, 64, pre, post)
+			if *p64A != ref64 {
+				t.Fatalf("[tier=%s off=%d] InversePermute512 unaligned mismatch", tier, off)
+			}
+			Permute512P2(&ref64)
+			Permute512P2(p64A)
+			checkGuard(t, tier, "Permute512P2", off, 384+off, 64, pre, post)
+			if *p64A != ref64 {
+				t.Fatalf("[tier=%s off=%d] Permute512P2 unaligned mismatch", tier, off)
+			}
+			InversePermute512P2(&ref64)
+			InversePermute512P2(p64A)
+			checkGuard(t, tier, "InversePermute512P2", off, 384+off, 64, pre, post)
+			if *p64A != ref64 {
+				t.Fatalf("[tier=%s off=%d] InversePermute512P2 unaligned mismatch", tier, off)
+			}
+
+			// DM256 / DM512 / SoEM256 / SoEM512
+			if DM256(p32A) != DM256(&ref32) {
+				t.Fatalf("[tier=%s off=%d] DM256 unaligned mismatch", tier, off)
+			}
+			if DM512(p64A) != DM512(&ref64) {
+				t.Fatalf("[tier=%s off=%d] DM512 unaligned mismatch", tier, off)
+			}
+			refK256 := *p64B
+			refM256 := *p32A
+			if SoEM256(p64B, p32A) != SoEM256(&refK256, &refM256) {
+				t.Fatalf("[tier=%s off=%d] SoEM256 unaligned mismatch", tier, off)
+			}
+			refK512 := *p128A
+			refM512 := *p64A
+			if SoEM512(p128A, p64A) != SoEM512(&refK512, &refM512) {
+				t.Fatalf("[tier=%s off=%d] SoEM512 unaligned mismatch", tier, off)
+			}
+
+			// Permute256x4 / InversePermute256x4 / P2x4 / Permute512x4 / InversePermute512x4 / P2x4
+			ref4x32 := *p4x32A
+			pre, post = arena[1024+off-1], arena[1024+off+128]
+			Permute256x4(&ref4x32)
+			Permute256x4(p4x32A)
+			checkGuard(t, tier, "Permute256x4", off, 1024+off, 128, pre, post)
+			if *p4x32A != ref4x32 {
+				t.Fatalf("[tier=%s off=%d] Permute256x4 unaligned mismatch", tier, off)
+			}
+			InversePermute256x4(&ref4x32)
+			InversePermute256x4(p4x32A)
+			if *p4x32A != ref4x32 {
+				t.Fatalf("[tier=%s off=%d] InversePermute256x4 unaligned mismatch", tier, off)
+			}
+			Permute256P2x4(&ref4x32)
+			Permute256P2x4(p4x32A)
+			if *p4x32A != ref4x32 {
+				t.Fatalf("[tier=%s off=%d] Permute256P2x4 unaligned mismatch", tier, off)
+			}
+			InversePermute256P2x4(&ref4x32)
+			InversePermute256P2x4(p4x32A)
+			if *p4x32A != ref4x32 {
+				t.Fatalf("[tier=%s off=%d] InversePermute256P2x4 unaligned mismatch", tier, off)
+			}
+
+			ref4x64 := *p4x64A
+			pre, post = arena[1536+off-1], arena[1536+off+256]
+			Permute512x4(&ref4x64)
+			Permute512x4(p4x64A)
+			checkGuard(t, tier, "Permute512x4", off, 1536+off, 256, pre, post)
+			if *p4x64A != ref4x64 {
+				t.Fatalf("[tier=%s off=%d] Permute512x4 unaligned mismatch", tier, off)
+			}
+			InversePermute512x4(&ref4x64)
+			InversePermute512x4(p4x64A)
+			if *p4x64A != ref4x64 {
+				t.Fatalf("[tier=%s off=%d] InversePermute512x4 unaligned mismatch", tier, off)
+			}
+			Permute512P2x4(&ref4x64)
+			Permute512P2x4(p4x64A)
+			if *p4x64A != ref4x64 {
+				t.Fatalf("[tier=%s off=%d] Permute512P2x4 unaligned mismatch", tier, off)
+			}
+			InversePermute512P2x4(&ref4x64)
+			InversePermute512P2x4(p4x64A)
+			if *p4x64A != ref4x64 {
+				t.Fatalf("[tier=%s off=%d] InversePermute512P2x4 unaligned mismatch", tier, off)
+			}
+
+			// SoEM256x4 / SoEM512x4
+			refK256x4 := *p4x64A
+			refM256x4 := *p4x32A
+			if SoEM256x4(p4x64A, p4x32A) != SoEM256x4(&refK256x4, &refM256x4) {
+				t.Fatalf("[tier=%s off=%d] SoEM256x4 unaligned mismatch", tier, off)
+			}
+			refK512x4 := *p4x128A
+			refM512x4 := *p4x64A
+			if SoEM512x4(p4x128A, p4x64A) != SoEM512x4(&refK512x4, &refM512x4) {
+				t.Fatalf("[tier=%s off=%d] SoEM512x4 unaligned mismatch", tier, off)
+			}
+
+			// AES-128 primitives
+			b16, rk16 := *p16A, *p16B
+			Round(&b16, &rk16)
+			Round(p16A, p16B)
+			if *p16A != b16 {
+				t.Fatalf("[tier=%s off=%d] Round unaligned mismatch", tier, off)
+			}
+			FinalRound(&b16, &rk16)
+			FinalRound(p16A, p16B)
+			if *p16A != b16 {
+				t.Fatalf("[tier=%s off=%d] FinalRound unaligned mismatch", tier, off)
+			}
+			RoundHW(&b16, &rk16)
+			RoundHW(p16A, p16B)
+			if *p16A != b16 {
+				t.Fatalf("[tier=%s off=%d] RoundHW unaligned mismatch", tier, off)
+			}
+			FinalRoundHW(&b16, &rk16)
+			FinalRoundHW(p16A, p16B)
+			if *p16A != b16 {
+				t.Fatalf("[tier=%s off=%d] FinalRoundHW unaligned mismatch", tier, off)
+			}
+			AES128Round(&b16, &rk16)
+			AES128Round(p16A, p16B)
+			if *p16A != b16 {
+				t.Fatalf("[tier=%s off=%d] AES128Round unaligned mismatch", tier, off)
+			}
+			AES128FinalRound(&b16, &rk16)
+			AES128FinalRound(p16A, p16B)
+			if *p16A != b16 {
+				t.Fatalf("[tier=%s off=%d] AES128FinalRound unaligned mismatch", tier, off)
+			}
+
+			b64, rk64 := *p64A, *p64B
+			Round4HW(&b64, &rk64)
+			Round4HW(p64A, p64B)
+			if *p64A != b64 {
+				t.Fatalf("[tier=%s off=%d] Round4HW unaligned mismatch", tier, off)
+			}
+			FinalRound4HW(&b64, &rk64)
+			FinalRound4HW(p64A, p64B)
+			if *p64A != b64 {
+				t.Fatalf("[tier=%s off=%d] FinalRound4HW unaligned mismatch", tier, off)
+			}
+			AES128Round4(&b64, &rk64)
+			AES128Round4(p64A, p64B)
+			if *p64A != b64 {
+				t.Fatalf("[tier=%s off=%d] AES128Round4 unaligned mismatch", tier, off)
+			}
+			AES128FinalRound4(&b64, &rk64)
+			AES128FinalRound4(p64A, p64B)
+			if *p64A != b64 {
+				t.Fatalf("[tier=%s off=%d] AES128FinalRound4 unaligned mismatch", tier, off)
+			}
+
+			var x16 [16]byte
+			XorBlock(&x16, &b16, &rk16)
+			XorBlock(p16C, p16A, p16B)
+			if *p16C != x16 {
+				t.Fatalf("[tier=%s off=%d] XorBlock unaligned mismatch", tier, off)
+			}
+			var x64 [64]byte
+			XorBlock4(&x64, &b64, &rk64)
+			XorBlock4(p64C, p64A, p64B)
+			if *p64C != x64 {
+				t.Fatalf("[tier=%s off=%d] XorBlock4 unaligned mismatch", tier, off)
+			}
+
+			var refRk [11][16]byte
+			ExpandKey128(&rk16, &refRk)
+			ExpandKey128(p16B, pRk)
+			if *pRk != refRk {
+				t.Fatalf("[tier=%s off=%d] ExpandKey128 unaligned mismatch", tier, off)
+			}
+			AES128EncryptBlock(&refRk, &x16, &b16)
+			AES128EncryptBlock(pRk, p16C, p16A)
+			if *p16C != x16 {
+				t.Fatalf("[tier=%s off=%d] AES128EncryptBlock unaligned mismatch", tier, off)
+			}
+			AES128Encrypt4Blocks(&refRk, &x64, &b64)
+			AES128Encrypt4Blocks(pRk, p64C, p64A)
+			if *p64C != x64 {
+				t.Fatalf("[tier=%s off=%d] AES128Encrypt4Blocks unaligned mismatch", tier, off)
+			}
+
+			// All 32 EM / EM2 / TEM / TEM2 functions (unaligned)
+			refK256 = *p64B
+			refM256 = *p32A
+			refK512 = *p128A
+			refM512 = *p64A
+			refT256 := *p32B
+			refT512 := *p64C
+			refK256x4 = *p4x64A
+			refM256x4 = *p4x32A
+			refK512x4 = *p4x128A
+			refM512x4 = *p4x64A
+			refT256x4 := *p4x32B
+			refT512x4 := *p4x64B
+
+			if EMEncrypt256(p64B, p32A) != EMEncrypt256(&refK256, &refM256) ||
+				EMDecrypt256(p64B, p32A) != EMDecrypt256(&refK256, &refM256) ||
+				EMEncrypt512(p128A, p64A) != EMEncrypt512(&refK512, &refM512) ||
+				EMDecrypt512(p128A, p64A) != EMDecrypt512(&refK512, &refM512) {
+				t.Fatalf("[tier=%s off=%d] EM single-block unaligned mismatch", tier, off)
+			}
+			if EM2Encrypt256(p64B, p32A) != EM2Encrypt256(&refK256, &refM256) ||
+				EM2Decrypt256(p64B, p32A) != EM2Decrypt256(&refK256, &refM256) ||
+				EM2Encrypt512(p128A, p64A) != EM2Encrypt512(&refK512, &refM512) ||
+				EM2Decrypt512(p128A, p64A) != EM2Decrypt512(&refK512, &refM512) {
+				t.Fatalf("[tier=%s off=%d] EM2 single-block unaligned mismatch", tier, off)
+			}
+			if TEMEncrypt256(p64B, p32B, p32A) != TEMEncrypt256(&refK256, &refT256, &refM256) ||
+				TEMDecrypt256(p64B, p32B, p32A) != TEMDecrypt256(&refK256, &refT256, &refM256) ||
+				TEMEncrypt512(p128A, p64C, p64A) != TEMEncrypt512(&refK512, &refT512, &refM512) ||
+				TEMDecrypt512(p128A, p64C, p64A) != TEMDecrypt512(&refK512, &refT512, &refM512) {
+				t.Fatalf("[tier=%s off=%d] TEM single-block unaligned mismatch", tier, off)
+			}
+			if TEM2Encrypt256(p64B, p32B, p32A) != TEM2Encrypt256(&refK256, &refT256, &refM256) ||
+				TEM2Decrypt256(p64B, p32B, p32A) != TEM2Decrypt256(&refK256, &refT256, &refM256) ||
+				TEMEncrypt512(p128A, p64C, p64A) != TEMEncrypt512(&refK512, &refT512, &refM512) ||
+				TEM2Encrypt512(p128A, p64C, p64A) != TEM2Encrypt512(&refK512, &refT512, &refM512) ||
+				TEM2Decrypt512(p128A, p64C, p64A) != TEM2Decrypt512(&refK512, &refT512, &refM512) {
+				t.Fatalf("[tier=%s off=%d] TEM2 single-block unaligned mismatch", tier, off)
+			}
+
+			if EMEncrypt256x4(p4x64A, p4x32A) != EMEncrypt256x4(&refK256x4, &refM256x4) ||
+				EMDecrypt256x4(p4x64A, p4x32A) != EMDecrypt256x4(&refK256x4, &refM256x4) ||
+				EMEncrypt512x4(p4x128A, p4x64A) != EMEncrypt512x4(&refK512x4, &refM512x4) ||
+				EMDecrypt512x4(p4x128A, p4x64A) != EMDecrypt512x4(&refK512x4, &refM512x4) {
+				t.Fatalf("[tier=%s off=%d] EM x4 unaligned mismatch", tier, off)
+			}
+			if EM2Encrypt256x4(p4x64A, p4x32A) != EM2Encrypt256x4(&refK256x4, &refM256x4) ||
+				EM2Decrypt256x4(p4x64A, p4x32A) != EM2Decrypt256x4(&refK256x4, &refM256x4) ||
+				EM2Encrypt512x4(p4x128A, p4x64A) != EM2Encrypt512x4(&refK512x4, &refM512x4) ||
+				EM2Decrypt512x4(p4x128A, p4x64A) != EM2Decrypt512x4(&refK512x4, &refM512x4) {
+				t.Fatalf("[tier=%s off=%d] EM2 x4 unaligned mismatch", tier, off)
+			}
+			if TEMEncrypt256x4(p4x64A, p4x32B, p4x32A) != TEMEncrypt256x4(&refK256x4, &refT256x4, &refM256x4) ||
+				TEMDecrypt256x4(p4x64A, p4x32B, p4x32A) != TEMDecrypt256x4(&refK256x4, &refT256x4, &refM256x4) ||
+				TEMEncrypt512x4(p4x128A, p4x64B, p4x64A) != TEMEncrypt512x4(&refK512x4, &refT512x4, &refM512x4) ||
+				TEMDecrypt512x4(p4x128A, p4x64B, p4x64A) != TEMDecrypt512x4(&refK512x4, &refT512x4, &refM512x4) {
+				t.Fatalf("[tier=%s off=%d] TEM x4 unaligned mismatch", tier, off)
+			}
+			if TEM2Encrypt256x4(p4x64A, p4x32B, p4x32A) != TEM2Encrypt256x4(&refK256x4, &refT256x4, &refM256x4) ||
+				TEM2Decrypt256x4(p4x64A, p4x32B, p4x32A) != TEM2Decrypt256x4(&refK256x4, &refT256x4, &refM256x4) ||
+				TEM2Encrypt512x4(p4x128A, p4x64B, p4x64A) != TEM2Encrypt512x4(&refK512x4, &refT512x4, &refM512x4) ||
+				TEM2Decrypt512x4(p4x128A, p4x64B, p4x64A) != TEM2Decrypt512x4(&refK512x4, &refT512x4, &refM512x4) {
+				t.Fatalf("[tier=%s off=%d] TEM2 x4 unaligned mismatch", tier, off)
+			}
+
+			// 2. Pointer Aliasing (both unaligned and sub-slice aliased)
+			// AES Round / FinalRound / Round4 / XorBlock / AES128EncryptBlock aliasing
+			a16, b16Copy := *p16A, *p16A
+			Round(&a16, &b16Copy)
+			Round(p16A, p16A)
+			if *p16A != a16 {
+				t.Fatalf("[tier=%s off=%d] Round(x, x) aliasing mismatch", tier, off)
+			}
+			a16, b16Copy = *p16A, *p16A
+			FinalRound(&a16, &b16Copy)
+			FinalRound(p16A, p16A)
+			if *p16A != a16 {
+				t.Fatalf("[tier=%s off=%d] FinalRound(x, x) aliasing mismatch", tier, off)
+			}
+			a16, b16Copy = *p16A, *p16A
+			AES128Round(&a16, &b16Copy)
+			AES128Round(p16A, p16A)
+			if *p16A != a16 {
+				t.Fatalf("[tier=%s off=%d] AES128Round(x, x) aliasing mismatch", tier, off)
+			}
+			a16, b16Copy = *p16A, *p16A
+			AES128FinalRound(&a16, &b16Copy)
+			AES128FinalRound(p16A, p16A)
+			if *p16A != a16 {
+				t.Fatalf("[tier=%s off=%d] AES128FinalRound(x, x) aliasing mismatch", tier, off)
+			}
+
+			a64, b64Copy := *p64A, *p64A
+			AES128Round4(&a64, &b64Copy)
+			AES128Round4(p64A, p64A)
+			if *p64A != a64 {
+				t.Fatalf("[tier=%s off=%d] AES128Round4(x, x) aliasing mismatch", tier, off)
+			}
+			a64, b64Copy = *p64A, *p64A
+			AES128FinalRound4(&a64, &b64Copy)
+			AES128FinalRound4(p64A, p64A)
+			if *p64A != a64 {
+				t.Fatalf("[tier=%s off=%d] AES128FinalRound4(x, x) aliasing mismatch", tier, off)
+			}
+
+			a16 = *p16A
+			AES128EncryptBlock(&refRk, &x16, &a16)
+			AES128EncryptBlock(pRk, p16A, p16A)
+			if *p16A != x16 {
+				t.Fatalf("[tier=%s off=%d] AES128EncryptBlock(rk, x, x) aliasing mismatch", tier, off)
+			}
+			a64 = *p64A
+			AES128Encrypt4Blocks(&refRk, &x64, &a64)
+			AES128Encrypt4Blocks(pRk, p64A, p64A)
+			if *p64A != x64 {
+				t.Fatalf("[tier=%s off=%d] AES128Encrypt4Blocks(rk, x, x) aliasing mismatch", tier, off)
+			}
+
+			// Single-block key/tweak/message pointer aliasing (K1 = key[0:32], K2 = key[32:64])
+			k256Sub0 := (*[32]byte)(p64B[0:32])
+			k256Sub1 := (*[32]byte)(p64B[32:64])
+			k512Sub0 := (*[64]byte)(p128A[0:64])
+			k512Sub1 := (*[64]byte)(p128A[64:128])
+			cpK256 := *p64B
+			cpK256Sub0 := *k256Sub0
+			cpK256Sub1 := *k256Sub1
+			cpK512 := *p128A
+			cpK512Sub0 := *k512Sub0
+			cpK512Sub1 := *k512Sub1
+
+			if SoEM256(p64B, k256Sub0) != SoEM256(&cpK256, &cpK256Sub0) ||
+				SoEM256(p64B, k256Sub1) != SoEM256(&cpK256, &cpK256Sub1) ||
+				SoEM512(p128A, k512Sub0) != SoEM512(&cpK512, &cpK512Sub0) ||
+				SoEM512(p128A, k512Sub1) != SoEM512(&cpK512, &cpK512Sub1) {
+				t.Fatalf("[tier=%s off=%d] SoEM key/input aliasing mismatch", tier, off)
+			}
+			if EMEncrypt256(p64B, k256Sub0) != EMEncrypt256(&cpK256, &cpK256Sub0) ||
+				EMEncrypt256(p64B, k256Sub1) != EMEncrypt256(&cpK256, &cpK256Sub1) ||
+				EMDecrypt256(p64B, k256Sub0) != EMDecrypt256(&cpK256, &cpK256Sub0) ||
+				EMDecrypt256(p64B, k256Sub1) != EMDecrypt256(&cpK256, &cpK256Sub1) ||
+				EMEncrypt512(p128A, k512Sub0) != EMEncrypt512(&cpK512, &cpK512Sub0) ||
+				EMEncrypt512(p128A, k512Sub1) != EMEncrypt512(&cpK512, &cpK512Sub1) ||
+				EMDecrypt512(p128A, k512Sub0) != EMDecrypt512(&cpK512, &cpK512Sub0) ||
+				EMDecrypt512(p128A, k512Sub1) != EMDecrypt512(&cpK512, &cpK512Sub1) {
+				t.Fatalf("[tier=%s off=%d] EM key/msg aliasing mismatch", tier, off)
+			}
+			if EM2Encrypt256(p64B, k256Sub0) != EM2Encrypt256(&cpK256, &cpK256Sub0) ||
+				EM2Encrypt256(p64B, k256Sub1) != EM2Encrypt256(&cpK256, &cpK256Sub1) ||
+				EM2Decrypt256(p64B, k256Sub0) != EM2Decrypt256(&cpK256, &cpK256Sub0) ||
+				EM2Decrypt256(p64B, k256Sub1) != EM2Decrypt256(&cpK256, &cpK256Sub1) ||
+				EM2Encrypt512(p128A, k512Sub0) != EM2Encrypt512(&cpK512, &cpK512Sub0) ||
+				EM2Encrypt512(p128A, k512Sub1) != EM2Encrypt512(&cpK512, &cpK512Sub1) ||
+				EM2Decrypt512(p128A, k512Sub0) != EM2Decrypt512(&cpK512, &cpK512Sub0) ||
+				EM2Decrypt512(p128A, k512Sub1) != EM2Decrypt512(&cpK512, &cpK512Sub1) {
+				t.Fatalf("[tier=%s off=%d] EM2 key/msg aliasing mismatch", tier, off)
+			}
+			if TEMEncrypt256(p64B, k256Sub0, k256Sub0) != TEMEncrypt256(&cpK256, &cpK256Sub0, &cpK256Sub0) ||
+				TEMEncrypt256(p64B, k256Sub1, k256Sub0) != TEMEncrypt256(&cpK256, &cpK256Sub1, &cpK256Sub0) ||
+				TEMDecrypt256(p64B, k256Sub0, k256Sub0) != TEMDecrypt256(&cpK256, &cpK256Sub0, &cpK256Sub0) ||
+				TEMDecrypt256(p64B, k256Sub1, k256Sub0) != TEMDecrypt256(&cpK256, &cpK256Sub1, &cpK256Sub0) ||
+				TEMEncrypt512(p128A, k512Sub0, k512Sub0) != TEMEncrypt512(&cpK512, &cpK512Sub0, &cpK512Sub0) ||
+				TEMEncrypt512(p128A, k512Sub1, k512Sub0) != TEMEncrypt512(&cpK512, &cpK512Sub1, &cpK512Sub0) ||
+				TEMDecrypt512(p128A, k512Sub0, k512Sub0) != TEMDecrypt512(&cpK512, &cpK512Sub0, &cpK512Sub0) ||
+				TEMDecrypt512(p128A, k512Sub1, k512Sub0) != TEMDecrypt512(&cpK512, &cpK512Sub1, &cpK512Sub0) {
+				t.Fatalf("[tier=%s off=%d] TEM key/tweak/msg aliasing mismatch", tier, off)
+			}
+			if TEM2Encrypt256(p64B, k256Sub0, k256Sub0) != TEM2Encrypt256(&cpK256, &cpK256Sub0, &cpK256Sub0) ||
+				TEM2Encrypt256(p64B, k256Sub1, k256Sub0) != TEM2Encrypt256(&cpK256, &cpK256Sub1, &cpK256Sub0) ||
+				TEM2Decrypt256(p64B, k256Sub0, k256Sub0) != TEM2Decrypt256(&cpK256, &cpK256Sub0, &cpK256Sub0) ||
+				TEM2Decrypt256(p64B, k256Sub1, k256Sub0) != TEM2Decrypt256(&cpK256, &cpK256Sub1, &cpK256Sub0) ||
+				TEM2Encrypt512(p128A, k512Sub0, k512Sub0) != TEM2Encrypt512(&cpK512, &cpK512Sub0, &cpK512Sub0) ||
+				TEM2Encrypt512(p128A, k512Sub1, k512Sub0) != TEM2Encrypt512(&cpK512, &cpK512Sub1, &cpK512Sub0) ||
+				TEM2Decrypt512(p128A, k512Sub0, k512Sub0) != TEM2Decrypt512(&cpK512, &cpK512Sub0, &cpK512Sub0) ||
+				TEM2Decrypt512(p128A, k512Sub1, k512Sub0) != TEM2Decrypt512(&cpK512, &cpK512Sub1, &cpK512Sub0) {
+				t.Fatalf("[tier=%s off=%d] TEM2 key/tweak/msg aliasing mismatch", tier, off)
+			}
+
+			// 4-block x4 key/tweak/message pointer aliasing (unaligned in arena)
+			aliasM256x4 := (*[4][32]byte)(unsafe.Pointer(&arena[1536+off]))
+			aliasT256x4 := (*[4][32]byte)(unsafe.Pointer(&arena[1536+off+128]))
+			aliasM512x4 := (*[4][64]byte)(unsafe.Pointer(&arena[2304+off]))
+			aliasT512x4 := (*[4][64]byte)(unsafe.Pointer(&arena[2304+off+256]))
+			cpK256x4 := *p4x64A
+			cpM256x4 := *aliasM256x4
+			cpT256x4 := *aliasT256x4
+			cpK512x4 := *p4x128A
+			cpM512x4 := *aliasM512x4
+			cpT512x4 := *aliasT512x4
+
+			if SoEM256x4(p4x64A, aliasM256x4) != SoEM256x4(&cpK256x4, &cpM256x4) ||
+				SoEM512x4(p4x128A, aliasM512x4) != SoEM512x4(&cpK512x4, &cpM512x4) {
+				t.Fatalf("[tier=%s off=%d] SoEM x4 aliasing mismatch", tier, off)
+			}
+			if EMEncrypt256x4(p4x64A, aliasM256x4) != EMEncrypt256x4(&cpK256x4, &cpM256x4) ||
+				EMDecrypt256x4(p4x64A, aliasM256x4) != EMDecrypt256x4(&cpK256x4, &cpM256x4) ||
+				EMEncrypt512x4(p4x128A, aliasM512x4) != EMEncrypt512x4(&cpK512x4, &cpM512x4) ||
+				EMDecrypt512x4(p4x128A, aliasM512x4) != EMDecrypt512x4(&cpK512x4, &cpM512x4) {
+				t.Fatalf("[tier=%s off=%d] EM x4 aliasing mismatch", tier, off)
+			}
+			if EM2Encrypt256x4(p4x64A, aliasM256x4) != EM2Encrypt256x4(&cpK256x4, &cpM256x4) ||
+				EM2Decrypt256x4(p4x64A, aliasM256x4) != EM2Decrypt256x4(&cpK256x4, &cpM256x4) ||
+				EM2Encrypt512x4(p4x128A, aliasM512x4) != EM2Encrypt512x4(&cpK512x4, &cpM512x4) ||
+				EM2Decrypt512x4(p4x128A, aliasM512x4) != EM2Decrypt512x4(&cpK512x4, &cpM512x4) {
+				t.Fatalf("[tier=%s off=%d] EM2 x4 aliasing mismatch", tier, off)
+			}
+			if TEMEncrypt256x4(p4x64A, aliasM256x4, aliasM256x4) != TEMEncrypt256x4(&cpK256x4, &cpM256x4, &cpM256x4) ||
+				TEMEncrypt256x4(p4x64A, aliasT256x4, aliasM256x4) != TEMEncrypt256x4(&cpK256x4, &cpT256x4, &cpM256x4) ||
+				TEMDecrypt256x4(p4x64A, aliasM256x4, aliasM256x4) != TEMDecrypt256x4(&cpK256x4, &cpM256x4, &cpM256x4) ||
+				TEMDecrypt256x4(p4x64A, aliasT256x4, aliasM256x4) != TEMDecrypt256x4(&cpK256x4, &cpT256x4, &cpM256x4) ||
+				TEMEncrypt512x4(p4x128A, aliasM512x4, aliasM512x4) != TEMEncrypt512x4(&cpK512x4, &cpM512x4, &cpM512x4) ||
+				TEMEncrypt512x4(p4x128A, aliasT512x4, aliasM512x4) != TEMEncrypt512x4(&cpK512x4, &cpT512x4, &cpM512x4) ||
+				TEMDecrypt512x4(p4x128A, aliasM512x4, aliasM512x4) != TEMDecrypt512x4(&cpK512x4, &cpM512x4, &cpM512x4) ||
+				TEMDecrypt512x4(p4x128A, aliasT512x4, aliasM512x4) != TEMDecrypt512x4(&cpK512x4, &cpT512x4, &cpM512x4) {
+				t.Fatalf("[tier=%s off=%d] TEM x4 aliasing mismatch", tier, off)
+			}
+			if TEM2Encrypt256x4(p4x64A, aliasM256x4, aliasM256x4) != TEM2Encrypt256x4(&cpK256x4, &cpM256x4, &cpM256x4) ||
+				TEM2Encrypt256x4(p4x64A, aliasT256x4, aliasM256x4) != TEM2Encrypt256x4(&cpK256x4, &cpT256x4, &cpM256x4) ||
+				TEM2Decrypt256x4(p4x64A, aliasM256x4, aliasM256x4) != TEM2Decrypt256x4(&cpK256x4, &cpM256x4, &cpM256x4) ||
+				TEM2Decrypt256x4(p4x64A, aliasT256x4, aliasM256x4) != TEM2Decrypt256x4(&cpK256x4, &cpT256x4, &cpM256x4) ||
+				TEM2Encrypt512x4(p4x128A, aliasM512x4, aliasM512x4) != TEM2Encrypt512x4(&cpK512x4, &cpM512x4, &cpM512x4) ||
+				TEM2Encrypt512x4(p4x128A, aliasT512x4, aliasM512x4) != TEM2Encrypt512x4(&cpK512x4, &cpT512x4, &cpM512x4) ||
+				TEM2Decrypt512x4(p4x128A, aliasM512x4, aliasM512x4) != TEM2Decrypt512x4(&cpK512x4, &cpM512x4, &cpM512x4) ||
+				TEM2Decrypt512x4(p4x128A, aliasT512x4, aliasM512x4) != TEM2Decrypt512x4(&cpK512x4, &cpT512x4, &cpM512x4) {
+				t.Fatalf("[tier=%s off=%d] TEM2 x4 aliasing mismatch", tier, off)
+			}
+		}
+	})
+}
+
+func rotateWords256(in [32]byte, byteShift int) (out [32]byte) {
+	for i := 0; i < 32; i++ {
+		out[i] = in[(i+byteShift)&31]
+	}
+	return out
+}
+
+func rotateWords512(in [64]byte, byteShift int) (out [64]byte) {
+	for i := 0; i < 64; i++ {
+		out[i] = in[(i+byteShift)&63]
+	}
+	return out
+}
+
+func TestWideBlockNonAffinityAndSymmetries(t *testing.T) {
+	eachTier(t, func(t *testing.T, tier string) {
+		var k256, k256Swap [64]byte
+		var k512, k512Swap [128]byte
+		var t256, a256, b256, c256, abc256, mShift256 [32]byte
+		var t512, a512, b512, c512, abc512, mShift512 [64]byte
+
+		fillCrossKATPattern(k256[:], 0x11)
+		copy(k256Swap[0:32], k256[32:64])
+		copy(k256Swap[32:64], k256[0:32])
+
+		fillCrossKATPattern(k512[:], 0x22)
+		copy(k512Swap[0:64], k512[64:128])
+		copy(k512Swap[64:128], k512[0:64])
+
+		fillCrossKATPattern(t256[:], 0x33)
+		fillCrossKATPattern(a256[:], 0x44)
+		fillCrossKATPattern(b256[:], 0x55)
+		fillCrossKATPattern(c256[:], 0x66)
+		for i := 0; i < 32; i++ {
+			abc256[i] = a256[i] ^ b256[i] ^ c256[i]
+			mShift256[i] = a256[i] ^ k256[i] ^ k256[32+i]
+		}
+
+		fillCrossKATPattern(t512[:], 0x77)
+		fillCrossKATPattern(a512[:], 0x88)
+		fillCrossKATPattern(b512[:], 0x99)
+		fillCrossKATPattern(c512[:], 0xaa)
+		for i := 0; i < 64; i++ {
+			abc512[i] = a512[i] ^ b512[i] ^ c512[i]
+			mShift512[i] = a512[i] ^ k512[i] ^ k512[64+i]
+		}
+
+		rot32M256 := rotateWords256(a256, 4)
+		rot128M256 := rotateWords256(a256, 16)
+		rot32M512 := rotateWords512(a512, 4)
+		rot128M512 := rotateWords512(a512, 16)
+
+		check256 := func(name string, f func(k *[64]byte, m *[32]byte) [32]byte) {
+			fa := f(&k256, &a256)
+			fb := f(&k256, &b256)
+			fc := f(&k256, &c256)
+			fabc := f(&k256, &abc256)
+			var sum [32]byte
+			nonZero := false
+			for i := 0; i < 32; i++ {
+				sum[i] = fa[i] ^ fb[i] ^ fc[i] ^ fabc[i]
+				if sum[i] != 0 {
+					nonZero = true
+				}
+			}
+			if !nonZero {
+				t.Fatalf("[%s] %s failed 2nd-order non-affinity check", tier, name)
+			}
+			if fa == f(&k256, &mShift256) {
+				t.Fatalf("[%s] %s exhibited shift symmetry F(M) == F(M ^ K1 ^ K2)", tier, name)
+			}
+			if fa == f(&k256Swap, &a256) {
+				t.Fatalf("[%s] %s exhibited subkey-swap symmetry F_{K1,K2}(M) == F_{K2,K1}(M)", tier, name)
+			}
+			if rotateWords256(fa, 4) == f(&k256, &rot32M256) {
+				t.Fatalf("[%s] %s exhibited 32-bit word rotational symmetry Rot32(F(M)) == F(Rot32(M))", tier, name)
+			}
+			if rotateWords256(fa, 16) == f(&k256, &rot128M256) {
+				t.Fatalf("[%s] %s exhibited 128-bit word rotational symmetry Rot128(F(M)) == F(Rot128(M))", tier, name)
+			}
+		}
+
+		check512 := func(name string, f func(k *[128]byte, m *[64]byte) [64]byte) {
+			fa := f(&k512, &a512)
+			fb := f(&k512, &b512)
+			fc := f(&k512, &c512)
+			fabc := f(&k512, &abc512)
+			var sum [64]byte
+			nonZero := false
+			for i := 0; i < 64; i++ {
+				sum[i] = fa[i] ^ fb[i] ^ fc[i] ^ fabc[i]
+				if sum[i] != 0 {
+					nonZero = true
+				}
+			}
+			if !nonZero {
+				t.Fatalf("[%s] %s failed 2nd-order non-affinity check", tier, name)
+			}
+			if fa == f(&k512, &mShift512) {
+				t.Fatalf("[%s] %s exhibited shift symmetry F(M) == F(M ^ K1 ^ K2)", tier, name)
+			}
+			if fa == f(&k512Swap, &a512) {
+				t.Fatalf("[%s] %s exhibited subkey-swap symmetry F_{K1,K2}(M) == F_{K2,K1}(M)", tier, name)
+			}
+			if rotateWords512(fa, 4) == f(&k512, &rot32M512) {
+				t.Fatalf("[%s] %s exhibited 32-bit word rotational symmetry Rot32(F(M)) == F(Rot32(M))", tier, name)
+			}
+			if rotateWords512(fa, 16) == f(&k512, &rot128M512) {
+				t.Fatalf("[%s] %s exhibited 128-bit word rotational symmetry Rot128(F(M)) == F(Rot128(M))", tier, name)
+			}
+		}
+
+		check256("EMEncrypt256", EMEncrypt256)
+		check256("EMDecrypt256", EMDecrypt256)
+		check256("EM2Encrypt256", EM2Encrypt256)
+		check256("EM2Decrypt256", EM2Decrypt256)
+		check256("TEMEncrypt256", func(k *[64]byte, m *[32]byte) [32]byte { return TEMEncrypt256(k, &t256, m) })
+		check256("TEMDecrypt256", func(k *[64]byte, m *[32]byte) [32]byte { return TEMDecrypt256(k, &t256, m) })
+		check256("TEM2Encrypt256", func(k *[64]byte, m *[32]byte) [32]byte { return TEM2Encrypt256(k, &t256, m) })
+		check256("TEM2Decrypt256", func(k *[64]byte, m *[32]byte) [32]byte { return TEM2Decrypt256(k, &t256, m) })
+
+		check512("EMEncrypt512", EMEncrypt512)
+		check512("EMDecrypt512", EMDecrypt512)
+		check512("EM2Encrypt512", EM2Encrypt512)
+		check512("EM2Decrypt512", EM2Decrypt512)
+		check512("TEMEncrypt512", func(k *[128]byte, m *[64]byte) [64]byte { return TEMEncrypt512(k, &t512, m) })
+		check512("TEMDecrypt512", func(k *[128]byte, m *[64]byte) [64]byte { return TEMDecrypt512(k, &t512, m) })
+		check512("TEM2Encrypt512", func(k *[128]byte, m *[64]byte) [64]byte { return TEM2Encrypt512(k, &t512, m) })
+		check512("TEM2Decrypt512", func(k *[128]byte, m *[64]byte) [64]byte { return TEM2Decrypt512(k, &t512, m) })
+
+		// Tweak 2nd-order non-affinity at fixed (K, M): E_K(T_a ^ T_b ^ T_c, M) != E_K(T_a, M) ^ E_K(T_b, M) ^ E_K(T_c, M)
+		checkTweak256 := func(name string, f func(k *[64]byte, t, m *[32]byte) [32]byte) {
+			fa := f(&k256, &a256, &t256)
+			fb := f(&k256, &b256, &t256)
+			fc := f(&k256, &c256, &t256)
+			fabc := f(&k256, &abc256, &t256)
+			nonZero := false
+			for i := 0; i < 32; i++ {
+				if (fa[i]^fb[i]^fc[i]^fabc[i]) != 0 {
+					nonZero = true
+				}
+			}
+			if !nonZero {
+				t.Fatalf("[%s] %s failed tweak 2nd-order non-affinity check", tier, name)
+			}
+		}
+		checkTweak512 := func(name string, f func(k *[128]byte, t, m *[64]byte) [64]byte) {
+			fa := f(&k512, &a512, &t512)
+			fb := f(&k512, &b512, &t512)
+			fc := f(&k512, &c512, &t512)
+			fabc := f(&k512, &abc512, &t512)
+			nonZero := false
+			for i := 0; i < 64; i++ {
+				if (fa[i]^fb[i]^fc[i]^fabc[i]) != 0 {
+					nonZero = true
+				}
+			}
+			if !nonZero {
+				t.Fatalf("[%s] %s failed tweak 2nd-order non-affinity check", tier, name)
+			}
+		}
+		checkTweak256("TEMEncrypt256", TEMEncrypt256)
+		checkTweak256("TEMDecrypt256", TEMDecrypt256)
+		checkTweak256("TEM2Encrypt256", TEM2Encrypt256)
+		checkTweak256("TEM2Decrypt256", TEM2Decrypt256)
+		checkTweak512("TEMEncrypt512", TEMEncrypt512)
+		checkTweak512("TEMDecrypt512", TEMDecrypt512)
+		checkTweak512("TEM2Encrypt512", TEM2Encrypt512)
+		checkTweak512("TEM2Decrypt512", TEM2Decrypt512)
+
+		// Tweak/Message asymmetry: E_K(T, M) != E_K(M, T) for T != M
+		if TEMEncrypt256(&k256, &t256, &a256) == TEMEncrypt256(&k256, &a256, &t256) ||
+			TEMDecrypt256(&k256, &t256, &a256) == TEMDecrypt256(&k256, &a256, &t256) ||
+			TEM2Encrypt256(&k256, &t256, &a256) == TEM2Encrypt256(&k256, &a256, &t256) ||
+			TEM2Decrypt256(&k256, &t256, &a256) == TEM2Decrypt256(&k256, &a256, &t256) {
+			t.Fatalf("[%s] 256-bit TEM/TEM2 failed tweak/message asymmetry E_K(T, M) != E_K(M, T)", tier)
+		}
+		if TEMEncrypt512(&k512, &t512, &a512) == TEMEncrypt512(&k512, &a512, &t512) ||
+			TEMDecrypt512(&k512, &t512, &a512) == TEMDecrypt512(&k512, &a512, &t512) ||
+			TEM2Encrypt512(&k512, &t512, &a512) == TEM2Encrypt512(&k512, &a512, &t512) ||
+			TEM2Decrypt512(&k512, &t512, &a512) == TEM2Decrypt512(&k512, &a512, &t512) {
+			t.Fatalf("[%s] 512-bit TEM/TEM2 failed tweak/message asymmetry E_K(T, M) != E_K(M, T)", tier)
+		}
+
+		// Cross-scheme domain separation: on identical (K, T, M), outputs of
+		// EMEncrypt, EM2Encrypt, TEMEncrypt, TEM2Encrypt, SoEM (and Decrypt variants) are pairwise distinct.
+		schemes256 := []struct {
+			name string
+			out  [32]byte
+		}{
+			{"EMEncrypt256", EMEncrypt256(&k256, &a256)},
+			{"EM2Encrypt256", EM2Encrypt256(&k256, &a256)},
+			{"TEMEncrypt256", TEMEncrypt256(&k256, &t256, &a256)},
+			{"TEM2Encrypt256", TEM2Encrypt256(&k256, &t256, &a256)},
+			{"SoEM256", SoEM256(&k256, &a256)},
+			{"EMDecrypt256", EMDecrypt256(&k256, &a256)},
+			{"EM2Decrypt256", EM2Decrypt256(&k256, &a256)},
+			{"TEMDecrypt256", TEMDecrypt256(&k256, &t256, &a256)},
+			{"TEM2Decrypt256", TEM2Decrypt256(&k256, &t256, &a256)},
+		}
+		for i := 0; i < len(schemes256); i++ {
+			for j := i + 1; j < len(schemes256); j++ {
+				if schemes256[i].out == schemes256[j].out {
+					t.Fatalf("[%s] 256-bit cross-scheme collision between %s and %s", tier, schemes256[i].name, schemes256[j].name)
+				}
+			}
+		}
+
+		schemes512 := []struct {
+			name string
+			out  [64]byte
+		}{
+			{"EMEncrypt512", EMEncrypt512(&k512, &a512)},
+			{"EM2Encrypt512", EM2Encrypt512(&k512, &a512)},
+			{"TEMEncrypt512", TEMEncrypt512(&k512, &t512, &a512)},
+			{"TEM2Encrypt512", TEM2Encrypt512(&k512, &t512, &a512)},
+			{"SoEM512", SoEM512(&k512, &a512)},
+			{"EMDecrypt512", EMDecrypt512(&k512, &a512)},
+			{"EM2Decrypt512", EM2Decrypt512(&k512, &a512)},
+			{"TEMDecrypt512", TEMDecrypt512(&k512, &t512, &a512)},
+			{"TEM2Decrypt512", TEM2Decrypt512(&k512, &t512, &a512)},
+		}
+		for i := 0; i < len(schemes512); i++ {
+			for j := i + 1; j < len(schemes512); j++ {
+				if schemes512[i].out == schemes512[j].out {
+					t.Fatalf("[%s] 512-bit cross-scheme collision between %s and %s", tier, schemes512[i].name, schemes512[j].name)
+				}
+			}
+		}
+	})
+}
+
+func TestZeroAllocationsAllFunctionsAllTiers(t *testing.T) {
+	if raceEnabled {
+		t.Skip("skipping zero-allocation audit when race detector is enabled")
+	}
+
+	var (
+		s256   State256
+		s512   State512
+		s256x4 [4][32]byte
+		s512x4 [4][64]byte
+		k256   [64]byte
+		t256   [32]byte
+		m256   [32]byte
+		k512   [128]byte
+		t512   [64]byte
+		m512   [64]byte
+		k256x4 [4][64]byte
+		t256x4 [4][32]byte
+		m256x4 [4][32]byte
+		k512x4 [4][128]byte
+		t512x4 [4][64]byte
+		m512x4 [4][64]byte
+		blk    Block
+		rk16   Block
+		dst16  Block
+		blk4   Block4
+		rk4    Key4
+		dst64  Block4
+		rk11   [11]Block
+		zbuf   [64]byte
+	)
+
+	ops := []struct {
+		name string
+		fn   func()
+	}{
+		{"Permute256", func() { Permute256(&s256) }},
+		{"Permute256P2", func() { Permute256P2(&s256) }},
+		{"InversePermute256", func() { InversePermute256(&s256) }},
+		{"InversePermute256P2", func() { InversePermute256P2(&s256) }},
+		{"Permute512", func() { Permute512(&s512) }},
+		{"Permute512P2", func() { Permute512P2(&s512) }},
+		{"InversePermute512", func() { InversePermute512(&s512) }},
+		{"InversePermute512P2", func() { InversePermute512P2(&s512) }},
+		{"Permute256x4", func() { Permute256x4(&s256x4) }},
+		{"Permute256P2x4", func() { Permute256P2x4(&s256x4) }},
+		{"InversePermute256x4", func() { InversePermute256x4(&s256x4) }},
+		{"InversePermute256P2x4", func() { InversePermute256P2x4(&s256x4) }},
+		{"Permute512x4", func() { Permute512x4(&s512x4) }},
+		{"Permute512P2x4", func() { Permute512P2x4(&s512x4) }},
+		{"InversePermute512x4", func() { InversePermute512x4(&s512x4) }},
+		{"InversePermute512P2x4", func() { InversePermute512P2x4(&s512x4) }},
+		{"DM256", func() { s256 = DM256(&m256) }},
+		{"DM512", func() { s256 = DM512(&m512) }},
+		{"SoEM256", func() { s256 = SoEM256(&k256, &m256) }},
+		{"SoEM512", func() { s512 = SoEM512(&k512, &m512) }},
+		{"SoEM256x4", func() { s256x4 = SoEM256x4(&k256x4, &m256x4) }},
+		{"SoEM512x4", func() { s512x4 = SoEM512x4(&k512x4, &m512x4) }},
+		{"Round", func() { Round(&blk, &rk16) }},
+		{"FinalRound", func() { FinalRound(&blk, &rk16) }},
+		{"RoundHW", func() { RoundHW(&blk, &rk16) }},
+		{"FinalRoundHW", func() { FinalRoundHW(&blk, &rk16) }},
+		{"AES128Round", func() { AES128Round(&blk, &rk16) }},
+		{"AES128FinalRound", func() { AES128FinalRound(&blk, &rk16) }},
+		{"AES128Round4", func() { AES128Round4(&blk4, &rk4) }},
+		{"AES128FinalRound4", func() { AES128FinalRound4(&blk4, &rk4) }},
+		{"Round4HW", func() { Round4HW(&blk4, &rk4) }},
+		{"FinalRound4HW", func() { FinalRound4HW(&blk4, &rk4) }},
+		{"XorBlock", func() { XorBlock(&dst16, &blk, &rk16) }},
+		{"XorBlock4", func() { XorBlock4(&dst64, &blk4, &rk4) }},
+		{"ExpandKey128", func() { ExpandKey128(&rk16, &rk11) }},
+		{"AES128EncryptBlock", func() { AES128EncryptBlock(&rk11, &dst16, &blk) }},
+		{"AES128Encrypt4Blocks", func() { AES128Encrypt4Blocks(&rk11, &dst64, &blk4) }},
+		{"EMEncrypt256", func() { s256 = EMEncrypt256(&k256, &m256) }},
+		{"EMDecrypt256", func() { s256 = EMDecrypt256(&k256, &m256) }},
+		{"EMEncrypt512", func() { s512 = EMEncrypt512(&k512, &m512) }},
+		{"EMDecrypt512", func() { s512 = EMDecrypt512(&k512, &m512) }},
+		{"EMEncrypt256x4", func() { s256x4 = EMEncrypt256x4(&k256x4, &m256x4) }},
+		{"EMDecrypt256x4", func() { s256x4 = EMDecrypt256x4(&k256x4, &m256x4) }},
+		{"EMEncrypt512x4", func() { s512x4 = EMEncrypt512x4(&k512x4, &m512x4) }},
+		{"EMDecrypt512x4", func() { s512x4 = EMDecrypt512x4(&k512x4, &m512x4) }},
+		{"EM2Encrypt256", func() { s256 = EM2Encrypt256(&k256, &m256) }},
+		{"EM2Decrypt256", func() { s256 = EM2Decrypt256(&k256, &m256) }},
+		{"EM2Encrypt512", func() { s512 = EM2Encrypt512(&k512, &m512) }},
+		{"EM2Decrypt512", func() { s512 = EM2Decrypt512(&k512, &m512) }},
+		{"EM2Encrypt256x4", func() { s256x4 = EM2Encrypt256x4(&k256x4, &m256x4) }},
+		{"EM2Decrypt256x4", func() { s256x4 = EM2Decrypt256x4(&k256x4, &m256x4) }},
+		{"EM2Encrypt512x4", func() { s512x4 = EM2Encrypt512x4(&k512x4, &m512x4) }},
+		{"EM2Decrypt512x4", func() { s512x4 = EM2Decrypt512x4(&k512x4, &m512x4) }},
+		{"TEMEncrypt256", func() { s256 = TEMEncrypt256(&k256, &t256, &m256) }},
+		{"TEMDecrypt256", func() { s256 = TEMDecrypt256(&k256, &t256, &m256) }},
+		{"TEMEncrypt512", func() { s512 = TEMEncrypt512(&k512, &t512, &m512) }},
+		{"TEMDecrypt512", func() { s512 = TEMDecrypt512(&k512, &t512, &m512) }},
+		{"TEMEncrypt256x4", func() { s256x4 = TEMEncrypt256x4(&k256x4, &t256x4, &m256x4) }},
+		{"TEMDecrypt256x4", func() { s256x4 = TEMDecrypt256x4(&k256x4, &t256x4, &m256x4) }},
+		{"TEMEncrypt512x4", func() { s512x4 = TEMEncrypt512x4(&k512x4, &t512x4, &m512x4) }},
+		{"TEMDecrypt512x4", func() { s512x4 = TEMDecrypt512x4(&k512x4, &t512x4, &m512x4) }},
+		{"TEM2Encrypt256", func() { s256 = TEM2Encrypt256(&k256, &t256, &m256) }},
+		{"TEM2Decrypt256", func() { s256 = TEM2Decrypt256(&k256, &t256, &m256) }},
+		{"TEM2Encrypt512", func() { s512 = TEM2Encrypt512(&k512, &t512, &m512) }},
+		{"TEM2Decrypt512", func() { s512 = TEM2Decrypt512(&k512, &t512, &m512) }},
+		{"TEM2Encrypt256x4", func() { s256x4 = TEM2Encrypt256x4(&k256x4, &t256x4, &m256x4) }},
+		{"TEM2Decrypt256x4", func() { s256x4 = TEM2Decrypt256x4(&k256x4, &t256x4, &m256x4) }},
+		{"TEM2Encrypt512x4", func() { s512x4 = TEM2Encrypt512x4(&k512x4, &t512x4, &m512x4) }},
+		{"TEM2Decrypt512x4", func() { s512x4 = TEM2Decrypt512x4(&k512x4, &t512x4, &m512x4) }},
+		{"Zeroize", func() { Zeroize(zbuf[:]) }},
+		{"SelfTest", func() {
+			if err := SelfTest(); err != nil {
+				t.Fatalf("SelfTest failed: %v", err)
+			}
+		}},
+	}
+
+	eachTier(t, func(t *testing.T, tier string) {
+		for _, op := range ops {
+			allocs := testing.AllocsPerRun(50, op.fn)
+			if allocs != 0 {
+				t.Fatalf("[tier=%s] %s allocated %.2f objects/op on heap (want 0)", tier, op.name, allocs)
+			}
+		}
+	})
+}
+
+func TestConcurrentGoroutinesAndAsyncPreemption(t *testing.T) {
+	const (
+		numGoroutines = 16
+		iterations    = 150
+	)
+
+	type goroutineFixture struct {
+		k256      [64]byte
+		t256      [32]byte
+		m256      [32]byte
+		k512      [128]byte
+		t512      [64]byte
+		m512      [64]byte
+		k256x4    [4][64]byte
+		t256x4    [4][32]byte
+		m256x4    [4][32]byte
+		k512x4    [4][128]byte
+		t512x4    [4][64]byte
+		m512x4    [4][64]byte
+		wantP256  [32]byte
+		wantP512  [64]byte
+		wantP2_2  [32]byte
+		wantP2_5  [64]byte
+		wantSoEM2 [32]byte
+		wantSoEM5 [64]byte
+		wantEM2   [32]byte
+		wantEM5   [64]byte
+		wantEM22  [32]byte
+		wantEM25  [64]byte
+		wantTEM2  [32]byte
+		wantTEM5  [64]byte
+		wantTEM22 [32]byte
+		wantTEM25 [64]byte
+		wantP2564 [4][32]byte
+		wantP5124 [4][64]byte
+		wantSo24  [4][32]byte
+		wantSo54  [4][64]byte
+		wantEM24  [4][32]byte
+		wantEM54  [4][64]byte
+		wantEM224 [4][32]byte
+		wantEM254 [4][64]byte
+		wantTE24  [4][32]byte
+		wantTE54  [4][64]byte
+		wantTE224 [4][32]byte
+		wantTE254 [4][64]byte
+	}
+
+	var fixtures [numGoroutines]goroutineFixture
+	for g := 0; g < numGoroutines; g++ {
+		seed := byte(0x10 + g*11)
+		fx := &fixtures[g]
+		fillCrossKATPattern(fx.k256[:], seed+1)
+		fillCrossKATPattern(fx.t256[:], seed+2)
+		fillCrossKATPattern(fx.m256[:], seed+3)
+		fillCrossKATPattern(fx.k512[:], seed+4)
+		fillCrossKATPattern(fx.t512[:], seed+5)
+		fillCrossKATPattern(fx.m512[:], seed+6)
+		for l := 0; l < 4; l++ {
+			fillCrossKATPattern(fx.k256x4[l][:], seed+byte(10+l))
+			fillCrossKATPattern(fx.t256x4[l][:], seed+byte(20+l))
+			fillCrossKATPattern(fx.m256x4[l][:], seed+byte(30+l))
+			fillCrossKATPattern(fx.k512x4[l][:], seed+byte(40+l))
+			fillCrossKATPattern(fx.t512x4[l][:], seed+byte(50+l))
+			fillCrossKATPattern(fx.m512x4[l][:], seed+byte(60+l))
+		}
+		fx.wantP256 = fx.m256
+		Permute256(&fx.wantP256)
+		fx.wantP512 = fx.m512
+		Permute512(&fx.wantP512)
+		fx.wantP2_2 = fx.m256
+		Permute256P2(&fx.wantP2_2)
+		fx.wantP2_5 = fx.m512
+		Permute512P2(&fx.wantP2_5)
+		fx.wantSoEM2 = SoEM256(&fx.k256, &fx.m256)
+		fx.wantSoEM5 = SoEM512(&fx.k512, &fx.m512)
+		fx.wantEM2 = EMEncrypt256(&fx.k256, &fx.m256)
+		fx.wantEM5 = EMEncrypt512(&fx.k512, &fx.m512)
+		fx.wantEM22 = EM2Encrypt256(&fx.k256, &fx.m256)
+		fx.wantEM25 = EM2Encrypt512(&fx.k512, &fx.m512)
+		fx.wantTEM2 = TEMEncrypt256(&fx.k256, &fx.t256, &fx.m256)
+		fx.wantTEM5 = TEMEncrypt512(&fx.k512, &fx.t512, &fx.m512)
+		fx.wantTEM22 = TEM2Encrypt256(&fx.k256, &fx.t256, &fx.m256)
+		fx.wantTEM25 = TEM2Encrypt512(&fx.k512, &fx.t512, &fx.m512)
+		fx.wantP2564 = fx.m256x4
+		Permute256x4(&fx.wantP2564)
+		fx.wantP5124 = fx.m512x4
+		Permute512x4(&fx.wantP5124)
+		fx.wantSo24 = SoEM256x4(&fx.k256x4, &fx.m256x4)
+		fx.wantSo54 = SoEM512x4(&fx.k512x4, &fx.m512x4)
+		fx.wantEM24 = EMEncrypt256x4(&fx.k256x4, &fx.m256x4)
+		fx.wantEM54 = EMEncrypt512x4(&fx.k512x4, &fx.m512x4)
+		fx.wantEM224 = EM2Encrypt256x4(&fx.k256x4, &fx.m256x4)
+		fx.wantEM254 = EM2Encrypt512x4(&fx.k512x4, &fx.m512x4)
+		fx.wantTE24 = TEMEncrypt256x4(&fx.k256x4, &fx.t256x4, &fx.m256x4)
+		fx.wantTE54 = TEMEncrypt512x4(&fx.k512x4, &fx.t512x4, &fx.m512x4)
+		fx.wantTE224 = TEM2Encrypt256x4(&fx.k256x4, &fx.t256x4, &fx.m256x4)
+		fx.wantTE254 = TEM2Encrypt512x4(&fx.k512x4, &fx.t512x4, &fx.m512x4)
+	}
+
+	eachTier(t, func(t *testing.T, tier string) {
+		var wg sync.WaitGroup
+		errCh := make(chan string, numGoroutines)
+
+		for g := 0; g < numGoroutines; g++ {
+			wg.Add(1)
+			go func(gid int) {
+				defer wg.Done()
+				fx := fixtures[gid]
+				for it := 0; it < iterations; it++ {
+					s256 := fx.m256
+					Permute256(&s256)
+					if s256 != fx.wantP256 {
+						errCh <- "Permute256 mismatch under concurrency"
+						return
+					}
+					InversePermute256(&s256)
+					if s256 != fx.m256 {
+						errCh <- "InversePermute256 mismatch under concurrency"
+						return
+					}
+
+					s256 = fx.m256
+					Permute256P2(&s256)
+					if s256 != fx.wantP2_2 {
+						errCh <- "Permute256P2 mismatch under concurrency"
+						return
+					}
+					InversePermute256P2(&s256)
+					if s256 != fx.m256 {
+						errCh <- "InversePermute256P2 mismatch under concurrency"
+						return
+					}
+
+					s512 := fx.m512
+					Permute512(&s512)
+					if s512 != fx.wantP512 {
+						errCh <- "Permute512 mismatch under concurrency"
+						return
+					}
+					InversePermute512(&s512)
+					if s512 != fx.m512 {
+						errCh <- "InversePermute512 mismatch under concurrency"
+						return
+					}
+
+					s512 = fx.m512
+					Permute512P2(&s512)
+					if s512 != fx.wantP2_5 {
+						errCh <- "Permute512P2 mismatch under concurrency"
+						return
+					}
+					InversePermute512P2(&s512)
+					if s512 != fx.m512 {
+						errCh <- "InversePermute512P2 mismatch under concurrency"
+						return
+					}
+
+					if SoEM256(&fx.k256, &fx.m256) != fx.wantSoEM2 || SoEM512(&fx.k512, &fx.m512) != fx.wantSoEM5 {
+						errCh <- "SoEM single mismatch under concurrency"
+						return
+					}
+
+					c2 := EMEncrypt256(&fx.k256, &fx.m256)
+					c5 := EMEncrypt512(&fx.k512, &fx.m512)
+					if c2 != fx.wantEM2 || EMDecrypt256(&fx.k256, &c2) != fx.m256 ||
+						c5 != fx.wantEM5 || EMDecrypt512(&fx.k512, &c5) != fx.m512 {
+						errCh <- "EM single mismatch under concurrency"
+						return
+					}
+
+					c2 = EM2Encrypt256(&fx.k256, &fx.m256)
+					c5 = EM2Encrypt512(&fx.k512, &fx.m512)
+					if c2 != fx.wantEM22 || EM2Decrypt256(&fx.k256, &c2) != fx.m256 ||
+						c5 != fx.wantEM25 || EM2Decrypt512(&fx.k512, &c5) != fx.m512 {
+						errCh <- "EM2 single mismatch under concurrency"
+						return
+					}
+
+					c2 = TEMEncrypt256(&fx.k256, &fx.t256, &fx.m256)
+					c5 = TEMEncrypt512(&fx.k512, &fx.t512, &fx.m512)
+					if c2 != fx.wantTEM2 || TEMDecrypt256(&fx.k256, &fx.t256, &c2) != fx.m256 ||
+						c5 != fx.wantTEM5 || TEMDecrypt512(&fx.k512, &fx.t512, &c5) != fx.m512 {
+						errCh <- "TEM single mismatch under concurrency"
+						return
+					}
+
+					c2 = TEM2Encrypt256(&fx.k256, &fx.t256, &fx.m256)
+					c5 = TEM2Encrypt512(&fx.k512, &fx.t512, &fx.m512)
+					if c2 != fx.wantTEM22 || TEM2Decrypt256(&fx.k256, &fx.t256, &c2) != fx.m256 ||
+						c5 != fx.wantTEM25 || TEM2Decrypt512(&fx.k512, &fx.t512, &c5) != fx.m512 {
+						errCh <- "TEM2 single mismatch under concurrency"
+						return
+					}
+
+					b256 := fx.m256x4
+					Permute256x4(&b256)
+					if b256 != fx.wantP2564 {
+						errCh <- "Permute256x4 mismatch under concurrency"
+						return
+					}
+					InversePermute256x4(&b256)
+					if b256 != fx.m256x4 {
+						errCh <- "InversePermute256x4 mismatch under concurrency"
+						return
+					}
+
+					b512 := fx.m512x4
+					Permute512x4(&b512)
+					if b512 != fx.wantP5124 {
+						errCh <- "Permute512x4 mismatch under concurrency"
+						return
+					}
+					InversePermute512x4(&b512)
+					if b512 != fx.m512x4 {
+						errCh <- "InversePermute512x4 mismatch under concurrency"
+						return
+					}
+
+					if SoEM256x4(&fx.k256x4, &fx.m256x4) != fx.wantSo24 || SoEM512x4(&fx.k512x4, &fx.m512x4) != fx.wantSo54 {
+						errCh <- "SoEMx4 mismatch under concurrency"
+						return
+					}
+
+					ct24 := EMEncrypt256x4(&fx.k256x4, &fx.m256x4)
+					ct54 := EMEncrypt512x4(&fx.k512x4, &fx.m512x4)
+					if ct24 != fx.wantEM24 || EMDecrypt256x4(&fx.k256x4, &ct24) != fx.m256x4 ||
+						ct54 != fx.wantEM54 || EMDecrypt512x4(&fx.k512x4, &ct54) != fx.m512x4 {
+						errCh <- "EMx4 mismatch under concurrency"
+						return
+					}
+
+					ct24 = EM2Encrypt256x4(&fx.k256x4, &fx.m256x4)
+					ct54 = EM2Encrypt512x4(&fx.k512x4, &fx.m512x4)
+					if ct24 != fx.wantEM224 || EM2Decrypt256x4(&fx.k256x4, &ct24) != fx.m256x4 ||
+						ct54 != fx.wantEM254 || EM2Decrypt512x4(&fx.k512x4, &ct54) != fx.m512x4 {
+						errCh <- "EM2x4 mismatch under concurrency"
+						return
+					}
+
+					ct24 = TEMEncrypt256x4(&fx.k256x4, &fx.t256x4, &fx.m256x4)
+					ct54 = TEMEncrypt512x4(&fx.k512x4, &fx.t512x4, &fx.m512x4)
+					if ct24 != fx.wantTE24 || TEMDecrypt256x4(&fx.k256x4, &fx.t256x4, &ct24) != fx.m256x4 ||
+						ct54 != fx.wantTE54 || TEMDecrypt512x4(&fx.k512x4, &fx.t512x4, &ct54) != fx.m512x4 {
+						errCh <- "TEMx4 mismatch under concurrency"
+						return
+					}
+
+					ct24 = TEM2Encrypt256x4(&fx.k256x4, &fx.t256x4, &fx.m256x4)
+					ct54 = TEM2Encrypt512x4(&fx.k512x4, &fx.t512x4, &fx.m512x4)
+					if ct24 != fx.wantTE224 || TEM2Decrypt256x4(&fx.k256x4, &fx.t256x4, &ct24) != fx.m256x4 ||
+						ct54 != fx.wantTE254 || TEM2Decrypt512x4(&fx.k512x4, &fx.t512x4, &ct54) != fx.m512x4 {
+						errCh <- "TEM2x4 mismatch under concurrency"
+						return
+					}
+
+					if it%30 == 0 {
+						if err := SelfTest(); err != nil {
+							errCh <- "SelfTest failed under concurrency: " + err.Error()
+							return
+						}
+						runtime.Gosched()
+					}
+				}
+			}(g)
+		}
+
+		wg.Wait()
+		close(errCh)
+		for msg := range errCh {
+			t.Fatalf("[tier=%s] %s", tier, msg)
+		}
+	})
+}
+
+func fillFromFuzzBytes(dst, src []byte, tag byte) {
+	if len(src) == 0 {
+		for i := range dst {
+			dst[i] = tag ^ byte(i*29)
+		}
+		return
+	}
+	for i := range dst {
+		dst[i] = src[i%len(src)] ^ byte(i)*tag
+	}
+}
+
+func FuzzWideBlockRoundTripAndCrossTier(f *testing.F) {
+	f.Add(make([]byte, 128), make([]byte, 64), make([]byte, 64))
+	ones128 := bytes.Repeat([]byte{0xff}, 128)
+	ones64 := bytes.Repeat([]byte{0xff}, 64)
+	f.Add(ones128, ones64, ones64)
+	var seqK [128]byte
+	var seqT, seqM [64]byte
+	fillCrossKATPattern(seqK[:], 0x13)
+	fillCrossKATPattern(seqT[:], 0x27)
+	fillCrossKATPattern(seqM[:], 0x3b)
+	f.Add(seqK[:], seqT[:], seqM[:])
+
+	f.Fuzz(func(t *testing.T, key, tweak, msg []byte) {
+		var (
+			k256    [64]byte
+			t256    [32]byte
+			m256    [32]byte
+			k512    [128]byte
+			t512    [64]byte
+			m512    [64]byte
+			sw256   [32]byte
+			sw512   [64]byte
+			k256x4  [4][64]byte
+			t256x4  [4][32]byte
+			m256x4  [4][32]byte
+			k512x4  [4][128]byte
+			t512x4  [4][64]byte
+			m512x4  [4][64]byte
+			sw256x4 [4][32]byte
+			sw512x4 [4][64]byte
+		)
+
+		fillFromFuzzBytes(k256[:], key, 0x01)
+		fillFromFuzzBytes(t256[:], tweak, 0x03)
+		fillFromFuzzBytes(m256[:], msg, 0x05)
+		fillFromFuzzBytes(k512[:], key, 0x07)
+		fillFromFuzzBytes(t512[:], tweak, 0x09)
+		fillFromFuzzBytes(m512[:], msg, 0x0b)
+
+		// 1. EM-256 & EM-512 roundtrip + purego cross-tier parity
+		c256 := EMEncrypt256(&k256, &m256)
+		emEncrypt256Software(&sw256, &m256, &k256)
+		if c256 != sw256 {
+			t.Fatalf("EMEncrypt256 mismatch with purego")
+		}
+		d256 := EMDecrypt256(&k256, &c256)
+		emDecrypt256Software(&sw256, &c256, &k256)
+		if d256 != m256 || d256 != sw256 {
+			t.Fatalf("EMDecrypt256 roundtrip/purego mismatch")
+		}
+
+		c512 := EMEncrypt512(&k512, &m512)
+		emEncrypt512Software(&sw512, &m512, &k512)
+		if c512 != sw512 {
+			t.Fatalf("EMEncrypt512 mismatch with purego")
+		}
+		d512 := EMDecrypt512(&k512, &c512)
+		emDecrypt512Software(&sw512, &c512, &k512)
+		if d512 != m512 || d512 != sw512 {
+			t.Fatalf("EMDecrypt512 roundtrip/purego mismatch")
+		}
+
+		// 2. EM2-256 & EM2-512 roundtrip + purego cross-tier parity
+		c256 = EM2Encrypt256(&k256, &m256)
+		em2Encrypt256Software(&sw256, &m256, &k256)
+		if c256 != sw256 {
+			t.Fatalf("EM2Encrypt256 mismatch with purego")
+		}
+		d256 = EM2Decrypt256(&k256, &c256)
+		em2Decrypt256Software(&sw256, &c256, &k256)
+		if d256 != m256 || d256 != sw256 {
+			t.Fatalf("EM2Decrypt256 roundtrip/purego mismatch")
+		}
+
+		c512 = EM2Encrypt512(&k512, &m512)
+		em2Encrypt512Software(&sw512, &m512, &k512)
+		if c512 != sw512 {
+			t.Fatalf("EM2Encrypt512 mismatch with purego")
+		}
+		d512 = EM2Decrypt512(&k512, &c512)
+		em2Decrypt512Software(&sw512, &c512, &k512)
+		if d512 != m512 || d512 != sw512 {
+			t.Fatalf("EM2Decrypt512 roundtrip/purego mismatch")
+		}
+
+		// 3. TEM-256 & TEM-512 roundtrip + purego cross-tier parity
+		c256 = TEMEncrypt256(&k256, &t256, &m256)
+		temEncrypt256Software(&sw256, &m256, &k256, &t256)
+		if c256 != sw256 {
+			t.Fatalf("TEMEncrypt256 mismatch with purego")
+		}
+		d256 = TEMDecrypt256(&k256, &t256, &c256)
+		temDecrypt256Software(&sw256, &c256, &k256, &t256)
+		if d256 != m256 || d256 != sw256 {
+			t.Fatalf("TEMDecrypt256 roundtrip/purego mismatch")
+		}
+
+		c512 = TEMEncrypt512(&k512, &t512, &m512)
+		temEncrypt512Software(&sw512, &m512, &k512, &t512)
+		if c512 != sw512 {
+			t.Fatalf("TEMEncrypt512 mismatch with purego")
+		}
+		d512 = TEMDecrypt512(&k512, &t512, &c512)
+		temDecrypt512Software(&sw512, &c512, &k512, &t512)
+		if d512 != m512 || d512 != sw512 {
+			t.Fatalf("TEMDecrypt512 roundtrip/purego mismatch")
+		}
+
+		// 4. TEM2-256 & TEM2-512 roundtrip + purego cross-tier parity
+		c256 = TEM2Encrypt256(&k256, &t256, &m256)
+		tem2Encrypt256Software(&sw256, &m256, &k256, &t256)
+		if c256 != sw256 {
+			t.Fatalf("TEM2Encrypt256 mismatch with purego")
+		}
+		d256 = TEM2Decrypt256(&k256, &t256, &c256)
+		tem2Decrypt256Software(&sw256, &c256, &k256, &t256)
+		if d256 != m256 || d256 != sw256 {
+			t.Fatalf("TEM2Decrypt256 roundtrip/purego mismatch")
+		}
+
+		c512 = TEM2Encrypt512(&k512, &t512, &m512)
+		tem2Encrypt512Software(&sw512, &m512, &k512, &t512)
+		if c512 != sw512 {
+			t.Fatalf("TEM2Encrypt512 mismatch with purego")
+		}
+		d512 = TEM2Decrypt512(&k512, &t512, &c512)
+		tem2Decrypt512Software(&sw512, &c512, &k512, &t512)
+		if d512 != m512 || d512 != sw512 {
+			t.Fatalf("TEM2Decrypt512 roundtrip/purego mismatch")
+		}
+
+		// 5. 4-way batch x4 roundtrip + purego cross-tier parity across all 4 families
+		for l := 0; l < 4; l++ {
+			fillFromFuzzBytes(k256x4[l][:], key, byte(0x11+l*2))
+			fillFromFuzzBytes(t256x4[l][:], tweak, byte(0x21+l*2))
+			fillFromFuzzBytes(m256x4[l][:], msg, byte(0x31+l*2))
+			fillFromFuzzBytes(k512x4[l][:], key, byte(0x41+l*2))
+			fillFromFuzzBytes(t512x4[l][:], tweak, byte(0x51+l*2))
+			fillFromFuzzBytes(m512x4[l][:], msg, byte(0x61+l*2))
+		}
+
+		ct256x4 := EMEncrypt256x4(&k256x4, &m256x4)
+		emEncrypt256x4Software(&sw256x4, &m256x4, &k256x4)
+		if ct256x4 != sw256x4 || EMDecrypt256x4(&k256x4, &ct256x4) != m256x4 {
+			t.Fatalf("EM256x4 roundtrip/purego mismatch")
+		}
+		ct512x4 := EMEncrypt512x4(&k512x4, &m512x4)
+		emEncrypt512x4Software(&sw512x4, &m512x4, &k512x4)
+		if ct512x4 != sw512x4 || EMDecrypt512x4(&k512x4, &ct512x4) != m512x4 {
+			t.Fatalf("EM512x4 roundtrip/purego mismatch")
+		}
+
+		ct256x4 = EM2Encrypt256x4(&k256x4, &m256x4)
+		em2Encrypt256x4Software(&sw256x4, &m256x4, &k256x4)
+		if ct256x4 != sw256x4 || EM2Decrypt256x4(&k256x4, &ct256x4) != m256x4 {
+			t.Fatalf("EM2-256x4 roundtrip/purego mismatch")
+		}
+		ct512x4 = EM2Encrypt512x4(&k512x4, &m512x4)
+		em2Encrypt512x4Software(&sw512x4, &m512x4, &k512x4)
+		if ct512x4 != sw512x4 || EM2Decrypt512x4(&k512x4, &ct512x4) != m512x4 {
+			t.Fatalf("EM2-512x4 roundtrip/purego mismatch")
+		}
+
+		ct256x4 = TEMEncrypt256x4(&k256x4, &t256x4, &m256x4)
+		temEncrypt256x4Software(&sw256x4, &m256x4, &k256x4, &t256x4)
+		if ct256x4 != sw256x4 || TEMDecrypt256x4(&k256x4, &t256x4, &ct256x4) != m256x4 {
+			t.Fatalf("TEM-256x4 roundtrip/purego mismatch")
+		}
+		ct512x4 = TEMEncrypt512x4(&k512x4, &t512x4, &m512x4)
+		temEncrypt512x4Software(&sw512x4, &m512x4, &k512x4, &t512x4)
+		if ct512x4 != sw512x4 || TEMDecrypt512x4(&k512x4, &t512x4, &ct512x4) != m512x4 {
+			t.Fatalf("TEM-512x4 roundtrip/purego mismatch")
+		}
+
+		ct256x4 = TEM2Encrypt256x4(&k256x4, &t256x4, &m256x4)
+		tem2Encrypt256x4Software(&sw256x4, &m256x4, &k256x4, &t256x4)
+		if ct256x4 != sw256x4 || TEM2Decrypt256x4(&k256x4, &t256x4, &ct256x4) != m256x4 {
+			t.Fatalf("TEM2-256x4 roundtrip/purego mismatch")
+		}
+		ct512x4 = TEM2Encrypt512x4(&k512x4, &t512x4, &m512x4)
+		tem2Encrypt512x4Software(&sw512x4, &m512x4, &k512x4, &t512x4)
+		if ct512x4 != sw512x4 || TEM2Decrypt512x4(&k512x4, &t512x4, &ct512x4) != m512x4 {
+			t.Fatalf("TEM2-512x4 roundtrip/purego mismatch")
+		}
+	})
 }

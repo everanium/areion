@@ -147,4 +147,109 @@ func testAreionArchAsmKernels(t *testing.T, tier string, res *[areionTotalWords]
 	if word, off, found := scanForAreionWords(res, bytesToNonZeroWords(orig0[:], orig1[:], orig2[:], orig3[:], b0[:], b1[:], b2[:], b3[:], c0[:], c1[:], c2[:], c3[:])); found {
 		t.Fatalf("[%s] areion512SoEMPermutex4NEON leaked word %#016x at offset %d (window=%d)", tier, word, off, areionResidueWindow)
 	}
+
+	runEM256 := func(name string, fn func(*[32]byte, *[32]byte, *[64]byte)) {
+		m := new([32]byte)
+		k := new([64]byte)
+		out := new([32]byte)
+		for i := range m {
+			m[i] = byte(0x31 + i*5)
+		}
+		for i := range k {
+			k[i] = byte(0x53 + i*3)
+		}
+		if w := captureAreionFrameAndRegResidue(func() {
+			fn(out, m, k)
+		}, res); w == 0 {
+			t.Fatalf("[%s] %s: probe missed stack window", tier, name)
+		}
+		targets := bytesToNonZeroWords(m[:], k[:], out[:])
+		if word, off, found := scanForAreionWords(res, targets); found {
+			t.Fatalf("[%s] %s leaked word %#016x at offset %d (window=%d)", tier, name, word, off, areionResidueWindow)
+		}
+	}
+
+	runEM512 := func(name string, fn func(*[64]byte, *[64]byte, *[128]byte)) {
+		m := new([64]byte)
+		k := new([128]byte)
+		out := new([64]byte)
+		for i := range m {
+			m[i] = byte(0x37 + i*5)
+		}
+		for i := range k {
+			k[i] = byte(0x59 + i*3)
+		}
+		if w := captureAreionFrameAndRegResidue(func() {
+			fn(out, m, k)
+		}, res); w == 0 {
+			t.Fatalf("[%s] %s: probe missed stack window", tier, name)
+		}
+		targets := bytesToNonZeroWords(m[:], k[:], out[:])
+		if word, off, found := scanForAreionWords(res, targets); found {
+			t.Fatalf("[%s] %s leaked word %#016x at offset %d (window=%d)", tier, name, word, off, areionResidueWindow)
+		}
+	}
+
+	runTEM256 := func(name string, fn func(*[32]byte, *[32]byte, *[64]byte, *[32]byte)) {
+		m := new([32]byte)
+		k := new([64]byte)
+		tw := new([32]byte)
+		out := new([32]byte)
+		for i := range m {
+			m[i] = byte(0x41 + i*5)
+			tw[i] = byte(0x73 + i*7)
+		}
+		for i := range k {
+			k[i] = byte(0x61 + i*3)
+		}
+		if w := captureAreionFrameAndRegResidue(func() {
+			fn(out, m, k, tw)
+		}, res); w == 0 {
+			t.Fatalf("[%s] %s: probe missed stack window", tier, name)
+		}
+		targets := bytesToNonZeroWords(m[:], k[:], tw[:], out[:])
+		if word, off, found := scanForAreionWords(res, targets); found {
+			t.Fatalf("[%s] %s leaked word %#016x at offset %d (window=%d)", tier, name, word, off, areionResidueWindow)
+		}
+	}
+
+	runTEM512 := func(name string, fn func(*[64]byte, *[64]byte, *[128]byte, *[64]byte)) {
+		m := new([64]byte)
+		k := new([128]byte)
+		tw := new([64]byte)
+		out := new([64]byte)
+		for i := range m {
+			m[i] = byte(0x43 + i*5)
+			tw[i] = byte(0x79 + i*7)
+		}
+		for i := range k {
+			k[i] = byte(0x67 + i*3)
+		}
+		if w := captureAreionFrameAndRegResidue(func() {
+			fn(out, m, k, tw)
+		}, res); w == 0 {
+			t.Fatalf("[%s] %s: probe missed stack window", tier, name)
+		}
+		targets := bytesToNonZeroWords(m[:], k[:], tw[:], out[:])
+		if word, off, found := scanForAreionWords(res, targets); found {
+			t.Fatalf("[%s] %s leaked word %#016x at offset %d (window=%d)", tier, name, word, off, areionResidueWindow)
+		}
+	}
+
+	runEM256("areion256EMEncryptAsm", areion256EMEncryptAsm)
+	runEM256("areion256EMDecryptAsm", areion256EMDecryptAsm)
+	runEM512("areion512EMEncryptAsm", areion512EMEncryptAsm)
+	runEM512("areion512EMDecryptAsm", areion512EMDecryptAsm)
+	runEM256("areion256EM2EncryptAsm", areion256EM2EncryptAsm)
+	runEM256("areion256EM2DecryptAsm", areion256EM2DecryptAsm)
+	runEM512("areion512EM2EncryptAsm", areion512EM2EncryptAsm)
+	runEM512("areion512EM2DecryptAsm", areion512EM2DecryptAsm)
+	runTEM256("areion256TEMEncryptAsm", areion256TEMEncryptAsm)
+	runTEM256("areion256TEMDecryptAsm", areion256TEMDecryptAsm)
+	runTEM512("areion512TEMEncryptAsm", areion512TEMEncryptAsm)
+	runTEM512("areion512TEMDecryptAsm", areion512TEMDecryptAsm)
+	runTEM256("areion256TEM2EncryptAsm", areion256TEM2EncryptAsm)
+	runTEM256("areion256TEM2DecryptAsm", areion256TEM2DecryptAsm)
+	runTEM512("areion512TEM2EncryptAsm", areion512TEM2EncryptAsm)
+	runTEM512("areion512TEM2DecryptAsm", areion512TEM2DecryptAsm)
 }

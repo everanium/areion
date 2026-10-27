@@ -81,6 +81,9 @@ func scanForAreionWordsInRegs(window *[areionTotalWords]uint64, targets []uint64
 // helper wipes its vector registers, scratch GPRs, and stack frame slots before
 // returning across all available hardware tiers.
 func TestFusedKernelsLeaveNoSecretInFrame(t *testing.T) {
+	if raceEnabled {
+		t.Skip("skipping raw stack/register frame inspection under -race instrumentation")
+	}
 	res := new([areionTotalWords]uint64)
 
 	t.Run("NegativeControl_Stack", func(t *testing.T) {
@@ -347,6 +350,356 @@ func TestFusedKernelsLeaveNoSecretInFrame(t *testing.T) {
 			}
 			if word, off, found := scanFn(res, soem512x4Targets); found {
 				t.Fatalf("[%s] SoEM512x4 leaked key/msg word %#016x at offset %d", tier, word, off)
+			}
+
+			// 5b. Wide-block Even-Mansour and Tweakable Even-Mansour constructions (32 public APIs)
+			t256 := new([32]byte)
+			dec256 := new([32]byte)
+			for i := range t256 {
+				t256[i] = byte(0x9D + i*7)
+			}
+			t512 := new([64]byte)
+			dec512 := new([64]byte)
+			for i := range t512 {
+				t512[i] = byte(0xB3 + i*7)
+			}
+
+			if w := captureAreionFrameAndRegResidue(func() {
+				*out256 = EMEncrypt256(k256, m256)
+			}, res); w == 0 {
+				t.Fatalf("[%s] EMEncrypt256: probe missed stack window", tier)
+			}
+			if word, off, found := scanFn(res, bytesToNonZeroWords(k256[:], m256[:])); found {
+				t.Fatalf("[%s] EMEncrypt256 leaked key/msg word %#016x at offset %d", tier, word, off)
+			}
+
+			if w := captureAreionFrameAndRegResidue(func() {
+				*dec256 = EMDecrypt256(k256, out256)
+			}, res); w == 0 {
+				t.Fatalf("[%s] EMDecrypt256: probe missed stack window", tier)
+			}
+			if word, off, found := scanFn(res, bytesToNonZeroWords(k256[:], out256[:])); found {
+				t.Fatalf("[%s] EMDecrypt256 leaked key/ct word %#016x at offset %d", tier, word, off)
+			}
+
+			if w := captureAreionFrameAndRegResidue(func() {
+				*out512 = EMEncrypt512(k512, m512)
+			}, res); w == 0 {
+				t.Fatalf("[%s] EMEncrypt512: probe missed stack window", tier)
+			}
+			if word, off, found := scanFn(res, bytesToNonZeroWords(k512[:], m512[:])); found {
+				t.Fatalf("[%s] EMEncrypt512 leaked key/msg word %#016x at offset %d", tier, word, off)
+			}
+
+			if w := captureAreionFrameAndRegResidue(func() {
+				*dec512 = EMDecrypt512(k512, out512)
+			}, res); w == 0 {
+				t.Fatalf("[%s] EMDecrypt512: probe missed stack window", tier)
+			}
+			if word, off, found := scanFn(res, bytesToNonZeroWords(k512[:], out512[:])); found {
+				t.Fatalf("[%s] EMDecrypt512 leaked key/ct word %#016x at offset %d", tier, word, off)
+			}
+
+			if w := captureAreionFrameAndRegResidue(func() {
+				*out256 = EM2Encrypt256(k256, m256)
+			}, res); w == 0 {
+				t.Fatalf("[%s] EM2Encrypt256: probe missed stack window", tier)
+			}
+			if word, off, found := scanFn(res, bytesToNonZeroWords(k256[:], m256[:])); found {
+				t.Fatalf("[%s] EM2Encrypt256 leaked key/msg word %#016x at offset %d", tier, word, off)
+			}
+
+			if w := captureAreionFrameAndRegResidue(func() {
+				*dec256 = EM2Decrypt256(k256, out256)
+			}, res); w == 0 {
+				t.Fatalf("[%s] EM2Decrypt256: probe missed stack window", tier)
+			}
+			if word, off, found := scanFn(res, bytesToNonZeroWords(k256[:], out256[:])); found {
+				t.Fatalf("[%s] EM2Decrypt256 leaked key/ct word %#016x at offset %d", tier, word, off)
+			}
+
+			if w := captureAreionFrameAndRegResidue(func() {
+				*out512 = EM2Encrypt512(k512, m512)
+			}, res); w == 0 {
+				t.Fatalf("[%s] EM2Encrypt512: probe missed stack window", tier)
+			}
+			if word, off, found := scanFn(res, bytesToNonZeroWords(k512[:], m512[:])); found {
+				t.Fatalf("[%s] EM2Encrypt512 leaked key/msg word %#016x at offset %d", tier, word, off)
+			}
+
+			if w := captureAreionFrameAndRegResidue(func() {
+				*dec512 = EM2Decrypt512(k512, out512)
+			}, res); w == 0 {
+				t.Fatalf("[%s] EM2Decrypt512: probe missed stack window", tier)
+			}
+			if word, off, found := scanFn(res, bytesToNonZeroWords(k512[:], out512[:])); found {
+				t.Fatalf("[%s] EM2Decrypt512 leaked key/ct word %#016x at offset %d", tier, word, off)
+			}
+
+			if w := captureAreionFrameAndRegResidue(func() {
+				*out256 = TEMEncrypt256(k256, t256, m256)
+			}, res); w == 0 {
+				t.Fatalf("[%s] TEMEncrypt256: probe missed stack window", tier)
+			}
+			if word, off, found := scanFn(res, bytesToNonZeroWords(k256[:], m256[:], t256[:])); found {
+				t.Fatalf("[%s] TEMEncrypt256 leaked key/msg/tweak word %#016x at offset %d", tier, word, off)
+			}
+
+			if w := captureAreionFrameAndRegResidue(func() {
+				*dec256 = TEMDecrypt256(k256, t256, out256)
+			}, res); w == 0 {
+				t.Fatalf("[%s] TEMDecrypt256: probe missed stack window", tier)
+			}
+			if word, off, found := scanFn(res, bytesToNonZeroWords(k256[:], out256[:], t256[:])); found {
+				t.Fatalf("[%s] TEMDecrypt256 leaked key/ct/tweak word %#016x at offset %d", tier, word, off)
+			}
+
+			if w := captureAreionFrameAndRegResidue(func() {
+				*out512 = TEMEncrypt512(k512, t512, m512)
+			}, res); w == 0 {
+				t.Fatalf("[%s] TEMEncrypt512: probe missed stack window", tier)
+			}
+			if word, off, found := scanFn(res, bytesToNonZeroWords(k512[:], m512[:], t512[:])); found {
+				t.Fatalf("[%s] TEMEncrypt512 leaked key/msg/tweak word %#016x at offset %d", tier, word, off)
+			}
+
+			if w := captureAreionFrameAndRegResidue(func() {
+				*dec512 = TEMDecrypt512(k512, t512, out512)
+			}, res); w == 0 {
+				t.Fatalf("[%s] TEMDecrypt512: probe missed stack window", tier)
+			}
+			if word, off, found := scanFn(res, bytesToNonZeroWords(k512[:], out512[:], t512[:])); found {
+				t.Fatalf("[%s] TEMDecrypt512 leaked key/ct/tweak word %#016x at offset %d", tier, word, off)
+			}
+
+			if w := captureAreionFrameAndRegResidue(func() {
+				*out256 = TEM2Encrypt256(k256, t256, m256)
+			}, res); w == 0 {
+				t.Fatalf("[%s] TEM2Encrypt256: probe missed stack window", tier)
+			}
+			if word, off, found := scanFn(res, bytesToNonZeroWords(k256[:], m256[:], t256[:])); found {
+				t.Fatalf("[%s] TEM2Encrypt256 leaked key/msg/tweak word %#016x at offset %d", tier, word, off)
+			}
+
+			if w := captureAreionFrameAndRegResidue(func() {
+				*dec256 = TEM2Decrypt256(k256, t256, out256)
+			}, res); w == 0 {
+				t.Fatalf("[%s] TEM2Decrypt256: probe missed stack window", tier)
+			}
+			if word, off, found := scanFn(res, bytesToNonZeroWords(k256[:], out256[:], t256[:])); found {
+				t.Fatalf("[%s] TEM2Decrypt256 leaked key/ct/tweak word %#016x at offset %d", tier, word, off)
+			}
+
+			if w := captureAreionFrameAndRegResidue(func() {
+				*out512 = TEM2Encrypt512(k512, t512, m512)
+			}, res); w == 0 {
+				t.Fatalf("[%s] TEM2Encrypt512: probe missed stack window", tier)
+			}
+			if word, off, found := scanFn(res, bytesToNonZeroWords(k512[:], m512[:], t512[:])); found {
+				t.Fatalf("[%s] TEM2Encrypt512 leaked key/msg/tweak word %#016x at offset %d", tier, word, off)
+			}
+
+			if w := captureAreionFrameAndRegResidue(func() {
+				*dec512 = TEM2Decrypt512(k512, t512, out512)
+			}, res); w == 0 {
+				t.Fatalf("[%s] TEM2Decrypt512: probe missed stack window", tier)
+			}
+			if word, off, found := scanFn(res, bytesToNonZeroWords(k512[:], out512[:], t512[:])); found {
+				t.Fatalf("[%s] TEM2Decrypt512 leaked key/ct/tweak word %#016x at offset %d", tier, word, off)
+			}
+
+			t256x4 := new([4][32]byte)
+			dec256x4 := new([4][32]byte)
+			t512x4 := new([4][64]byte)
+			dec512x4 := new([4][64]byte)
+			var t256x4Targets, t512x4Targets []uint64
+			for l := 0; l < 4; l++ {
+				for i := 0; i < 32; i++ {
+					t256x4[l][i] = byte(0xC1 + l*17 + i*7)
+				}
+				for i := 0; i < 64; i++ {
+					t512x4[l][i] = byte(0xD3 + l*13 + i*7)
+				}
+				t256x4Targets = append(t256x4Targets, bytesToNonZeroWords(t256x4[l][:])...)
+				t512x4Targets = append(t512x4Targets, bytesToNonZeroWords(t512x4[l][:])...)
+			}
+
+			if w := captureAreionFrameAndRegResidue(func() {
+				*out256x4 = EMEncrypt256x4(k256x4, m256x4)
+			}, res); w == 0 {
+				t.Fatalf("[%s] EMEncrypt256x4: probe missed stack window", tier)
+			}
+			if word, off, found := scanFn(res, soem256x4Targets); found {
+				t.Fatalf("[%s] EMEncrypt256x4 leaked key/msg word %#016x at offset %d", tier, word, off)
+			}
+
+			var ct256x4Targets []uint64
+			for l := 0; l < 4; l++ {
+				ct256x4Targets = append(ct256x4Targets, bytesToNonZeroWords(k256x4[l][:], out256x4[l][:])...)
+			}
+			if w := captureAreionFrameAndRegResidue(func() {
+				*dec256x4 = EMDecrypt256x4(k256x4, out256x4)
+			}, res); w == 0 {
+				t.Fatalf("[%s] EMDecrypt256x4: probe missed stack window", tier)
+			}
+			if word, off, found := scanFn(res, ct256x4Targets); found {
+				t.Fatalf("[%s] EMDecrypt256x4 leaked key/ct word %#016x at offset %d", tier, word, off)
+			}
+
+			if w := captureAreionFrameAndRegResidue(func() {
+				*out512x4 = EMEncrypt512x4(k512x4, m512x4)
+			}, res); w == 0 {
+				t.Fatalf("[%s] EMEncrypt512x4: probe missed stack window", tier)
+			}
+			if word, off, found := scanFn(res, soem512x4Targets); found {
+				t.Fatalf("[%s] EMEncrypt512x4 leaked key/msg word %#016x at offset %d", tier, word, off)
+			}
+
+			var ct512x4Targets []uint64
+			for l := 0; l < 4; l++ {
+				ct512x4Targets = append(ct512x4Targets, bytesToNonZeroWords(k512x4[l][:], out512x4[l][:])...)
+			}
+			if w := captureAreionFrameAndRegResidue(func() {
+				*dec512x4 = EMDecrypt512x4(k512x4, out512x4)
+			}, res); w == 0 {
+				t.Fatalf("[%s] EMDecrypt512x4: probe missed stack window", tier)
+			}
+			if word, off, found := scanFn(res, ct512x4Targets); found {
+				t.Fatalf("[%s] EMDecrypt512x4 leaked key/ct word %#016x at offset %d", tier, word, off)
+			}
+
+			if w := captureAreionFrameAndRegResidue(func() {
+				*out256x4 = EM2Encrypt256x4(k256x4, m256x4)
+			}, res); w == 0 {
+				t.Fatalf("[%s] EM2Encrypt256x4: probe missed stack window", tier)
+			}
+			if word, off, found := scanFn(res, soem256x4Targets); found {
+				t.Fatalf("[%s] EM2Encrypt256x4 leaked key/msg word %#016x at offset %d", tier, word, off)
+			}
+
+			ct256x4Targets = ct256x4Targets[:0]
+			for l := 0; l < 4; l++ {
+				ct256x4Targets = append(ct256x4Targets, bytesToNonZeroWords(k256x4[l][:], out256x4[l][:])...)
+			}
+			if w := captureAreionFrameAndRegResidue(func() {
+				*dec256x4 = EM2Decrypt256x4(k256x4, out256x4)
+			}, res); w == 0 {
+				t.Fatalf("[%s] EM2Decrypt256x4: probe missed stack window", tier)
+			}
+			if word, off, found := scanFn(res, ct256x4Targets); found {
+				t.Fatalf("[%s] EM2Decrypt256x4 leaked key/ct word %#016x at offset %d", tier, word, off)
+			}
+
+			if w := captureAreionFrameAndRegResidue(func() {
+				*out512x4 = EM2Encrypt512x4(k512x4, m512x4)
+			}, res); w == 0 {
+				t.Fatalf("[%s] EM2Encrypt512x4: probe missed stack window", tier)
+			}
+			if word, off, found := scanFn(res, soem512x4Targets); found {
+				t.Fatalf("[%s] EM2Encrypt512x4 leaked key/msg word %#016x at offset %d", tier, word, off)
+			}
+
+			ct512x4Targets = ct512x4Targets[:0]
+			for l := 0; l < 4; l++ {
+				ct512x4Targets = append(ct512x4Targets, bytesToNonZeroWords(k512x4[l][:], out512x4[l][:])...)
+			}
+			if w := captureAreionFrameAndRegResidue(func() {
+				*dec512x4 = EM2Decrypt512x4(k512x4, out512x4)
+			}, res); w == 0 {
+				t.Fatalf("[%s] EM2Decrypt512x4: probe missed stack window", tier)
+			}
+			if word, off, found := scanFn(res, ct512x4Targets); found {
+				t.Fatalf("[%s] EM2Decrypt512x4 leaked key/ct word %#016x at offset %d", tier, word, off)
+			}
+
+			tem256EncTargets := append(append([]uint64{}, soem256x4Targets...), t256x4Targets...)
+			if w := captureAreionFrameAndRegResidue(func() {
+				*out256x4 = TEMEncrypt256x4(k256x4, t256x4, m256x4)
+			}, res); w == 0 {
+				t.Fatalf("[%s] TEMEncrypt256x4: probe missed stack window", tier)
+			}
+			if word, off, found := scanFn(res, tem256EncTargets); found {
+				t.Fatalf("[%s] TEMEncrypt256x4 leaked key/msg/tweak word %#016x at offset %d", tier, word, off)
+			}
+
+			ct256x4Targets = ct256x4Targets[:0]
+			for l := 0; l < 4; l++ {
+				ct256x4Targets = append(ct256x4Targets, bytesToNonZeroWords(k256x4[l][:], out256x4[l][:], t256x4[l][:])...)
+			}
+			if w := captureAreionFrameAndRegResidue(func() {
+				*dec256x4 = TEMDecrypt256x4(k256x4, t256x4, out256x4)
+			}, res); w == 0 {
+				t.Fatalf("[%s] TEMDecrypt256x4: probe missed stack window", tier)
+			}
+			if word, off, found := scanFn(res, ct256x4Targets); found {
+				t.Fatalf("[%s] TEMDecrypt256x4 leaked key/ct/tweak word %#016x at offset %d", tier, word, off)
+			}
+
+			tem512EncTargets := append(append([]uint64{}, soem512x4Targets...), t512x4Targets...)
+			if w := captureAreionFrameAndRegResidue(func() {
+				*out512x4 = TEMEncrypt512x4(k512x4, t512x4, m512x4)
+			}, res); w == 0 {
+				t.Fatalf("[%s] TEMEncrypt512x4: probe missed stack window", tier)
+			}
+			if word, off, found := scanFn(res, tem512EncTargets); found {
+				t.Fatalf("[%s] TEMEncrypt512x4 leaked key/msg/tweak word %#016x at offset %d", tier, word, off)
+			}
+
+			ct512x4Targets = ct512x4Targets[:0]
+			for l := 0; l < 4; l++ {
+				ct512x4Targets = append(ct512x4Targets, bytesToNonZeroWords(k512x4[l][:], out512x4[l][:], t512x4[l][:])...)
+			}
+			if w := captureAreionFrameAndRegResidue(func() {
+				*dec512x4 = TEMDecrypt512x4(k512x4, t512x4, out512x4)
+			}, res); w == 0 {
+				t.Fatalf("[%s] TEMDecrypt512x4: probe missed stack window", tier)
+			}
+			if word, off, found := scanFn(res, ct512x4Targets); found {
+				t.Fatalf("[%s] TEMDecrypt512x4 leaked key/ct/tweak word %#016x at offset %d", tier, word, off)
+			}
+
+			if w := captureAreionFrameAndRegResidue(func() {
+				*out256x4 = TEM2Encrypt256x4(k256x4, t256x4, m256x4)
+			}, res); w == 0 {
+				t.Fatalf("[%s] TEM2Encrypt256x4: probe missed stack window", tier)
+			}
+			if word, off, found := scanFn(res, tem256EncTargets); found {
+				t.Fatalf("[%s] TEM2Encrypt256x4 leaked key/msg/tweak word %#016x at offset %d", tier, word, off)
+			}
+
+			ct256x4Targets = ct256x4Targets[:0]
+			for l := 0; l < 4; l++ {
+				ct256x4Targets = append(ct256x4Targets, bytesToNonZeroWords(k256x4[l][:], out256x4[l][:], t256x4[l][:])...)
+			}
+			if w := captureAreionFrameAndRegResidue(func() {
+				*dec256x4 = TEM2Decrypt256x4(k256x4, t256x4, out256x4)
+			}, res); w == 0 {
+				t.Fatalf("[%s] TEM2Decrypt256x4: probe missed stack window", tier)
+			}
+			if word, off, found := scanFn(res, ct256x4Targets); found {
+				t.Fatalf("[%s] TEM2Decrypt256x4 leaked key/ct/tweak word %#016x at offset %d", tier, word, off)
+			}
+
+			if w := captureAreionFrameAndRegResidue(func() {
+				*out512x4 = TEM2Encrypt512x4(k512x4, t512x4, m512x4)
+			}, res); w == 0 {
+				t.Fatalf("[%s] TEM2Encrypt512x4: probe missed stack window", tier)
+			}
+			if word, off, found := scanFn(res, tem512EncTargets); found {
+				t.Fatalf("[%s] TEM2Encrypt512x4 leaked key/msg/tweak word %#016x at offset %d", tier, word, off)
+			}
+
+			ct512x4Targets = ct512x4Targets[:0]
+			for l := 0; l < 4; l++ {
+				ct512x4Targets = append(ct512x4Targets, bytesToNonZeroWords(k512x4[l][:], out512x4[l][:], t512x4[l][:])...)
+			}
+			if w := captureAreionFrameAndRegResidue(func() {
+				*dec512x4 = TEM2Decrypt512x4(k512x4, t512x4, out512x4)
+			}, res); w == 0 {
+				t.Fatalf("[%s] TEM2Decrypt512x4: probe missed stack window", tier)
+			}
+			if word, off, found := scanFn(res, ct512x4Targets); found {
+				t.Fatalf("[%s] TEM2Decrypt512x4 leaked key/ct/tweak word %#016x at offset %d", tier, word, off)
 			}
 
 			// 6. AES-128 block and 4-block primitives

@@ -1231,11 +1231,14 @@ func expandKey128(key *[16]byte, rk *[11][16]byte) {
 
 func aesRound4Software(blocks, roundKeys *Block4) {
 	var q bsState
+	rk := *roundKeys
 	bsPack4(&q, (*Block)(blocks[0:16]), (*Block)(blocks[16:32]), (*Block)(blocks[32:48]), (*Block)(blocks[48:64]))
 	bsRoundNoKey(&q)
 	bsUnpack4(&q, (*Block)(blocks[0:16]), (*Block)(blocks[16:32]), (*Block)(blocks[32:48]), (*Block)(blocks[48:64]))
-	xorBlock4(blocks, blocks, roundKeys)
+	xorBlock4(blocks, blocks, &rk)
+	clear(rk[:])
 	clear(q[:])
+	runtime.KeepAlive(&rk)
 	runtime.KeepAlive(&q)
 	wipeSoftwareStack()
 	clobberScratchGPRs()
@@ -1243,11 +1246,14 @@ func aesRound4Software(blocks, roundKeys *Block4) {
 
 func aesFinalRound4Software(blocks, roundKeys *Block4) {
 	var q bsState
+	rk := *roundKeys
 	bsPack4(&q, (*Block)(blocks[0:16]), (*Block)(blocks[16:32]), (*Block)(blocks[32:48]), (*Block)(blocks[48:64]))
 	bsFinalRoundNoKey(&q)
 	bsUnpack4(&q, (*Block)(blocks[0:16]), (*Block)(blocks[16:32]), (*Block)(blocks[32:48]), (*Block)(blocks[48:64]))
-	xorBlock4(blocks, blocks, roundKeys)
+	xorBlock4(blocks, blocks, &rk)
+	clear(rk[:])
 	clear(q[:])
+	runtime.KeepAlive(&rk)
 	runtime.KeepAlive(&q)
 	wipeSoftwareStack()
 	clobberScratchGPRs()
@@ -1339,6 +1345,1242 @@ func aes128Encrypt4BlocksSoftware(rk *[11][16]byte, dst, src *[64]byte) {
 	runtime.KeepAlive(&k14)
 	runtime.KeepAlive(&k58)
 	runtime.KeepAlive(&k910)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func emEncrypt256Software(out, m *[32]byte, k *[64]byte) {
+	var state State256
+	for i := 0; i < 32; i += 8 {
+		v := binary.LittleEndian.Uint64(m[i:i+8]) ^ binary.LittleEndian.Uint64(k[i:i+8])
+		binary.LittleEndian.PutUint64(state[i:i+8], v)
+	}
+	var x0, x1 bsState
+	bsPack1(&x0, (*Block)(state[0:16]))
+	bsPack1(&x1, (*Block)(state[16:32]))
+	areion256PermuteBS(&x0, &x1, &bsRCP1)
+	bsUnpack1(&x0, (*Block)(state[0:16]))
+	bsUnpack1(&x1, (*Block)(state[16:32]))
+	for i := 0; i < 32; i += 8 {
+		v := binary.LittleEndian.Uint64(state[i:i+8]) ^ binary.LittleEndian.Uint64(k[32+i:32+i+8])
+		binary.LittleEndian.PutUint64(out[i:i+8], v)
+	}
+	clear(x0[:])
+	clear(x1[:])
+	clear(state[:])
+	runtime.KeepAlive(&x0)
+	runtime.KeepAlive(&x1)
+	runtime.KeepAlive(&state)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func emDecrypt256Software(out, c *[32]byte, k *[64]byte) {
+	var state State256
+	for i := 0; i < 32; i += 8 {
+		v := binary.LittleEndian.Uint64(c[i:i+8]) ^ binary.LittleEndian.Uint64(k[32+i:32+i+8])
+		binary.LittleEndian.PutUint64(state[i:i+8], v)
+	}
+	var x0, x1 bsState
+	bsPack1(&x0, (*Block)(state[0:16]))
+	bsPack1(&x1, (*Block)(state[16:32]))
+	areion256InversePermuteBS(&x0, &x1, &bsRCP1)
+	bsUnpack1(&x0, (*Block)(state[0:16]))
+	bsUnpack1(&x1, (*Block)(state[16:32]))
+	for i := 0; i < 32; i += 8 {
+		v := binary.LittleEndian.Uint64(state[i:i+8]) ^ binary.LittleEndian.Uint64(k[i:i+8])
+		binary.LittleEndian.PutUint64(out[i:i+8], v)
+	}
+	clear(x0[:])
+	clear(x1[:])
+	clear(state[:])
+	runtime.KeepAlive(&x0)
+	runtime.KeepAlive(&x1)
+	runtime.KeepAlive(&state)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func emEncrypt512Software(out, m *[64]byte, k *[128]byte) {
+	var state State512
+	for i := 0; i < 64; i += 8 {
+		v := binary.LittleEndian.Uint64(m[i:i+8]) ^ binary.LittleEndian.Uint64(k[i:i+8])
+		binary.LittleEndian.PutUint64(state[i:i+8], v)
+	}
+	var x0, x1, x2, x3 bsState
+	bsPack1(&x0, (*Block)(state[0:16]))
+	bsPack1(&x1, (*Block)(state[16:32]))
+	bsPack1(&x2, (*Block)(state[32:48]))
+	bsPack1(&x3, (*Block)(state[48:64]))
+	areion512PermuteBS12(&x0, &x1, &x2, &x3, &bsRCP1)
+	bsUnpack1(&x0, (*Block)(state[0:16]))
+	bsUnpack1(&x1, (*Block)(state[16:32]))
+	bsUnpack1(&x2, (*Block)(state[32:48]))
+	bsUnpack1(&x3, (*Block)(state[48:64]))
+	for i := 0; i < 64; i += 8 {
+		v := binary.LittleEndian.Uint64(state[i:i+8]) ^ binary.LittleEndian.Uint64(k[64+i:64+i+8])
+		binary.LittleEndian.PutUint64(out[i:i+8], v)
+	}
+	clear(x0[:])
+	clear(x1[:])
+	clear(x2[:])
+	clear(x3[:])
+	clear(state[:])
+	runtime.KeepAlive(&x0)
+	runtime.KeepAlive(&x1)
+	runtime.KeepAlive(&x2)
+	runtime.KeepAlive(&x3)
+	runtime.KeepAlive(&state)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func emDecrypt512Software(out, c *[64]byte, k *[128]byte) {
+	var state State512
+	for i := 0; i < 64; i += 8 {
+		v := binary.LittleEndian.Uint64(c[i:i+8]) ^ binary.LittleEndian.Uint64(k[64+i:64+i+8])
+		binary.LittleEndian.PutUint64(state[i:i+8], v)
+	}
+	var x0, x1, x2, x3 bsState
+	bsPack1(&x0, (*Block)(state[0:16]))
+	bsPack1(&x1, (*Block)(state[16:32]))
+	bsPack1(&x2, (*Block)(state[32:48]))
+	bsPack1(&x3, (*Block)(state[48:64]))
+	areion512InversePermuteBS12(&x0, &x1, &x2, &x3, &bsRCP1)
+	bsUnpack1(&x0, (*Block)(state[0:16]))
+	bsUnpack1(&x1, (*Block)(state[16:32]))
+	bsUnpack1(&x2, (*Block)(state[32:48]))
+	bsUnpack1(&x3, (*Block)(state[48:64]))
+	for i := 0; i < 64; i += 8 {
+		v := binary.LittleEndian.Uint64(state[i:i+8]) ^ binary.LittleEndian.Uint64(k[i:i+8])
+		binary.LittleEndian.PutUint64(out[i:i+8], v)
+	}
+	clear(x0[:])
+	clear(x1[:])
+	clear(x2[:])
+	clear(x3[:])
+	clear(state[:])
+	runtime.KeepAlive(&x0)
+	runtime.KeepAlive(&x1)
+	runtime.KeepAlive(&x2)
+	runtime.KeepAlive(&x3)
+	runtime.KeepAlive(&state)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func emEncrypt256x4Software(out, msgs *[4][32]byte, keys *[4][64]byte) {
+	var states [4]State256
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 32; i += 8 {
+			v := binary.LittleEndian.Uint64(msgs[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][i:i+8])
+			binary.LittleEndian.PutUint64(states[lane][i:i+8], v)
+		}
+	}
+	areion256Permutex4SoftwareRC(&states, &roundConstantsP1)
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 32; i += 8 {
+			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][32+i:32+i+8])
+			binary.LittleEndian.PutUint64(out[lane][i:i+8], v)
+		}
+	}
+	clear(states[:])
+	runtime.KeepAlive(&states)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func emDecrypt256x4Software(out, ct *[4][32]byte, keys *[4][64]byte) {
+	var states [4]State256
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 32; i += 8 {
+			v := binary.LittleEndian.Uint64(ct[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][32+i:32+i+8])
+			binary.LittleEndian.PutUint64(states[lane][i:i+8], v)
+		}
+	}
+	areion256InversePermutex4SoftwareRC(&states, &roundConstantsP1)
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 32; i += 8 {
+			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][i:i+8])
+			binary.LittleEndian.PutUint64(out[lane][i:i+8], v)
+		}
+	}
+	clear(states[:])
+	runtime.KeepAlive(&states)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func emEncrypt512x4Software(out, msgs *[4][64]byte, keys *[4][128]byte) {
+	var states [4]State512
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 64; i += 8 {
+			v := binary.LittleEndian.Uint64(msgs[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][i:i+8])
+			binary.LittleEndian.PutUint64(states[lane][i:i+8], v)
+		}
+	}
+	areion512Permutex4SoftwareRC(&states, &roundConstantsP1)
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 64; i += 8 {
+			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][64+i:64+i+8])
+			binary.LittleEndian.PutUint64(out[lane][i:i+8], v)
+		}
+	}
+	clear(states[:])
+	runtime.KeepAlive(&states)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func emDecrypt512x4Software(out, ct *[4][64]byte, keys *[4][128]byte) {
+	var states [4]State512
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 64; i += 8 {
+			v := binary.LittleEndian.Uint64(ct[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][64+i:64+i+8])
+			binary.LittleEndian.PutUint64(states[lane][i:i+8], v)
+		}
+	}
+	areion512InversePermutex4SoftwareRC(&states, &roundConstantsP1)
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 64; i += 8 {
+			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][i:i+8])
+			binary.LittleEndian.PutUint64(out[lane][i:i+8], v)
+		}
+	}
+	clear(states[:])
+	runtime.KeepAlive(&states)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func em2Encrypt256Software(out, m *[32]byte, k *[64]byte) {
+	var state State256
+	for i := 0; i < 32; i += 8 {
+		v := binary.LittleEndian.Uint64(m[i:i+8]) ^ binary.LittleEndian.Uint64(k[i:i+8])
+		binary.LittleEndian.PutUint64(state[i:i+8], v)
+	}
+	var x0, x1 bsState
+	bsPack1(&x0, (*Block)(state[0:16]))
+	bsPack1(&x1, (*Block)(state[16:32]))
+	areion256PermuteBS(&x0, &x1, &bsRCP1)
+	bsUnpack1(&x0, (*Block)(state[0:16]))
+	bsUnpack1(&x1, (*Block)(state[16:32]))
+	for i := 0; i < 32; i += 8 {
+		v := binary.LittleEndian.Uint64(state[i:i+8]) ^ binary.LittleEndian.Uint64(k[32+i:32+i+8])
+		binary.LittleEndian.PutUint64(state[i:i+8], v)
+	}
+	bsPack1(&x0, (*Block)(state[0:16]))
+	bsPack1(&x1, (*Block)(state[16:32]))
+	areion256PermuteBS(&x0, &x1, &bsRCP2)
+	bsUnpack1(&x0, (*Block)(state[0:16]))
+	bsUnpack1(&x1, (*Block)(state[16:32]))
+	for i := 0; i < 32; i += 8 {
+		v := binary.LittleEndian.Uint64(state[i:i+8]) ^
+			binary.LittleEndian.Uint64(k[i:i+8]) ^
+			binary.LittleEndian.Uint64(k[32+i:32+i+8])
+		binary.LittleEndian.PutUint64(out[i:i+8], v)
+	}
+	clear(x0[:])
+	clear(x1[:])
+	clear(state[:])
+	runtime.KeepAlive(&x0)
+	runtime.KeepAlive(&x1)
+	runtime.KeepAlive(&state)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func em2Decrypt256Software(out, c *[32]byte, k *[64]byte) {
+	var state State256
+	for i := 0; i < 32; i += 8 {
+		v := binary.LittleEndian.Uint64(c[i:i+8]) ^
+			binary.LittleEndian.Uint64(k[i:i+8]) ^
+			binary.LittleEndian.Uint64(k[32+i:32+i+8])
+		binary.LittleEndian.PutUint64(state[i:i+8], v)
+	}
+	var x0, x1 bsState
+	bsPack1(&x0, (*Block)(state[0:16]))
+	bsPack1(&x1, (*Block)(state[16:32]))
+	areion256InversePermuteBS(&x0, &x1, &bsRCP2)
+	bsUnpack1(&x0, (*Block)(state[0:16]))
+	bsUnpack1(&x1, (*Block)(state[16:32]))
+	for i := 0; i < 32; i += 8 {
+		v := binary.LittleEndian.Uint64(state[i:i+8]) ^ binary.LittleEndian.Uint64(k[32+i:32+i+8])
+		binary.LittleEndian.PutUint64(state[i:i+8], v)
+	}
+	bsPack1(&x0, (*Block)(state[0:16]))
+	bsPack1(&x1, (*Block)(state[16:32]))
+	areion256InversePermuteBS(&x0, &x1, &bsRCP1)
+	bsUnpack1(&x0, (*Block)(state[0:16]))
+	bsUnpack1(&x1, (*Block)(state[16:32]))
+	for i := 0; i < 32; i += 8 {
+		v := binary.LittleEndian.Uint64(state[i:i+8]) ^ binary.LittleEndian.Uint64(k[i:i+8])
+		binary.LittleEndian.PutUint64(out[i:i+8], v)
+	}
+	clear(x0[:])
+	clear(x1[:])
+	clear(state[:])
+	runtime.KeepAlive(&x0)
+	runtime.KeepAlive(&x1)
+	runtime.KeepAlive(&state)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func em2Encrypt512Software(out, m *[64]byte, k *[128]byte) {
+	var state State512
+	for i := 0; i < 64; i += 8 {
+		v := binary.LittleEndian.Uint64(m[i:i+8]) ^ binary.LittleEndian.Uint64(k[i:i+8])
+		binary.LittleEndian.PutUint64(state[i:i+8], v)
+	}
+	var x0, x1, x2, x3 bsState
+	bsPack1(&x0, (*Block)(state[0:16]))
+	bsPack1(&x1, (*Block)(state[16:32]))
+	bsPack1(&x2, (*Block)(state[32:48]))
+	bsPack1(&x3, (*Block)(state[48:64]))
+	areion512PermuteBS12(&x0, &x1, &x2, &x3, &bsRCP1)
+	bsUnpack1(&x0, (*Block)(state[0:16]))
+	bsUnpack1(&x1, (*Block)(state[16:32]))
+	bsUnpack1(&x2, (*Block)(state[32:48]))
+	bsUnpack1(&x3, (*Block)(state[48:64]))
+	for i := 0; i < 64; i += 8 {
+		v := binary.LittleEndian.Uint64(state[i:i+8]) ^ binary.LittleEndian.Uint64(k[64+i:64+i+8])
+		binary.LittleEndian.PutUint64(state[i:i+8], v)
+	}
+	bsPack1(&x0, (*Block)(state[0:16]))
+	bsPack1(&x1, (*Block)(state[16:32]))
+	bsPack1(&x2, (*Block)(state[32:48]))
+	bsPack1(&x3, (*Block)(state[48:64]))
+	areion512PermuteBS12(&x0, &x1, &x2, &x3, &bsRCP2)
+	bsUnpack1(&x0, (*Block)(state[0:16]))
+	bsUnpack1(&x1, (*Block)(state[16:32]))
+	bsUnpack1(&x2, (*Block)(state[32:48]))
+	bsUnpack1(&x3, (*Block)(state[48:64]))
+	for i := 0; i < 64; i += 8 {
+		v := binary.LittleEndian.Uint64(state[i:i+8]) ^
+			binary.LittleEndian.Uint64(k[i:i+8]) ^
+			binary.LittleEndian.Uint64(k[64+i:64+i+8])
+		binary.LittleEndian.PutUint64(out[i:i+8], v)
+	}
+	clear(x0[:])
+	clear(x1[:])
+	clear(x2[:])
+	clear(x3[:])
+	clear(state[:])
+	runtime.KeepAlive(&x0)
+	runtime.KeepAlive(&x1)
+	runtime.KeepAlive(&x2)
+	runtime.KeepAlive(&x3)
+	runtime.KeepAlive(&state)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func em2Decrypt512Software(out, c *[64]byte, k *[128]byte) {
+	var state State512
+	for i := 0; i < 64; i += 8 {
+		v := binary.LittleEndian.Uint64(c[i:i+8]) ^
+			binary.LittleEndian.Uint64(k[i:i+8]) ^
+			binary.LittleEndian.Uint64(k[64+i:64+i+8])
+		binary.LittleEndian.PutUint64(state[i:i+8], v)
+	}
+	var x0, x1, x2, x3 bsState
+	bsPack1(&x0, (*Block)(state[0:16]))
+	bsPack1(&x1, (*Block)(state[16:32]))
+	bsPack1(&x2, (*Block)(state[32:48]))
+	bsPack1(&x3, (*Block)(state[48:64]))
+	areion512InversePermuteBS12(&x0, &x1, &x2, &x3, &bsRCP2)
+	bsUnpack1(&x0, (*Block)(state[0:16]))
+	bsUnpack1(&x1, (*Block)(state[16:32]))
+	bsUnpack1(&x2, (*Block)(state[32:48]))
+	bsUnpack1(&x3, (*Block)(state[48:64]))
+	for i := 0; i < 64; i += 8 {
+		v := binary.LittleEndian.Uint64(state[i:i+8]) ^ binary.LittleEndian.Uint64(k[64+i:64+i+8])
+		binary.LittleEndian.PutUint64(state[i:i+8], v)
+	}
+	bsPack1(&x0, (*Block)(state[0:16]))
+	bsPack1(&x1, (*Block)(state[16:32]))
+	bsPack1(&x2, (*Block)(state[32:48]))
+	bsPack1(&x3, (*Block)(state[48:64]))
+	areion512InversePermuteBS12(&x0, &x1, &x2, &x3, &bsRCP1)
+	bsUnpack1(&x0, (*Block)(state[0:16]))
+	bsUnpack1(&x1, (*Block)(state[16:32]))
+	bsUnpack1(&x2, (*Block)(state[32:48]))
+	bsUnpack1(&x3, (*Block)(state[48:64]))
+	for i := 0; i < 64; i += 8 {
+		v := binary.LittleEndian.Uint64(state[i:i+8]) ^ binary.LittleEndian.Uint64(k[i:i+8])
+		binary.LittleEndian.PutUint64(out[i:i+8], v)
+	}
+	clear(x0[:])
+	clear(x1[:])
+	clear(x2[:])
+	clear(x3[:])
+	clear(state[:])
+	runtime.KeepAlive(&x0)
+	runtime.KeepAlive(&x1)
+	runtime.KeepAlive(&x2)
+	runtime.KeepAlive(&x3)
+	runtime.KeepAlive(&state)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func em2Encrypt256x4Software(out, msgs *[4][32]byte, keys *[4][64]byte) {
+	var states [4]State256
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 32; i += 8 {
+			v := binary.LittleEndian.Uint64(msgs[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][i:i+8])
+			binary.LittleEndian.PutUint64(states[lane][i:i+8], v)
+		}
+	}
+	areion256Permutex4SoftwareRC(&states, &roundConstantsP1)
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 32; i += 8 {
+			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][32+i:32+i+8])
+			binary.LittleEndian.PutUint64(states[lane][i:i+8], v)
+		}
+	}
+	areion256Permutex4SoftwareRC(&states, &roundConstantsP2)
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 32; i += 8 {
+			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^
+				binary.LittleEndian.Uint64(keys[lane][i:i+8]) ^
+				binary.LittleEndian.Uint64(keys[lane][32+i:32+i+8])
+			binary.LittleEndian.PutUint64(out[lane][i:i+8], v)
+		}
+	}
+	clear(states[:])
+	runtime.KeepAlive(&states)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func em2Decrypt256x4Software(out, ct *[4][32]byte, keys *[4][64]byte) {
+	var states [4]State256
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 32; i += 8 {
+			v := binary.LittleEndian.Uint64(ct[lane][i:i+8]) ^
+				binary.LittleEndian.Uint64(keys[lane][i:i+8]) ^
+				binary.LittleEndian.Uint64(keys[lane][32+i:32+i+8])
+			binary.LittleEndian.PutUint64(states[lane][i:i+8], v)
+		}
+	}
+	areion256InversePermutex4SoftwareRC(&states, &roundConstantsP2)
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 32; i += 8 {
+			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][32+i:32+i+8])
+			binary.LittleEndian.PutUint64(states[lane][i:i+8], v)
+		}
+	}
+	areion256InversePermutex4SoftwareRC(&states, &roundConstantsP1)
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 32; i += 8 {
+			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][i:i+8])
+			binary.LittleEndian.PutUint64(out[lane][i:i+8], v)
+		}
+	}
+	clear(states[:])
+	runtime.KeepAlive(&states)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func em2Encrypt512x4Software(out, msgs *[4][64]byte, keys *[4][128]byte) {
+	var states [4]State512
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 64; i += 8 {
+			v := binary.LittleEndian.Uint64(msgs[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][i:i+8])
+			binary.LittleEndian.PutUint64(states[lane][i:i+8], v)
+		}
+	}
+	areion512Permutex4SoftwareRC(&states, &roundConstantsP1)
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 64; i += 8 {
+			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][64+i:64+i+8])
+			binary.LittleEndian.PutUint64(states[lane][i:i+8], v)
+		}
+	}
+	areion512Permutex4SoftwareRC(&states, &roundConstantsP2)
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 64; i += 8 {
+			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^
+				binary.LittleEndian.Uint64(keys[lane][i:i+8]) ^
+				binary.LittleEndian.Uint64(keys[lane][64+i:64+i+8])
+			binary.LittleEndian.PutUint64(out[lane][i:i+8], v)
+		}
+	}
+	clear(states[:])
+	runtime.KeepAlive(&states)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func em2Decrypt512x4Software(out, ct *[4][64]byte, keys *[4][128]byte) {
+	var states [4]State512
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 64; i += 8 {
+			v := binary.LittleEndian.Uint64(ct[lane][i:i+8]) ^
+				binary.LittleEndian.Uint64(keys[lane][i:i+8]) ^
+				binary.LittleEndian.Uint64(keys[lane][64+i:64+i+8])
+			binary.LittleEndian.PutUint64(states[lane][i:i+8], v)
+		}
+	}
+	areion512InversePermutex4SoftwareRC(&states, &roundConstantsP2)
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 64; i += 8 {
+			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][64+i:64+i+8])
+			binary.LittleEndian.PutUint64(states[lane][i:i+8], v)
+		}
+	}
+	areion512InversePermutex4SoftwareRC(&states, &roundConstantsP1)
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 64; i += 8 {
+			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][i:i+8])
+			binary.LittleEndian.PutUint64(out[lane][i:i+8], v)
+		}
+	}
+	clear(states[:])
+	runtime.KeepAlive(&states)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func temEncrypt256Software(out, m *[32]byte, k *[64]byte, t *[32]byte) {
+	var w, state State256
+	for i := 0; i < 32; i += 8 {
+		v := binary.LittleEndian.Uint64(t[i:i+8]) ^ binary.LittleEndian.Uint64(k[32+i:32+i+8])
+		binary.LittleEndian.PutUint64(w[i:i+8], v)
+	}
+	var x0, x1 bsState
+	bsPack1(&x0, (*Block)(w[0:16]))
+	bsPack1(&x1, (*Block)(w[16:32]))
+	areion256PermuteBS(&x0, &x1, &bsRCP2)
+	bsUnpack1(&x0, (*Block)(w[0:16]))
+	bsUnpack1(&x1, (*Block)(w[16:32]))
+	for i := 0; i < 32; i += 8 {
+		wv := binary.LittleEndian.Uint64(w[i:i+8]) ^ binary.LittleEndian.Uint64(k[i:i+8])
+		binary.LittleEndian.PutUint64(w[i:i+8], wv)
+		binary.LittleEndian.PutUint64(state[i:i+8], binary.LittleEndian.Uint64(m[i:i+8])^wv)
+	}
+	bsPack1(&x0, (*Block)(state[0:16]))
+	bsPack1(&x1, (*Block)(state[16:32]))
+	areion256PermuteBS(&x0, &x1, &bsRCP1)
+	bsUnpack1(&x0, (*Block)(state[0:16]))
+	bsUnpack1(&x1, (*Block)(state[16:32]))
+	for i := 0; i < 32; i += 8 {
+		v := binary.LittleEndian.Uint64(state[i:i+8]) ^ binary.LittleEndian.Uint64(w[i:i+8])
+		binary.LittleEndian.PutUint64(out[i:i+8], v)
+	}
+	clear(x0[:])
+	clear(x1[:])
+	clear(w[:])
+	clear(state[:])
+	runtime.KeepAlive(&x0)
+	runtime.KeepAlive(&x1)
+	runtime.KeepAlive(&w)
+	runtime.KeepAlive(&state)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func temDecrypt256Software(out, c *[32]byte, k *[64]byte, t *[32]byte) {
+	var w, state State256
+	for i := 0; i < 32; i += 8 {
+		v := binary.LittleEndian.Uint64(t[i:i+8]) ^ binary.LittleEndian.Uint64(k[32+i:32+i+8])
+		binary.LittleEndian.PutUint64(w[i:i+8], v)
+	}
+	var x0, x1 bsState
+	bsPack1(&x0, (*Block)(w[0:16]))
+	bsPack1(&x1, (*Block)(w[16:32]))
+	areion256PermuteBS(&x0, &x1, &bsRCP2)
+	bsUnpack1(&x0, (*Block)(w[0:16]))
+	bsUnpack1(&x1, (*Block)(w[16:32]))
+	for i := 0; i < 32; i += 8 {
+		wv := binary.LittleEndian.Uint64(w[i:i+8]) ^ binary.LittleEndian.Uint64(k[i:i+8])
+		binary.LittleEndian.PutUint64(w[i:i+8], wv)
+		binary.LittleEndian.PutUint64(state[i:i+8], binary.LittleEndian.Uint64(c[i:i+8])^wv)
+	}
+	bsPack1(&x0, (*Block)(state[0:16]))
+	bsPack1(&x1, (*Block)(state[16:32]))
+	areion256InversePermuteBS(&x0, &x1, &bsRCP1)
+	bsUnpack1(&x0, (*Block)(state[0:16]))
+	bsUnpack1(&x1, (*Block)(state[16:32]))
+	for i := 0; i < 32; i += 8 {
+		v := binary.LittleEndian.Uint64(state[i:i+8]) ^ binary.LittleEndian.Uint64(w[i:i+8])
+		binary.LittleEndian.PutUint64(out[i:i+8], v)
+	}
+	clear(x0[:])
+	clear(x1[:])
+	clear(w[:])
+	clear(state[:])
+	runtime.KeepAlive(&x0)
+	runtime.KeepAlive(&x1)
+	runtime.KeepAlive(&w)
+	runtime.KeepAlive(&state)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func temEncrypt512Software(out, m *[64]byte, k *[128]byte, t *[64]byte) {
+	var w, state State512
+	for i := 0; i < 64; i += 8 {
+		v := binary.LittleEndian.Uint64(t[i:i+8]) ^ binary.LittleEndian.Uint64(k[64+i:64+i+8])
+		binary.LittleEndian.PutUint64(w[i:i+8], v)
+	}
+	var x0, x1, x2, x3 bsState
+	bsPack1(&x0, (*Block)(w[0:16]))
+	bsPack1(&x1, (*Block)(w[16:32]))
+	bsPack1(&x2, (*Block)(w[32:48]))
+	bsPack1(&x3, (*Block)(w[48:64]))
+	areion512PermuteBS12(&x0, &x1, &x2, &x3, &bsRCP2)
+	bsUnpack1(&x0, (*Block)(w[0:16]))
+	bsUnpack1(&x1, (*Block)(w[16:32]))
+	bsUnpack1(&x2, (*Block)(w[32:48]))
+	bsUnpack1(&x3, (*Block)(w[48:64]))
+	for i := 0; i < 64; i += 8 {
+		wv := binary.LittleEndian.Uint64(w[i:i+8]) ^ binary.LittleEndian.Uint64(k[i:i+8])
+		binary.LittleEndian.PutUint64(w[i:i+8], wv)
+		binary.LittleEndian.PutUint64(state[i:i+8], binary.LittleEndian.Uint64(m[i:i+8])^wv)
+	}
+	bsPack1(&x0, (*Block)(state[0:16]))
+	bsPack1(&x1, (*Block)(state[16:32]))
+	bsPack1(&x2, (*Block)(state[32:48]))
+	bsPack1(&x3, (*Block)(state[48:64]))
+	areion512PermuteBS12(&x0, &x1, &x2, &x3, &bsRCP1)
+	bsUnpack1(&x0, (*Block)(state[0:16]))
+	bsUnpack1(&x1, (*Block)(state[16:32]))
+	bsUnpack1(&x2, (*Block)(state[32:48]))
+	bsUnpack1(&x3, (*Block)(state[48:64]))
+	for i := 0; i < 64; i += 8 {
+		v := binary.LittleEndian.Uint64(state[i:i+8]) ^ binary.LittleEndian.Uint64(w[i:i+8])
+		binary.LittleEndian.PutUint64(out[i:i+8], v)
+	}
+	clear(x0[:])
+	clear(x1[:])
+	clear(x2[:])
+	clear(x3[:])
+	clear(w[:])
+	clear(state[:])
+	runtime.KeepAlive(&x0)
+	runtime.KeepAlive(&x1)
+	runtime.KeepAlive(&x2)
+	runtime.KeepAlive(&x3)
+	runtime.KeepAlive(&w)
+	runtime.KeepAlive(&state)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func temDecrypt512Software(out, c *[64]byte, k *[128]byte, t *[64]byte) {
+	var w, state State512
+	for i := 0; i < 64; i += 8 {
+		v := binary.LittleEndian.Uint64(t[i:i+8]) ^ binary.LittleEndian.Uint64(k[64+i:64+i+8])
+		binary.LittleEndian.PutUint64(w[i:i+8], v)
+	}
+	var x0, x1, x2, x3 bsState
+	bsPack1(&x0, (*Block)(w[0:16]))
+	bsPack1(&x1, (*Block)(w[16:32]))
+	bsPack1(&x2, (*Block)(w[32:48]))
+	bsPack1(&x3, (*Block)(w[48:64]))
+	areion512PermuteBS12(&x0, &x1, &x2, &x3, &bsRCP2)
+	bsUnpack1(&x0, (*Block)(w[0:16]))
+	bsUnpack1(&x1, (*Block)(w[16:32]))
+	bsUnpack1(&x2, (*Block)(w[32:48]))
+	bsUnpack1(&x3, (*Block)(w[48:64]))
+	for i := 0; i < 64; i += 8 {
+		wv := binary.LittleEndian.Uint64(w[i:i+8]) ^ binary.LittleEndian.Uint64(k[i:i+8])
+		binary.LittleEndian.PutUint64(w[i:i+8], wv)
+		binary.LittleEndian.PutUint64(state[i:i+8], binary.LittleEndian.Uint64(c[i:i+8])^wv)
+	}
+	bsPack1(&x0, (*Block)(state[0:16]))
+	bsPack1(&x1, (*Block)(state[16:32]))
+	bsPack1(&x2, (*Block)(state[32:48]))
+	bsPack1(&x3, (*Block)(state[48:64]))
+	areion512InversePermuteBS12(&x0, &x1, &x2, &x3, &bsRCP1)
+	bsUnpack1(&x0, (*Block)(state[0:16]))
+	bsUnpack1(&x1, (*Block)(state[16:32]))
+	bsUnpack1(&x2, (*Block)(state[32:48]))
+	bsUnpack1(&x3, (*Block)(state[48:64]))
+	for i := 0; i < 64; i += 8 {
+		v := binary.LittleEndian.Uint64(state[i:i+8]) ^ binary.LittleEndian.Uint64(w[i:i+8])
+		binary.LittleEndian.PutUint64(out[i:i+8], v)
+	}
+	clear(x0[:])
+	clear(x1[:])
+	clear(x2[:])
+	clear(x3[:])
+	clear(w[:])
+	clear(state[:])
+	runtime.KeepAlive(&x0)
+	runtime.KeepAlive(&x1)
+	runtime.KeepAlive(&x2)
+	runtime.KeepAlive(&x3)
+	runtime.KeepAlive(&w)
+	runtime.KeepAlive(&state)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func temEncrypt256x4Software(out, msgs *[4][32]byte, keys *[4][64]byte, tweaks *[4][32]byte) {
+	var w, states [4]State256
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 32; i += 8 {
+			v := binary.LittleEndian.Uint64(tweaks[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][32+i:32+i+8])
+			binary.LittleEndian.PutUint64(w[lane][i:i+8], v)
+		}
+	}
+	areion256Permutex4SoftwareRC(&w, &roundConstantsP2)
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 32; i += 8 {
+			wv := binary.LittleEndian.Uint64(w[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][i:i+8])
+			binary.LittleEndian.PutUint64(w[lane][i:i+8], wv)
+			binary.LittleEndian.PutUint64(states[lane][i:i+8], binary.LittleEndian.Uint64(msgs[lane][i:i+8])^wv)
+		}
+	}
+	areion256Permutex4SoftwareRC(&states, &roundConstantsP1)
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 32; i += 8 {
+			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^ binary.LittleEndian.Uint64(w[lane][i:i+8])
+			binary.LittleEndian.PutUint64(out[lane][i:i+8], v)
+		}
+	}
+	clear(w[:])
+	clear(states[:])
+	runtime.KeepAlive(&w)
+	runtime.KeepAlive(&states)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func temDecrypt256x4Software(out, ct *[4][32]byte, keys *[4][64]byte, tweaks *[4][32]byte) {
+	var w, states [4]State256
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 32; i += 8 {
+			v := binary.LittleEndian.Uint64(tweaks[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][32+i:32+i+8])
+			binary.LittleEndian.PutUint64(w[lane][i:i+8], v)
+		}
+	}
+	areion256Permutex4SoftwareRC(&w, &roundConstantsP2)
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 32; i += 8 {
+			wv := binary.LittleEndian.Uint64(w[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][i:i+8])
+			binary.LittleEndian.PutUint64(w[lane][i:i+8], wv)
+			binary.LittleEndian.PutUint64(states[lane][i:i+8], binary.LittleEndian.Uint64(ct[lane][i:i+8])^wv)
+		}
+	}
+	areion256InversePermutex4SoftwareRC(&states, &roundConstantsP1)
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 32; i += 8 {
+			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^ binary.LittleEndian.Uint64(w[lane][i:i+8])
+			binary.LittleEndian.PutUint64(out[lane][i:i+8], v)
+		}
+	}
+	clear(w[:])
+	clear(states[:])
+	runtime.KeepAlive(&w)
+	runtime.KeepAlive(&states)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func temEncrypt512x4Software(out, msgs *[4][64]byte, keys *[4][128]byte, tweaks *[4][64]byte) {
+	var w, states [4]State512
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 64; i += 8 {
+			v := binary.LittleEndian.Uint64(tweaks[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][64+i:64+i+8])
+			binary.LittleEndian.PutUint64(w[lane][i:i+8], v)
+		}
+	}
+	areion512Permutex4SoftwareRC(&w, &roundConstantsP2)
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 64; i += 8 {
+			wv := binary.LittleEndian.Uint64(w[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][i:i+8])
+			binary.LittleEndian.PutUint64(w[lane][i:i+8], wv)
+			binary.LittleEndian.PutUint64(states[lane][i:i+8], binary.LittleEndian.Uint64(msgs[lane][i:i+8])^wv)
+		}
+	}
+	areion512Permutex4SoftwareRC(&states, &roundConstantsP1)
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 64; i += 8 {
+			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^ binary.LittleEndian.Uint64(w[lane][i:i+8])
+			binary.LittleEndian.PutUint64(out[lane][i:i+8], v)
+		}
+	}
+	clear(w[:])
+	clear(states[:])
+	runtime.KeepAlive(&w)
+	runtime.KeepAlive(&states)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func temDecrypt512x4Software(out, ct *[4][64]byte, keys *[4][128]byte, tweaks *[4][64]byte) {
+	var w, states [4]State512
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 64; i += 8 {
+			v := binary.LittleEndian.Uint64(tweaks[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][64+i:64+i+8])
+			binary.LittleEndian.PutUint64(w[lane][i:i+8], v)
+		}
+	}
+	areion512Permutex4SoftwareRC(&w, &roundConstantsP2)
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 64; i += 8 {
+			wv := binary.LittleEndian.Uint64(w[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][i:i+8])
+			binary.LittleEndian.PutUint64(w[lane][i:i+8], wv)
+			binary.LittleEndian.PutUint64(states[lane][i:i+8], binary.LittleEndian.Uint64(ct[lane][i:i+8])^wv)
+		}
+	}
+	areion512InversePermutex4SoftwareRC(&states, &roundConstantsP1)
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 64; i += 8 {
+			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^ binary.LittleEndian.Uint64(w[lane][i:i+8])
+			binary.LittleEndian.PutUint64(out[lane][i:i+8], v)
+		}
+	}
+	clear(w[:])
+	clear(states[:])
+	runtime.KeepAlive(&w)
+	runtime.KeepAlive(&states)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func tem2Encrypt256Software(out, m *[32]byte, k *[64]byte, t *[32]byte) {
+	var w1, w2, state State256
+	for i := 0; i < 32; i += 8 {
+		tv := binary.LittleEndian.Uint64(t[i:i+8])
+		k1 := binary.LittleEndian.Uint64(k[i:i+8])
+		k2 := binary.LittleEndian.Uint64(k[32+i:32+i+8])
+		binary.LittleEndian.PutUint64(w1[i:i+8], tv^k1)
+		binary.LittleEndian.PutUint64(w2[i:i+8], tv^k2)
+	}
+	var x0, x1 bsState
+	bsPack2(&x0, (*Block)(w1[0:16]), (*Block)(w2[0:16]))
+	bsPack2(&x1, (*Block)(w1[16:32]), (*Block)(w2[16:32]))
+	areion256PermuteBS(&x0, &x1, &bsRCP1P2)
+	bsUnpack2(&x0, (*Block)(w1[0:16]), (*Block)(w2[0:16]))
+	bsUnpack2(&x1, (*Block)(w1[16:32]), (*Block)(w2[16:32]))
+	for i := 0; i < 32; i += 8 {
+		w1v := binary.LittleEndian.Uint64(w1[i:i+8]) ^ binary.LittleEndian.Uint64(k[i:i+8])
+		w2v := binary.LittleEndian.Uint64(w2[i:i+8]) ^ binary.LittleEndian.Uint64(k[32+i:32+i+8])
+		binary.LittleEndian.PutUint64(w1[i:i+8], w1v)
+		binary.LittleEndian.PutUint64(w2[i:i+8], w2v)
+		binary.LittleEndian.PutUint64(state[i:i+8], binary.LittleEndian.Uint64(m[i:i+8])^w1v)
+	}
+	bsPack1(&x0, (*Block)(state[0:16]))
+	bsPack1(&x1, (*Block)(state[16:32]))
+	areion256PermuteBS(&x0, &x1, &bsRCP1)
+	bsUnpack1(&x0, (*Block)(state[0:16]))
+	bsUnpack1(&x1, (*Block)(state[16:32]))
+	for i := 0; i < 32; i += 8 {
+		v := binary.LittleEndian.Uint64(state[i:i+8]) ^ binary.LittleEndian.Uint64(w2[i:i+8])
+		binary.LittleEndian.PutUint64(state[i:i+8], v)
+	}
+	bsPack1(&x0, (*Block)(state[0:16]))
+	bsPack1(&x1, (*Block)(state[16:32]))
+	areion256PermuteBS(&x0, &x1, &bsRCP2)
+	bsUnpack1(&x0, (*Block)(state[0:16]))
+	bsUnpack1(&x1, (*Block)(state[16:32]))
+	for i := 0; i < 32; i += 8 {
+		v := binary.LittleEndian.Uint64(state[i:i+8]) ^
+			binary.LittleEndian.Uint64(w1[i:i+8]) ^
+			binary.LittleEndian.Uint64(w2[i:i+8])
+		binary.LittleEndian.PutUint64(out[i:i+8], v)
+	}
+	clear(x0[:])
+	clear(x1[:])
+	clear(w1[:])
+	clear(w2[:])
+	clear(state[:])
+	runtime.KeepAlive(&x0)
+	runtime.KeepAlive(&x1)
+	runtime.KeepAlive(&w1)
+	runtime.KeepAlive(&w2)
+	runtime.KeepAlive(&state)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func tem2Decrypt256Software(out, c *[32]byte, k *[64]byte, t *[32]byte) {
+	var w1, w2, state State256
+	for i := 0; i < 32; i += 8 {
+		tv := binary.LittleEndian.Uint64(t[i:i+8])
+		k1 := binary.LittleEndian.Uint64(k[i:i+8])
+		k2 := binary.LittleEndian.Uint64(k[32+i:32+i+8])
+		binary.LittleEndian.PutUint64(w1[i:i+8], tv^k1)
+		binary.LittleEndian.PutUint64(w2[i:i+8], tv^k2)
+	}
+	var x0, x1 bsState
+	bsPack2(&x0, (*Block)(w1[0:16]), (*Block)(w2[0:16]))
+	bsPack2(&x1, (*Block)(w1[16:32]), (*Block)(w2[16:32]))
+	areion256PermuteBS(&x0, &x1, &bsRCP1P2)
+	bsUnpack2(&x0, (*Block)(w1[0:16]), (*Block)(w2[0:16]))
+	bsUnpack2(&x1, (*Block)(w1[16:32]), (*Block)(w2[16:32]))
+	for i := 0; i < 32; i += 8 {
+		w1v := binary.LittleEndian.Uint64(w1[i:i+8]) ^ binary.LittleEndian.Uint64(k[i:i+8])
+		w2v := binary.LittleEndian.Uint64(w2[i:i+8]) ^ binary.LittleEndian.Uint64(k[32+i:32+i+8])
+		binary.LittleEndian.PutUint64(w1[i:i+8], w1v)
+		binary.LittleEndian.PutUint64(w2[i:i+8], w2v)
+		binary.LittleEndian.PutUint64(state[i:i+8], binary.LittleEndian.Uint64(c[i:i+8])^w1v^w2v)
+	}
+	bsPack1(&x0, (*Block)(state[0:16]))
+	bsPack1(&x1, (*Block)(state[16:32]))
+	areion256InversePermuteBS(&x0, &x1, &bsRCP2)
+	bsUnpack1(&x0, (*Block)(state[0:16]))
+	bsUnpack1(&x1, (*Block)(state[16:32]))
+	for i := 0; i < 32; i += 8 {
+		v := binary.LittleEndian.Uint64(state[i:i+8]) ^ binary.LittleEndian.Uint64(w2[i:i+8])
+		binary.LittleEndian.PutUint64(state[i:i+8], v)
+	}
+	bsPack1(&x0, (*Block)(state[0:16]))
+	bsPack1(&x1, (*Block)(state[16:32]))
+	areion256InversePermuteBS(&x0, &x1, &bsRCP1)
+	bsUnpack1(&x0, (*Block)(state[0:16]))
+	bsUnpack1(&x1, (*Block)(state[16:32]))
+	for i := 0; i < 32; i += 8 {
+		v := binary.LittleEndian.Uint64(state[i:i+8]) ^ binary.LittleEndian.Uint64(w1[i:i+8])
+		binary.LittleEndian.PutUint64(out[i:i+8], v)
+	}
+	clear(x0[:])
+	clear(x1[:])
+	clear(w1[:])
+	clear(w2[:])
+	clear(state[:])
+	runtime.KeepAlive(&x0)
+	runtime.KeepAlive(&x1)
+	runtime.KeepAlive(&w1)
+	runtime.KeepAlive(&w2)
+	runtime.KeepAlive(&state)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func tem2Encrypt512Software(out, m *[64]byte, k *[128]byte, t *[64]byte) {
+	var w1, w2, state State512
+	for i := 0; i < 64; i += 8 {
+		tv := binary.LittleEndian.Uint64(t[i:i+8])
+		k1 := binary.LittleEndian.Uint64(k[i:i+8])
+		k2 := binary.LittleEndian.Uint64(k[64+i:64+i+8])
+		binary.LittleEndian.PutUint64(w1[i:i+8], tv^k1)
+		binary.LittleEndian.PutUint64(w2[i:i+8], tv^k2)
+	}
+	var x0, x1, x2, x3 bsState
+	bsPack2(&x0, (*Block)(w1[0:16]), (*Block)(w2[0:16]))
+	bsPack2(&x1, (*Block)(w1[16:32]), (*Block)(w2[16:32]))
+	bsPack2(&x2, (*Block)(w1[32:48]), (*Block)(w2[32:48]))
+	bsPack2(&x3, (*Block)(w1[48:64]), (*Block)(w2[48:64]))
+	areion512PermuteBS12(&x0, &x1, &x2, &x3, &bsRCP1P2)
+	bsUnpack2(&x0, (*Block)(w1[0:16]), (*Block)(w2[0:16]))
+	bsUnpack2(&x1, (*Block)(w1[16:32]), (*Block)(w2[16:32]))
+	bsUnpack2(&x2, (*Block)(w1[32:48]), (*Block)(w2[32:48]))
+	bsUnpack2(&x3, (*Block)(w1[48:64]), (*Block)(w2[48:64]))
+	for i := 0; i < 64; i += 8 {
+		w1v := binary.LittleEndian.Uint64(w1[i:i+8]) ^ binary.LittleEndian.Uint64(k[i:i+8])
+		w2v := binary.LittleEndian.Uint64(w2[i:i+8]) ^ binary.LittleEndian.Uint64(k[64+i:64+i+8])
+		binary.LittleEndian.PutUint64(w1[i:i+8], w1v)
+		binary.LittleEndian.PutUint64(w2[i:i+8], w2v)
+		binary.LittleEndian.PutUint64(state[i:i+8], binary.LittleEndian.Uint64(m[i:i+8])^w1v)
+	}
+	bsPack1(&x0, (*Block)(state[0:16]))
+	bsPack1(&x1, (*Block)(state[16:32]))
+	bsPack1(&x2, (*Block)(state[32:48]))
+	bsPack1(&x3, (*Block)(state[48:64]))
+	areion512PermuteBS12(&x0, &x1, &x2, &x3, &bsRCP1)
+	bsUnpack1(&x0, (*Block)(state[0:16]))
+	bsUnpack1(&x1, (*Block)(state[16:32]))
+	bsUnpack1(&x2, (*Block)(state[32:48]))
+	bsUnpack1(&x3, (*Block)(state[48:64]))
+	for i := 0; i < 64; i += 8 {
+		v := binary.LittleEndian.Uint64(state[i:i+8]) ^ binary.LittleEndian.Uint64(w2[i:i+8])
+		binary.LittleEndian.PutUint64(state[i:i+8], v)
+	}
+	bsPack1(&x0, (*Block)(state[0:16]))
+	bsPack1(&x1, (*Block)(state[16:32]))
+	bsPack1(&x2, (*Block)(state[32:48]))
+	bsPack1(&x3, (*Block)(state[48:64]))
+	areion512PermuteBS12(&x0, &x1, &x2, &x3, &bsRCP2)
+	bsUnpack1(&x0, (*Block)(state[0:16]))
+	bsUnpack1(&x1, (*Block)(state[16:32]))
+	bsUnpack1(&x2, (*Block)(state[32:48]))
+	bsUnpack1(&x3, (*Block)(state[48:64]))
+	for i := 0; i < 64; i += 8 {
+		v := binary.LittleEndian.Uint64(state[i:i+8]) ^
+			binary.LittleEndian.Uint64(w1[i:i+8]) ^
+			binary.LittleEndian.Uint64(w2[i:i+8])
+		binary.LittleEndian.PutUint64(out[i:i+8], v)
+	}
+	clear(x0[:])
+	clear(x1[:])
+	clear(x2[:])
+	clear(x3[:])
+	clear(w1[:])
+	clear(w2[:])
+	clear(state[:])
+	runtime.KeepAlive(&x0)
+	runtime.KeepAlive(&x1)
+	runtime.KeepAlive(&x2)
+	runtime.KeepAlive(&x3)
+	runtime.KeepAlive(&w1)
+	runtime.KeepAlive(&w2)
+	runtime.KeepAlive(&state)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func tem2Decrypt512Software(out, c *[64]byte, k *[128]byte, t *[64]byte) {
+	var w1, w2, state State512
+	for i := 0; i < 64; i += 8 {
+		tv := binary.LittleEndian.Uint64(t[i:i+8])
+		k1 := binary.LittleEndian.Uint64(k[i:i+8])
+		k2 := binary.LittleEndian.Uint64(k[64+i:64+i+8])
+		binary.LittleEndian.PutUint64(w1[i:i+8], tv^k1)
+		binary.LittleEndian.PutUint64(w2[i:i+8], tv^k2)
+	}
+	var x0, x1, x2, x3 bsState
+	bsPack2(&x0, (*Block)(w1[0:16]), (*Block)(w2[0:16]))
+	bsPack2(&x1, (*Block)(w1[16:32]), (*Block)(w2[16:32]))
+	bsPack2(&x2, (*Block)(w1[32:48]), (*Block)(w2[32:48]))
+	bsPack2(&x3, (*Block)(w1[48:64]), (*Block)(w2[48:64]))
+	areion512PermuteBS12(&x0, &x1, &x2, &x3, &bsRCP1P2)
+	bsUnpack2(&x0, (*Block)(w1[0:16]), (*Block)(w2[0:16]))
+	bsUnpack2(&x1, (*Block)(w1[16:32]), (*Block)(w2[16:32]))
+	bsUnpack2(&x2, (*Block)(w1[32:48]), (*Block)(w2[32:48]))
+	bsUnpack2(&x3, (*Block)(w1[48:64]), (*Block)(w2[48:64]))
+	for i := 0; i < 64; i += 8 {
+		w1v := binary.LittleEndian.Uint64(w1[i:i+8]) ^ binary.LittleEndian.Uint64(k[i:i+8])
+		w2v := binary.LittleEndian.Uint64(w2[i:i+8]) ^ binary.LittleEndian.Uint64(k[64+i:64+i+8])
+		binary.LittleEndian.PutUint64(w1[i:i+8], w1v)
+		binary.LittleEndian.PutUint64(w2[i:i+8], w2v)
+		binary.LittleEndian.PutUint64(state[i:i+8], binary.LittleEndian.Uint64(c[i:i+8])^w1v^w2v)
+	}
+	bsPack1(&x0, (*Block)(state[0:16]))
+	bsPack1(&x1, (*Block)(state[16:32]))
+	bsPack1(&x2, (*Block)(state[32:48]))
+	bsPack1(&x3, (*Block)(state[48:64]))
+	areion512InversePermuteBS12(&x0, &x1, &x2, &x3, &bsRCP2)
+	bsUnpack1(&x0, (*Block)(state[0:16]))
+	bsUnpack1(&x1, (*Block)(state[16:32]))
+	bsUnpack1(&x2, (*Block)(state[32:48]))
+	bsUnpack1(&x3, (*Block)(state[48:64]))
+	for i := 0; i < 64; i += 8 {
+		v := binary.LittleEndian.Uint64(state[i:i+8]) ^ binary.LittleEndian.Uint64(w2[i:i+8])
+		binary.LittleEndian.PutUint64(state[i:i+8], v)
+	}
+	bsPack1(&x0, (*Block)(state[0:16]))
+	bsPack1(&x1, (*Block)(state[16:32]))
+	bsPack1(&x2, (*Block)(state[32:48]))
+	bsPack1(&x3, (*Block)(state[48:64]))
+	areion512InversePermuteBS12(&x0, &x1, &x2, &x3, &bsRCP1)
+	bsUnpack1(&x0, (*Block)(state[0:16]))
+	bsUnpack1(&x1, (*Block)(state[16:32]))
+	bsUnpack1(&x2, (*Block)(state[32:48]))
+	bsUnpack1(&x3, (*Block)(state[48:64]))
+	for i := 0; i < 64; i += 8 {
+		v := binary.LittleEndian.Uint64(state[i:i+8]) ^ binary.LittleEndian.Uint64(w1[i:i+8])
+		binary.LittleEndian.PutUint64(out[i:i+8], v)
+	}
+	clear(x0[:])
+	clear(x1[:])
+	clear(x2[:])
+	clear(x3[:])
+	clear(w1[:])
+	clear(w2[:])
+	clear(state[:])
+	runtime.KeepAlive(&x0)
+	runtime.KeepAlive(&x1)
+	runtime.KeepAlive(&x2)
+	runtime.KeepAlive(&x3)
+	runtime.KeepAlive(&w1)
+	runtime.KeepAlive(&w2)
+	runtime.KeepAlive(&state)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func tem2Encrypt256x4Software(out, msgs *[4][32]byte, keys *[4][64]byte, tweaks *[4][32]byte) {
+	var w1, w2, states [4]State256
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 32; i += 8 {
+			tv := binary.LittleEndian.Uint64(tweaks[lane][i:i+8])
+			k1 := binary.LittleEndian.Uint64(keys[lane][i:i+8])
+			k2 := binary.LittleEndian.Uint64(keys[lane][32+i:32+i+8])
+			binary.LittleEndian.PutUint64(w1[lane][i:i+8], tv^k1)
+			binary.LittleEndian.PutUint64(w2[lane][i:i+8], tv^k2)
+		}
+	}
+	areion256Permutex4SoftwareRC(&w1, &roundConstantsP1)
+	areion256Permutex4SoftwareRC(&w2, &roundConstantsP2)
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 32; i += 8 {
+			w1v := binary.LittleEndian.Uint64(w1[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][i:i+8])
+			w2v := binary.LittleEndian.Uint64(w2[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][32+i:32+i+8])
+			binary.LittleEndian.PutUint64(w1[lane][i:i+8], w1v)
+			binary.LittleEndian.PutUint64(w2[lane][i:i+8], w2v)
+			binary.LittleEndian.PutUint64(states[lane][i:i+8], binary.LittleEndian.Uint64(msgs[lane][i:i+8])^w1v)
+		}
+	}
+	areion256Permutex4SoftwareRC(&states, &roundConstantsP1)
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 32; i += 8 {
+			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^ binary.LittleEndian.Uint64(w2[lane][i:i+8])
+			binary.LittleEndian.PutUint64(states[lane][i:i+8], v)
+		}
+	}
+	areion256Permutex4SoftwareRC(&states, &roundConstantsP2)
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 32; i += 8 {
+			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^
+				binary.LittleEndian.Uint64(w1[lane][i:i+8]) ^
+				binary.LittleEndian.Uint64(w2[lane][i:i+8])
+			binary.LittleEndian.PutUint64(out[lane][i:i+8], v)
+		}
+	}
+	clear(w1[:])
+	clear(w2[:])
+	clear(states[:])
+	runtime.KeepAlive(&w1)
+	runtime.KeepAlive(&w2)
+	runtime.KeepAlive(&states)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func tem2Decrypt256x4Software(out, ct *[4][32]byte, keys *[4][64]byte, tweaks *[4][32]byte) {
+	var w1, w2, states [4]State256
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 32; i += 8 {
+			tv := binary.LittleEndian.Uint64(tweaks[lane][i:i+8])
+			k1 := binary.LittleEndian.Uint64(keys[lane][i:i+8])
+			k2 := binary.LittleEndian.Uint64(keys[lane][32+i:32+i+8])
+			binary.LittleEndian.PutUint64(w1[lane][i:i+8], tv^k1)
+			binary.LittleEndian.PutUint64(w2[lane][i:i+8], tv^k2)
+		}
+	}
+	areion256Permutex4SoftwareRC(&w1, &roundConstantsP1)
+	areion256Permutex4SoftwareRC(&w2, &roundConstantsP2)
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 32; i += 8 {
+			w1v := binary.LittleEndian.Uint64(w1[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][i:i+8])
+			w2v := binary.LittleEndian.Uint64(w2[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][32+i:32+i+8])
+			binary.LittleEndian.PutUint64(w1[lane][i:i+8], w1v)
+			binary.LittleEndian.PutUint64(w2[lane][i:i+8], w2v)
+			binary.LittleEndian.PutUint64(states[lane][i:i+8], binary.LittleEndian.Uint64(ct[lane][i:i+8])^w1v^w2v)
+		}
+	}
+	areion256InversePermutex4SoftwareRC(&states, &roundConstantsP2)
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 32; i += 8 {
+			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^ binary.LittleEndian.Uint64(w2[lane][i:i+8])
+			binary.LittleEndian.PutUint64(states[lane][i:i+8], v)
+		}
+	}
+	areion256InversePermutex4SoftwareRC(&states, &roundConstantsP1)
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 32; i += 8 {
+			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^ binary.LittleEndian.Uint64(w1[lane][i:i+8])
+			binary.LittleEndian.PutUint64(out[lane][i:i+8], v)
+		}
+	}
+	clear(w1[:])
+	clear(w2[:])
+	clear(states[:])
+	runtime.KeepAlive(&w1)
+	runtime.KeepAlive(&w2)
+	runtime.KeepAlive(&states)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func tem2Encrypt512x4Software(out, msgs *[4][64]byte, keys *[4][128]byte, tweaks *[4][64]byte) {
+	var w1, w2, states [4]State512
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 64; i += 8 {
+			tv := binary.LittleEndian.Uint64(tweaks[lane][i:i+8])
+			k1 := binary.LittleEndian.Uint64(keys[lane][i:i+8])
+			k2 := binary.LittleEndian.Uint64(keys[lane][64+i:64+i+8])
+			binary.LittleEndian.PutUint64(w1[lane][i:i+8], tv^k1)
+			binary.LittleEndian.PutUint64(w2[lane][i:i+8], tv^k2)
+		}
+	}
+	areion512Permutex4SoftwareRC(&w1, &roundConstantsP1)
+	areion512Permutex4SoftwareRC(&w2, &roundConstantsP2)
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 64; i += 8 {
+			w1v := binary.LittleEndian.Uint64(w1[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][i:i+8])
+			w2v := binary.LittleEndian.Uint64(w2[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][64+i:64+i+8])
+			binary.LittleEndian.PutUint64(w1[lane][i:i+8], w1v)
+			binary.LittleEndian.PutUint64(w2[lane][i:i+8], w2v)
+			binary.LittleEndian.PutUint64(states[lane][i:i+8], binary.LittleEndian.Uint64(msgs[lane][i:i+8])^w1v)
+		}
+	}
+	areion512Permutex4SoftwareRC(&states, &roundConstantsP1)
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 64; i += 8 {
+			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^ binary.LittleEndian.Uint64(w2[lane][i:i+8])
+			binary.LittleEndian.PutUint64(states[lane][i:i+8], v)
+		}
+	}
+	areion512Permutex4SoftwareRC(&states, &roundConstantsP2)
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 64; i += 8 {
+			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^
+				binary.LittleEndian.Uint64(w1[lane][i:i+8]) ^
+				binary.LittleEndian.Uint64(w2[lane][i:i+8])
+			binary.LittleEndian.PutUint64(out[lane][i:i+8], v)
+		}
+	}
+	clear(w1[:])
+	clear(w2[:])
+	clear(states[:])
+	runtime.KeepAlive(&w1)
+	runtime.KeepAlive(&w2)
+	runtime.KeepAlive(&states)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func tem2Decrypt512x4Software(out, ct *[4][64]byte, keys *[4][128]byte, tweaks *[4][64]byte) {
+	var w1, w2, states [4]State512
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 64; i += 8 {
+			tv := binary.LittleEndian.Uint64(tweaks[lane][i:i+8])
+			k1 := binary.LittleEndian.Uint64(keys[lane][i:i+8])
+			k2 := binary.LittleEndian.Uint64(keys[lane][64+i:64+i+8])
+			binary.LittleEndian.PutUint64(w1[lane][i:i+8], tv^k1)
+			binary.LittleEndian.PutUint64(w2[lane][i:i+8], tv^k2)
+		}
+	}
+	areion512Permutex4SoftwareRC(&w1, &roundConstantsP1)
+	areion512Permutex4SoftwareRC(&w2, &roundConstantsP2)
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 64; i += 8 {
+			w1v := binary.LittleEndian.Uint64(w1[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][i:i+8])
+			w2v := binary.LittleEndian.Uint64(w2[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][64+i:64+i+8])
+			binary.LittleEndian.PutUint64(w1[lane][i:i+8], w1v)
+			binary.LittleEndian.PutUint64(w2[lane][i:i+8], w2v)
+			binary.LittleEndian.PutUint64(states[lane][i:i+8], binary.LittleEndian.Uint64(ct[lane][i:i+8])^w1v^w2v)
+		}
+	}
+	areion512InversePermutex4SoftwareRC(&states, &roundConstantsP2)
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 64; i += 8 {
+			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^ binary.LittleEndian.Uint64(w2[lane][i:i+8])
+			binary.LittleEndian.PutUint64(states[lane][i:i+8], v)
+		}
+	}
+	areion512InversePermutex4SoftwareRC(&states, &roundConstantsP1)
+	for lane := 0; lane < 4; lane++ {
+		for i := 0; i < 64; i += 8 {
+			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^ binary.LittleEndian.Uint64(w1[lane][i:i+8])
+			binary.LittleEndian.PutUint64(out[lane][i:i+8], v)
+		}
+	}
+	clear(w1[:])
+	clear(w2[:])
+	clear(states[:])
+	runtime.KeepAlive(&w1)
+	runtime.KeepAlive(&w2)
+	runtime.KeepAlive(&states)
 	wipeSoftwareStack()
 	clobberScratchGPRs()
 }

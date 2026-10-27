@@ -9,7 +9,7 @@ This directory contains standalone cryptanalytic and verification tooling for th
 Python 3 verification script for the Areion-SoEM22 round constants. Standard library only.
 
 #### Purpose
-The Sum of Even-Mansour (SoEM22) construction (Chen, Lambooij, Mennink, CRYPTO 2019) requires two independent permutations $P_1$ and $P_2$:
+The Sum of Even-Mansour (SoEM22) construction (Chen, Lambooij, Mennink, CRYPTO 2019), as well as the `EM2`, `TEM`, and `TEM2` wide-block ciphers, requires two independent permutations $P_1$ and $P_2$:
 $$F(k_1, k_2, m) = P_1(m \oplus k_1) \oplus P_2(m \oplus k_2) \oplus k_1 \oplus k_2$$
 
 $P_1$ uses the published Areion round constants (Isobe et al., TCHES 2023; Table 1 and Appendix A.1 of the extended version, ePrint 2023/794): the first 15 128-bit words of the fractional part of $\pi$ (words 0..14), with RC7 kept as published (`0x801f2e2858efc16636920d871574e690`, a one-nibble shift from $\pi$ word 7). $P_2$ is the Areion permutation under a second table, the subsequent 15 consecutive 128-bit words of $\pi$ (words 15..29), with RC7 ($\pi$ word 22, `0x0f6d6ff383f442392e0b4482a4842004`) taking the same one-nibble shift as RC7 of $P_1$: `0xf6d6ff383f442392e0b4482a48420040`. Words 7 and 22 are the only words among 0..29 that begin with a zero nibble. Table 2 is proposed by Andrey Kuvshinov; this script derives and checks it.

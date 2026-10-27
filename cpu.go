@@ -12,10 +12,10 @@ import (
 const (
 	TierPureGo    int32 = 0
 	TierAESNI     int32 = 1
-	TierARMCrypto int32 = 1
 	TierVEX       int32 = 2
 	TierVAESAVX2  int32 = 3
 	TierAVX512    int32 = 4
+	TierARMCrypto int32 = 5
 )
 
 // Hardware capability flags detected at initialization (read-only after init).
@@ -29,7 +29,6 @@ var (
 
 var (
 	tierMu         sync.Mutex
-	activeTierName string
 	activeTierCode int32
 )
 
@@ -44,22 +43,16 @@ func setTierLocked(tier string) error {
 	switch normalized {
 	case "auto":
 		if hasAVX512 {
-			activeTierName = "avx512"
 			atomic.StoreInt32(&activeTierCode, TierAVX512)
 		} else if hasVAESAVX2 {
-			activeTierName = "vaesavx2"
 			atomic.StoreInt32(&activeTierCode, TierVAESAVX2)
 		} else if hasVEX {
-			activeTierName = "vex"
 			atomic.StoreInt32(&activeTierCode, TierVEX)
 		} else if hasAESNI {
-			activeTierName = "aesni"
 			atomic.StoreInt32(&activeTierCode, TierAESNI)
 		} else if hasARMCrypto {
-			activeTierName = "arm64"
 			atomic.StoreInt32(&activeTierCode, TierARMCrypto)
 		} else {
-			activeTierName = "purego"
 			atomic.StoreInt32(&activeTierCode, TierPureGo)
 		}
 		return nil
@@ -67,37 +60,31 @@ func setTierLocked(tier string) error {
 		if !hasAVX512 {
 			return fmt.Errorf("host CPU lacks AVX-512F + VAES")
 		}
-		activeTierName = "avx512"
 		atomic.StoreInt32(&activeTierCode, TierAVX512)
 	case "vaesavx2":
 		if !hasVAESAVX2 {
 			return fmt.Errorf("host CPU lacks AVX2 + VAES")
 		}
-		activeTierName = "vaesavx2"
 		atomic.StoreInt32(&activeTierCode, TierVAESAVX2)
 	case "vex":
 		if !hasVEX {
 			return fmt.Errorf("host CPU lacks AVX + AES-NI")
 		}
-		activeTierName = "vex"
 		atomic.StoreInt32(&activeTierCode, TierVEX)
 	case "aesni":
 		if !hasAESNI {
 			return fmt.Errorf("host CPU lacks AES-NI")
 		}
-		activeTierName = "aesni"
 		atomic.StoreInt32(&activeTierCode, TierAESNI)
 	case "arm64", "neon", "sve", "sve2":
 		if !hasARMCrypto {
 			return fmt.Errorf("host CPU lacks ARM Cryptographic Extension")
 		}
-		activeTierName = "arm64"
 		atomic.StoreInt32(&activeTierCode, TierARMCrypto)
-	case "purego", "scalar", "gpr":
-		activeTierName = "purego"
+	case "purego", "purec", "scalar", "gpr":
 		atomic.StoreInt32(&activeTierCode, TierPureGo)
 	default:
-		return fmt.Errorf("unknown tier %q (want: avx512, vaesavx2, vex, aesni, arm64/neon/sve/sve2, purego/scalar, auto)", tier)
+		return fmt.Errorf("unknown tier %q (want: avx512, vaesavx2, vex, aesni, arm64/neon/sve/sve2, purego/purec/scalar, auto)", tier)
 	}
 	return nil
 }
@@ -113,13 +100,24 @@ func applyEnvTier() {
 // Tier returns the currently active hardware acceleration tier name:
 // "avx512", "vaesavx2", "vex", "aesni", "arm64", or "purego".
 func Tier() string {
-	tierMu.Lock()
-	defer tierMu.Unlock()
-	return activeTierName
+	switch TierCode() {
+	case TierAVX512:
+		return "avx512"
+	case TierVAESAVX2:
+		return "vaesavx2"
+	case TierVEX:
+		return "vex"
+	case TierAESNI:
+		return "aesni"
+	case TierARMCrypto:
+		return "arm64"
+	default:
+		return "purego"
+	}
 }
 
 // TierCode returns the integer code of the active hardware tier:
-// TierPureGo (0), TierAESNI / TierARMCrypto (1), TierVEX (2), TierVAESAVX2 (3), TierAVX512 (4).
+// TierPureGo (0), TierAESNI (1), TierVEX (2), TierVAESAVX2 (3), TierAVX512 (4), TierARMCrypto (5).
 func TierCode() int32 {
 	return atomic.LoadInt32(&activeTierCode)
 }
@@ -130,7 +128,7 @@ func TierCode() int32 {
 //   - "vex": requires AVX + AES-NI (128-bit XMM 3-operand VEX)
 //   - "aesni": requires AES-NI (x86-64 legacy 2-operand)
 //   - "arm64", "neon", "sve", "sve2": requires ARMv8 Cryptographic Extension
-//   - "purego", "scalar", "gpr": portable Go software fallback
+//   - "purego", "purec", "scalar", "gpr": portable Go software fallback
 //   - "auto": restores natural hardware detection
 func SetTier(tier string) error {
 	tierMu.Lock()
