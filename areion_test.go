@@ -1885,93 +1885,6 @@ func rijndael256DecryptBlockRef(rk *[15][32]byte, dst, src *[32]byte) {
 	*dst = s
 }
 
-// rijndael256PrePermute applies ShiftRows_AES128⁻¹ ∘ ShiftRows_R256(0,1,3,4)
-// across the two 128-bit halves so that two subsequent AES-128 rounds (or final rounds)
-// execute a full Rijndael-256 round.
-func rijndael256PrePermute(lo, hi *Block, s *[32]byte) {
-	*lo = Block{
-		s[0], s[17], s[22], s[23],
-		s[4], s[5], s[26], s[27],
-		s[8], s[9], s[14], s[31],
-		s[12], s[13], s[18], s[19],
-	}
-	*hi = Block{
-		s[16], s[1], s[6], s[7],
-		s[20], s[21], s[10], s[11],
-		s[24], s[25], s[30], s[15],
-		s[28], s[29], s[2], s[3],
-	}
-}
-
-// rijndael256EncryptBlockHW encrypts one 32-byte block using hardware AES rounds
-// plus the mandatory cross-128-bit-half byte permutation per round.
-func rijndael256EncryptBlockHW(rk *[15][32]byte, dst, src *[32]byte) {
-	var s [32]byte
-	for i := 0; i < 32; i++ {
-		s[i] = src[i] ^ rk[0][i]
-	}
-	var lo, hi Block
-	for r := 1; r <= 13; r++ {
-		rijndael256PrePermute(&lo, &hi, &s)
-		rkLo := (*Block)(rk[r][0:16])
-		rkHi := (*Block)(rk[r][16:32])
-		AES128Round(&lo, rkLo)
-		AES128Round(&hi, rkHi)
-		copy(s[0:16], lo[:])
-		copy(s[16:32], hi[:])
-	}
-	rijndael256PrePermute(&lo, &hi, &s)
-	rkLo := (*Block)(rk[14][0:16])
-	rkHi := (*Block)(rk[14][16:32])
-	AES128FinalRound(&lo, rkLo)
-	AES128FinalRound(&hi, rkHi)
-	copy(dst[0:16], lo[:])
-	copy(dst[16:32], hi[:])
-}
-
-// rijndael256Encrypt4BlocksHW encrypts four 32-byte blocks in parallel using 4-way
-// hardware AES rounds (AES128Round4 / AES128FinalRound4) plus cross-half byte shuffles.
-func rijndael256Encrypt4BlocksHW(rk *[15][32]byte, dst, src *[4][32]byte) {
-	var s [4][32]byte
-	for b := 0; b < 4; b++ {
-		for i := 0; i < 32; i++ {
-			s[b][i] = src[b][i] ^ rk[0][i]
-		}
-	}
-	var lo4, hi4 Block4
-	var rkLo4, rkHi4 Key4
-	for r := 1; r <= 13; r++ {
-		for b := 0; b < 4; b++ {
-			var lo, hi Block
-			rijndael256PrePermute(&lo, &hi, &s[b])
-			copy(lo4[16*b:16*(b+1)], lo[:])
-			copy(hi4[16*b:16*(b+1)], hi[:])
-			copy(rkLo4[16*b:16*(b+1)], rk[r][0:16])
-			copy(rkHi4[16*b:16*(b+1)], rk[r][16:32])
-		}
-		AES128Round4(&lo4, &rkLo4)
-		AES128Round4(&hi4, &rkHi4)
-		for b := 0; b < 4; b++ {
-			copy(s[b][0:16], lo4[16*b:16*(b+1)])
-			copy(s[b][16:32], hi4[16*b:16*(b+1)])
-		}
-	}
-	for b := 0; b < 4; b++ {
-		var lo, hi Block
-		rijndael256PrePermute(&lo, &hi, &s[b])
-		copy(lo4[16*b:16*(b+1)], lo[:])
-		copy(hi4[16*b:16*(b+1)], hi[:])
-		copy(rkLo4[16*b:16*(b+1)], rk[14][0:16])
-		copy(rkHi4[16*b:16*(b+1)], rk[14][16:32])
-	}
-	AES128FinalRound4(&lo4, &rkLo4)
-	AES128FinalRound4(&hi4, &rkHi4)
-	for b := 0; b < 4; b++ {
-		copy(dst[b][0:16], lo4[16*b:16*(b+1)])
-		copy(dst[b][16:32], hi4[16*b:16*(b+1)])
-	}
-}
-
 func TestRijndael256ReferenceAndRoundTrip(t *testing.T) {
 	eachTier(t, func(t *testing.T, tier string) {
 		for trial := 0; trial < 32; trial++ {
@@ -1988,6 +1901,11 @@ func TestRijndael256ReferenceAndRoundTrip(t *testing.T) {
 			rijndael256EncryptBlockHW(&rk, &ctHW, &pt)
 			if ctHW != ctRef {
 				t.Fatalf("[%s] Rijndael-256 HW vs ref mismatch at trial %d\nHW:  %x\nRef: %x", tier, trial, ctHW, ctRef)
+			}
+			inplace := pt
+			rijndael256EncryptBlockHW(&rk, &inplace, &inplace)
+			if inplace != ctRef {
+				t.Fatalf("[%s] Rijndael-256 HW in-place mismatch at trial %d", tier, trial)
 			}
 		}
 
@@ -2006,6 +1924,11 @@ func TestRijndael256ReferenceAndRoundTrip(t *testing.T) {
 			if ct4[b] != want {
 				t.Fatalf("[%s] Rijndael-256 x4 lane %d mismatch", tier, b)
 			}
+		}
+		inplace4 := pt4
+		rijndael256Encrypt4BlocksHW(&rk, &inplace4, &inplace4)
+		if inplace4 != ct4 {
+			t.Fatalf("[%s] Rijndael-256 x4 in-place mismatch", tier)
 		}
 	})
 }
@@ -3054,6 +2977,16 @@ func BenchmarkTEM2Decrypt512x4(b *testing.B) {
 	}
 }
 
+func rijndael256EncryptBlock(rk *[15][32]byte, src *[32]byte) (dst [32]byte) {
+	rijndael256EncryptBlockHW(rk, &dst, src)
+	return dst
+}
+
+func rijndael256Encrypt4Blocks(rk *[15][32]byte, src *[4][32]byte) (dst [4][32]byte) {
+	rijndael256Encrypt4BlocksHW(rk, &dst, src)
+	return dst
+}
+
 func BenchmarkRijndael256EncryptBlockHW(b *testing.B) {
 	var key, state [32]byte
 	var rk [15][32]byte
@@ -3061,7 +2994,7 @@ func BenchmarkRijndael256EncryptBlockHW(b *testing.B) {
 	b.SetBytes(32)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		rijndael256EncryptBlockHW(&rk, &state, &state)
+		state = rijndael256EncryptBlock(&rk, &state)
 	}
 }
 
@@ -3073,7 +3006,7 @@ func BenchmarkRijndael256Encrypt4BlocksHW(b *testing.B) {
 	b.SetBytes(128)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		rijndael256Encrypt4BlocksHW(&rk, &states, &states)
+		states = rijndael256Encrypt4Blocks(&rk, &states)
 	}
 }
 
@@ -3190,7 +3123,7 @@ type crossKATEntry struct {
 	want string
 }
 
-var canonicalCrossKATVectors = [81]crossKATEntry{
+var canonicalCrossKATVectors = [77]crossKATEntry{
 	{"Permute256", "e199d6061c38e6913808ed52504ad5bd729c12635f89645ca11112071cec496a"},
 	{"InversePermute256", "1fc070770a2b2b663458540ac77efc0d8e60075e571c8a7d1cb2659ee44c8618"},
 	{"Permute512", "2c597c20e2346d29c37e0f0d29964c3934efad9a88447980913d5a2850364b292c06d8f58a4d88d7dcd234c5a1b700254c32240cd3d47668b601c4de8bc0680c"},
@@ -3268,14 +3201,10 @@ var canonicalCrossKATVectors = [81]crossKATEntry{
 	{"TEM2Decrypt256x4", "ab428c1415f3e2bf85b828eab317299b05cf713c0b1452e96553abdc272aabc4b085c5a88983f0c85a6aeffc39af1e3c87630013d7e040eddc619667fdd44c460a843d6f819cf0ab04d73123f8556a1840e8edecf2e1df0ea6fdd803d6cf0468efc8042f16d4ad10f2b9aa4245503c1d5d691f186b7a6ef6a95b58b9289800a1"},
 	{"TEM2Encrypt512x4", "1becffac351f90200272eaaaec9931d863a7986d86dea7a77fe5448800b5af294ba4bc4c2bb519610891042589d91c5ab1582215daf25d30b92b8cca6993c4caa755546e03a84e7615b1dd413caa17e18a9d03169be80093eafd20f9061b0e74ee00cbe1aefabf2a41b20cede2d2a7ea96b1b2edb1373aaa495e33b0902aa4f594bcf3be748fcbfdd872fcc395e37d7355097a9889fa27ebe22b60e0e1c0fbb6738e02320bc87f4d46667f33cbdf3d5e9ccc6110a24d431a5960416319a66699e14eb82bb5cd99665983f56fcaf65acca55d63eb09dbb692ccc05a08a3c95d8b39abc5f3c0ce3228b5128a05b1b0b3be60128eccd776c6e79cd7dfa912a5a2f2"},
 	{"TEM2Decrypt512x4", "93ec234be3ae42ac3f72dc5ce20c445f164fbef3aeb17925b9109723ea5de76222588f3c03f63184f715d7fc8922537e978131a2bd18e1e5dc87c0cf92f47a8af55618a98ab8ee0dad6e736b1af40ba8c4b5a6ab10ce882d6f8904854d8f38209ad4a17ecf3195b58735fb6544e83bc372fce2b885d9fa94e1112ea078c7e982ff092b4f75e8814596a488c264b74d46cfe3b601602ce20753063ce7327438043692e91478462a65c47e87f9203d4c99fb6c28b2888d72ee7c2b63ed95f483f321aac6ec8665796bddcf26df135b4d303ccb8a64b3435322883af8f42081029091e05095800a05ff42d455aec702ff1dbf06439bce2250800c3c85523390ae15"},
-	{"Pack256x4SoA", "ea0f34597ea3c8ed12375c81a6cbf015f71c41668bb0d5fa1f44698eb3d8fd2204294e7398bde2072c51769bc0e50a2f11365b80a5caef14395e83a8cdf2173c3a5f84a9cef3183d6287acd1f61b4065476c91b6db00254a6f94b9de03284d7254799ec3e80d32577ca1c6eb10355a7f6186abd0f51a3f6489aed3f81d42678c"},
-	{"Unpack256x4SoA", "ea0f34597ea3c8ed12375c81a6cbf0153a5f84a9cef3183d6287acd1f61b4065f71c41668bb0d5fa1f44698eb3d8fd22476c91b6db00254a6f94b9de03284d7204294e7398bde2072c51769bc0e50a2f54799ec3e80d32577ca1c6eb10355a7f11365b80a5caef14395e83a8cdf2173c6186abd0f51a3f6489aed3f81d42678c"},
-	{"Pack512x4SoA", "1e43688db2d7fc21466b90b5daff24492b50759abfe4092e53789dc2e70c3156385d82a7ccf1163b6085aacff4193e63456a8fb4d9fe23486d92b7dc01264b706e93b8dd02274c7196bbe0052a4f74997ba0c5ea0f34597ea3c8ed12375c81a688add2f71c41668bb0d5fa1f44698eb395badf04294e7398bde2072c51769bc0bee3082d52779cc1e60b30557a9fc4e9cbf0153a5f84a9cef3183d6287acd1f6d8fd22476c91b6db00254a6f94b9de03e50a2f54799ec3e80d32577ca1c6eb100e33587da2c7ec11365b80a5caef14391b40658aafd4f91e43688db2d7fc2146284d7297bce1062b50759abfe4092e53355a7fa4c9ee13385d82a7ccf1163b60"},
-	{"Unpack512x4SoA", "1e43688db2d7fc21466b90b5daff24496e93b8dd02274c7196bbe0052a4f7499bee3082d52779cc1e60b30557a9fc4e90e33587da2c7ec11365b80a5caef14392b50759abfe4092e53789dc2e70c31567ba0c5ea0f34597ea3c8ed12375c81a6cbf0153a5f84a9cef3183d6287acd1f61b40658aafd4f91e43688db2d7fc2146385d82a7ccf1163b6085aacff4193e6388add2f71c41668bb0d5fa1f44698eb3d8fd22476c91b6db00254a6f94b9de03284d7297bce1062b50759abfe4092e53456a8fb4d9fe23486d92b7dc01264b7095badf04294e7398bde2072c51769bc0e50a2f54799ec3e80d32577ca1c6eb10355a7fa4c9ee13385d82a7ccf1163b60"},
 }
 
-func evalAllCrossKATFunctions() [81]string {
-	var out [81]string
+func evalAllCrossKATFunctions() [77]string {
+	var out [77]string
 	idx := 0
 	rec := func(b []byte) {
 		out[idx] = hex.EncodeToString(b)
@@ -3725,42 +3654,6 @@ func evalAllCrossKATFunctions() [81]string {
 	}
 	rec(flat256[:])
 
-	var soa256 [4][32]byte
-	for m := 0; m < 4; m++ {
-		fillCrossKATPattern(soa256[m][:], byte(0xD0+m))
-	}
-	var sb0, sb1 Block4
-	pack256x4SoAInto(&soa256, &sb0, &sb1)
-	copy(flat128[0:64], sb0[:])
-	copy(flat128[64:128], sb1[:])
-	rec(flat128[:])
-
-	clear(soa256[:])
-	unpack256x4SoA(&sb0, &sb1, &soa256)
-	for m := 0; m < 4; m++ {
-		copy(flat128[m*32:(m+1)*32], soa256[m][:])
-	}
-	rec(flat128[:])
-
-	var soa512 [4][64]byte
-	for m := 0; m < 4; m++ {
-		fillCrossKATPattern(soa512[m][:], byte(0xD4+m))
-	}
-	var sa, sb, sc, sd Block4
-	pack512x4SoAInto(&soa512, &sa, &sb, &sc, &sd)
-	copy(flat256[0:64], sa[:])
-	copy(flat256[64:128], sb[:])
-	copy(flat256[128:192], sc[:])
-	copy(flat256[192:256], sd[:])
-	rec(flat256[:])
-
-	clear(soa512[:])
-	unpack512x4SoA(&sa, &sb, &sc, &sd, &soa512)
-	for m := 0; m < 4; m++ {
-		copy(flat256[m*64:(m+1)*64], soa512[m][:])
-	}
-	rec(flat256[:])
-
 	return out
 }
 
@@ -3778,7 +3671,7 @@ func TestAllFunctionsCrossKATAndTierMatrix(t *testing.T) {
 		"avx512":   TierAVX512,
 	}
 
-	resultsByTier := make(map[string][81]string, len(tiers))
+	resultsByTier := make(map[string][77]string, len(tiers))
 
 	// Part 1: Deterministic Cross-Language KAT Suite across all 81 KAT entries
 	// (73 Go data-transforming functions + 8 C cross-language alias entries)
@@ -3807,7 +3700,7 @@ func TestAllFunctionsCrossKATAndTierMatrix(t *testing.T) {
 			}
 		}
 		resultsByTier[tier] = got
-		t.Logf("Verified cross-language KAT suite on tier %s (81/81 KAT vectors matched)", tier)
+		t.Logf("Verified cross-language KAT suite on tier %s (77/77 KAT vectors matched)", tier)
 	}
 
 	// Part 2: Explicit Pairwise tier_A x tier_B Matrix across all functions.
@@ -3821,7 +3714,7 @@ func TestAllFunctionsCrossKATAndTierMatrix(t *testing.T) {
 						tierA, i, tierB, j, entry.name, tierA, resA[k], tierB, resB[k])
 				}
 			}
-			t.Logf("Verified pairwise tier×tier matrix: %s <-> %s (81/81 functions identical)", tierA, tierB)
+			t.Logf("Verified pairwise tier×tier matrix: %s <-> %s (77/77 functions identical)", tierA, tierB)
 		}
 	}
 }
@@ -5161,4 +5054,336 @@ func FuzzWideBlockRoundTripAndCrossTier(f *testing.F) {
 			t.Fatalf("TEM2-512x4 roundtrip/purego mismatch")
 		}
 	})
+}
+
+func reverseBitsByteTest(b byte) byte {
+	var r byte
+	for i := 0; i < 8; i++ {
+		r = (r << 1) | ((b >> i) & 1)
+	}
+	return r
+}
+
+func TestVistrutahKAT(t *testing.T) {
+	var p256, k256 [32]byte
+	var p512, k512 [64]byte
+	for i := 0; i < 32; i++ {
+		p256[i] = byte(i)
+		k256[i] = reverseBitsByteTest(byte(i + 1))
+	}
+	for i := 0; i < 64; i++ {
+		p512[i] = byte(i)
+		k512[i] = reverseBitsByteTest(byte(i + 1))
+	}
+
+	type kat256Case struct {
+		rounds int
+		want   string
+	}
+	kats256 := []kat256Case{
+		{10, "a9803cc54f27745366a4f7e799a34e24f4c69e37c27e13c032d80ee57f9fa36e"},
+		{14, "04227d3cd00d1c7be7da786b8c88f9594e114317221c7430b47ed21e8eb15bbd"},
+	}
+
+	type kat512Case struct {
+		keyBits int
+		rounds  int
+		want    string
+	}
+	kats512 := []kat512Case{
+		{256, 10, "09c3876984355041a49acf0cb868e264585235e05820055c808a3a03eaae157b00100bc9b3011696c0e1e895e2160cccef31a3454e216ca01bcf6366f584e236"},
+		{256, 12, "a6902748c6f1f9333ca612b85f86561fd04662e3c405ac501316826a702fcd4a234594f8f9a5dda278d44cc723f5b87672000e4237e38239c1bc06591de6297c"},
+		{256, 14, "a875e9f9130be68b6867cb66f40318ec7e16a3a0501651fff3be08fe70b3c7960d9b1a8344c9eb61c2bfcbf2f6028e1fcd946bffc95bb42f9e0e8761758319e3"},
+		{256, 18, "6d7f18336b35ed4d785df22dce134935af3fc14fd7c38048853eee54021cfb56bd306696ad4c1e4982fd4136b57d65ee0fe4b0c10543db5c9caffb7cbd266113"},
+		{512, 12, "0c7e4d93ecea246b9fcba6331f2f31da033435c0de5a4657fd9f7289f5b48add2ba9919dfb3799eea853d3e3516ba80f795c7f138bcae300a32f12dd2eafd06d"},
+		{512, 18, "383deade951e05948fad5e11909854d4b354cadd06d4dc97a060cf5c3450f7ee206afb2681d98201ddb93610360d5a9b6546bee5f685d2444dad1ff0ead1bc7a"},
+	}
+
+	eachTier(t, func(t *testing.T, tier string) {
+		for _, tc := range kats256 {
+			var cSoft, cHW, decSoft [32]byte
+			vistrutah256EncryptBlockSoft(&cSoft, &p256, &k256, tc.rounds)
+			if got := hex.EncodeToString(cSoft[:]); got != tc.want {
+				t.Fatalf("[%s] Vistrutah-256 (%dr) Soft KAT mismatch:\ngot:  %s\nwant: %s", tier, tc.rounds, got, tc.want)
+			}
+			vistrutah256EncryptBlockHW(&cHW, &p256, &k256, tc.rounds)
+			if cHW != cSoft {
+				t.Fatalf("[%s] Vistrutah-256 (%dr) HW != Soft:\ngot:  %x\nwant: %x", tier, tc.rounds, cHW, cSoft)
+			}
+			vistrutah256DecryptBlockSoft(&decSoft, &cHW, &k256, tc.rounds)
+			if decSoft != p256 {
+				t.Fatalf("[%s] Vistrutah-256 (%dr) Decrypt round-trip mismatch", tier, tc.rounds)
+			}
+
+			// In-place aliasing check
+			inPlace := p256
+			vistrutah256EncryptBlockHW(&inPlace, &inPlace, &k256, tc.rounds)
+			if inPlace != cSoft {
+				t.Fatalf("[%s] Vistrutah-256 (%dr) in-place HW mismatch", tier, tc.rounds)
+			}
+
+			// x4 batch differential check with distinct plaintexts
+			var p4, c4Soft, c4HW, dec4Soft [4][32]byte
+			for lane := 0; lane < 4; lane++ {
+				p4[lane] = p256
+				p4[lane][0] ^= byte(lane * 0x37)
+				p4[lane][17] ^= byte(lane * 0x59)
+			}
+			vistrutah256Encrypt4BlocksSoft(&c4Soft, &p4, &k256, tc.rounds)
+			vistrutah256Encrypt4BlocksHW(&c4HW, &p4, &k256, tc.rounds)
+			if c4HW != c4Soft {
+				t.Fatalf("[%s] Vistrutah-256 (%dr) 4Blocks HW != Soft", tier, tc.rounds)
+			}
+			for lane := 0; lane < 4; lane++ {
+				var single [32]byte
+				vistrutah256EncryptBlockHW(&single, &p4[lane], &k256, tc.rounds)
+				if c4HW[lane] != single {
+					t.Fatalf("[%s] Vistrutah-256 (%dr) 4Blocks lane %d != 1Block", tier, tc.rounds, lane)
+				}
+			}
+			vistrutah256Decrypt4BlocksSoft(&dec4Soft, &c4HW, &k256, tc.rounds)
+			if dec4Soft != p4 {
+				t.Fatalf("[%s] Vistrutah-256 (%dr) 4Blocks Decrypt round-trip mismatch", tier, tc.rounds)
+			}
+		}
+
+		for _, tc := range kats512 {
+			var cSoft, cHW, decSoft [64]byte
+			if tc.keyBits == 256 {
+				vistrutah512EncryptBlock256Soft(&cSoft, &p512, &k256, tc.rounds)
+				vistrutah512EncryptBlock256HW(&cHW, &p512, &k256, tc.rounds)
+				vistrutah512DecryptBlock256Soft(&decSoft, &cHW, &k256, tc.rounds)
+			} else {
+				vistrutah512EncryptBlock512Soft(&cSoft, &p512, &k512, tc.rounds)
+				vistrutah512EncryptBlock512HW(&cHW, &p512, &k512, tc.rounds)
+				vistrutah512DecryptBlock512Soft(&decSoft, &cHW, &k512, tc.rounds)
+			}
+			if got := hex.EncodeToString(cSoft[:]); got != tc.want {
+				t.Fatalf("[%s] Vistrutah-512-%d (%dr) Soft KAT mismatch:\ngot:  %s\nwant: %s", tier, tc.keyBits, tc.rounds, got, tc.want)
+			}
+			if cHW != cSoft {
+				t.Fatalf("[%s] Vistrutah-512-%d (%dr) HW != Soft:\ngot:  %x\nwant: %x", tier, tc.keyBits, tc.rounds, cHW, cSoft)
+			}
+			if decSoft != p512 {
+				t.Fatalf("[%s] Vistrutah-512-%d (%dr) Decrypt round-trip mismatch", tier, tc.keyBits, tc.rounds)
+			}
+
+			// x4 batch differential check with distinct plaintexts
+			var p4, c4Soft, c4HW, dec4Soft [4][64]byte
+			for lane := 0; lane < 4; lane++ {
+				p4[lane] = p512
+				p4[lane][0] ^= byte(lane * 0x37)
+				p4[lane][17] ^= byte(lane * 0x59)
+				p4[lane][34] ^= byte(lane * 0x9b)
+				p4[lane][51] ^= byte(lane * 0xc3)
+			}
+			if tc.keyBits == 256 {
+				vistrutah512Encrypt4Blocks256Soft(&c4Soft, &p4, &k256, tc.rounds)
+				vistrutah512Encrypt4Blocks256HW(&c4HW, &p4, &k256, tc.rounds)
+				vistrutah512Decrypt4Blocks256Soft(&dec4Soft, &c4HW, &k256, tc.rounds)
+			} else {
+				vistrutah512Encrypt4Blocks512Soft(&c4Soft, &p4, &k512, tc.rounds)
+				vistrutah512Encrypt4Blocks512HW(&c4HW, &p4, &k512, tc.rounds)
+				vistrutah512Decrypt4Blocks512Soft(&dec4Soft, &c4HW, &k512, tc.rounds)
+			}
+			if c4HW != c4Soft {
+				t.Fatalf("[%s] Vistrutah-512-%d (%dr) 4Blocks HW != Soft", tier, tc.keyBits, tc.rounds)
+			}
+			for lane := 0; lane < 4; lane++ {
+				var single [64]byte
+				if tc.keyBits == 256 {
+					vistrutah512EncryptBlock256HW(&single, &p4[lane], &k256, tc.rounds)
+				} else {
+					vistrutah512EncryptBlock512HW(&single, &p4[lane], &k512, tc.rounds)
+				}
+				if c4HW[lane] != single {
+					t.Fatalf("[%s] Vistrutah-512-%d (%dr) 4Blocks lane %d != 1Block", tier, tc.keyBits, tc.rounds, lane)
+				}
+			}
+			if dec4Soft != p4 {
+				t.Fatalf("[%s] Vistrutah-512-%d (%dr) 4Blocks Decrypt round-trip mismatch", tier, tc.keyBits, tc.rounds)
+			}
+		}
+
+		// Regression test for jedisct1/go-aes#5 (unconditional Psi on 512-bit key):
+		// Verify that pre-mutating k512[32:64] by Psi reproduces the buggy vector
+		// ecccf2d6...202f71b7, whereas our spec-exact 512-bit key entry point does NOT.
+		var k512Mut [64]byte
+		copy(k512Mut[0:32], k512[0:32])
+		for i := 0; i < 32; i++ {
+			k512Mut[32+i] = k512[32+vistrutahPsi[i]]
+		}
+		var cMut [64]byte
+		vistrutah512EncryptBlock512HW(&cMut, &p512, &k512Mut, 18)
+		const buggyGoAes18r = "ecccf2d69de352e402b1daee24e23620205a6a42a0794bbe6c96c1a85513460504e8252d03d847d152c0df6a146792f54519d15c23173dbc5248fcfa202f71b7"
+		if got := hex.EncodeToString(cMut[:]); got != buggyGoAes18r {
+			t.Fatalf("[%s] Vistrutah-512 Psi-mutation regression check mismatch:\ngot:  %s\nwant: %s", tier, got, buggyGoAes18r)
+		}
+	})
+}
+
+func vistrutah256EncryptBlock(src, key *[32]byte, rounds int) (dst [32]byte) {
+	vistrutah256EncryptBlockHW(&dst, src, key, rounds)
+	return dst
+}
+
+func vistrutah256Encrypt4Blocks(src *[4][32]byte, key *[32]byte, rounds int) (dst [4][32]byte) {
+	vistrutah256Encrypt4BlocksHW(&dst, src, key, rounds)
+	return dst
+}
+
+func vistrutah512EncryptBlock256(src *[64]byte, key *[32]byte, rounds int) (dst [64]byte) {
+	vistrutah512EncryptBlock256HW(&dst, src, key, rounds)
+	return dst
+}
+
+func vistrutah512Encrypt4Blocks256(src *[4][64]byte, key *[32]byte, rounds int) (dst [4][64]byte) {
+	vistrutah512Encrypt4Blocks256HW(&dst, src, key, rounds)
+	return dst
+}
+
+func vistrutah512EncryptBlock512(src, key *[64]byte, rounds int) (dst [64]byte) {
+	vistrutah512EncryptBlock512HW(&dst, src, key, rounds)
+	return dst
+}
+
+func vistrutah512Encrypt4Blocks512(src *[4][64]byte, key *[64]byte, rounds int) (dst [4][64]byte) {
+	vistrutah512Encrypt4Blocks512HW(&dst, src, key, rounds)
+	return dst
+}
+
+func BenchmarkVistrutah256_10r_EncryptBlockHW(b *testing.B) {
+	var key, state [32]byte
+	b.SetBytes(32)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		state = vistrutah256EncryptBlock(&state, &key, 10)
+	}
+}
+
+func BenchmarkVistrutah256_14r_EncryptBlockHW(b *testing.B) {
+	var key, state [32]byte
+	b.SetBytes(32)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		state = vistrutah256EncryptBlock(&state, &key, 14)
+	}
+}
+
+func BenchmarkVistrutah256_10r_Encrypt4BlocksHW(b *testing.B) {
+	var key [32]byte
+	var states [4][32]byte
+	b.SetBytes(128)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		states = vistrutah256Encrypt4Blocks(&states, &key, 10)
+	}
+}
+
+func BenchmarkVistrutah256_14r_Encrypt4BlocksHW(b *testing.B) {
+	var key [32]byte
+	var states [4][32]byte
+	b.SetBytes(128)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		states = vistrutah256Encrypt4Blocks(&states, &key, 14)
+	}
+}
+
+func BenchmarkVistrutah512_256k_10r_EncryptBlockHW(b *testing.B) {
+	var key [32]byte
+	var state [64]byte
+	b.SetBytes(64)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		state = vistrutah512EncryptBlock256(&state, &key, 10)
+	}
+}
+
+func BenchmarkVistrutah512_256k_14r_EncryptBlockHW(b *testing.B) {
+	var key [32]byte
+	var state [64]byte
+	b.SetBytes(64)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		state = vistrutah512EncryptBlock256(&state, &key, 14)
+	}
+}
+
+func BenchmarkVistrutah512_256k_18r_EncryptBlockHW(b *testing.B) {
+	var key [32]byte
+	var state [64]byte
+	b.SetBytes(64)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		state = vistrutah512EncryptBlock256(&state, &key, 18)
+	}
+}
+
+func BenchmarkVistrutah512_512k_12r_EncryptBlockHW(b *testing.B) {
+	var key, state [64]byte
+	b.SetBytes(64)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		state = vistrutah512EncryptBlock512(&state, &key, 12)
+	}
+}
+
+func BenchmarkVistrutah512_512k_18r_EncryptBlockHW(b *testing.B) {
+	var key, state [64]byte
+	b.SetBytes(64)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		state = vistrutah512EncryptBlock512(&state, &key, 18)
+	}
+}
+
+func BenchmarkVistrutah512_256k_10r_Encrypt4BlocksHW(b *testing.B) {
+	var key [32]byte
+	var states [4][64]byte
+	b.SetBytes(256)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		states = vistrutah512Encrypt4Blocks256(&states, &key, 10)
+	}
+}
+
+func BenchmarkVistrutah512_256k_14r_Encrypt4BlocksHW(b *testing.B) {
+	var key [32]byte
+	var states [4][64]byte
+	b.SetBytes(256)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		states = vistrutah512Encrypt4Blocks256(&states, &key, 14)
+	}
+}
+
+func BenchmarkVistrutah512_256k_18r_Encrypt4BlocksHW(b *testing.B) {
+	var key [32]byte
+	var states [4][64]byte
+	b.SetBytes(256)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		states = vistrutah512Encrypt4Blocks256(&states, &key, 18)
+	}
+}
+
+func BenchmarkVistrutah512_512k_12r_Encrypt4BlocksHW(b *testing.B) {
+	var key [64]byte
+	var states [4][64]byte
+	b.SetBytes(256)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		states = vistrutah512Encrypt4Blocks512(&states, &key, 12)
+	}
+}
+
+func BenchmarkVistrutah512_512k_18r_Encrypt4BlocksHW(b *testing.B) {
+	var key [64]byte
+	var states [4][64]byte
+	b.SetBytes(256)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		states = vistrutah512Encrypt4Blocks512(&states, &key, 18)
+	}
 }

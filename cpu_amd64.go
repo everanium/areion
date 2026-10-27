@@ -23,6 +23,6 @@ func probeCPU() (aesni, vex, armCrypto, vaesAVX2, avx512 bool) {
 	aesni = cpu.X86.HasAES
 	vex = cpu.X86.HasAES && cpu.X86.HasAVX
 	vaesAVX2 = hasVAESBit()
-	avx512 = cpu.X86.HasAVX512F && vaesAVX2
+	avx512 = cpu.X86.HasAVX512F && cpu.X86.HasAVX512DQ && cpu.X86.HasAVX512BW && cpu.X86.HasAVX512VL && vaesAVX2
 	return
 }

@@ -1349,6 +1349,166 @@ func aes128Encrypt4BlocksSoftware(rk *[11][16]byte, dst, src *[64]byte) {
 	clobberScratchGPRs()
 }
 
+func bsShiftRowsR256Single(q *bsState) {
+	for k := 0; k < 8; k++ {
+		x := q[k]
+		r0 := uint64(uint16(x))
+
+		x1 := uint16(x >> 16)
+		lo1 := x1 & 0x1111
+		hi1 := (x1 >> 1) & 0x1111
+		nlo1 := (lo1 >> 4) | ((hi1 & 0x0001) << 12)
+		nhi1 := (hi1 >> 4) | ((lo1 & 0x0001) << 12)
+		r1 := uint64(nlo1|(nhi1<<1)) << 16
+
+		x2 := uint16(x >> 32)
+		lo2 := x2 & 0x1111
+		hi2 := (x2 >> 1) & 0x1111
+		nlo2 := (lo2 >> 12) | ((hi2 & 0x0111) << 4)
+		nhi2 := (hi2 >> 12) | ((lo2 & 0x0111) << 4)
+		r2 := uint64(nlo2|(nhi2<<1)) << 32
+
+		x3 := uint16(x >> 48)
+		r3 := uint64(((x3&0x1111)<<1)|((x3>>1)&0x1111)) << 48
+
+		q[k] = r0 | r1 | r2 | r3
+	}
+}
+
+func bsShiftRowsR256Pair(qLo, qHi *bsState) {
+	for k := 0; k < 8; k++ {
+		lo := qLo[k]
+		hi := qHi[k]
+
+		r1 := bits.RotateLeft32(uint32(uint16(lo>>16))|(uint32(uint16(hi>>16))<<16), -4)
+		r2 := bits.RotateLeft32(uint32(uint16(lo>>32))|(uint32(uint16(hi>>32))<<16), -12)
+
+		qLo[k] = uint64(uint16(lo)) |
+			(uint64(uint16(r1)) << 16) |
+			(uint64(uint16(r2)) << 32) |
+			((hi >> 48) << 48)
+		qHi[k] = uint64(uint16(hi)) |
+			(uint64(uint16(r1>>16)) << 16) |
+			(uint64(uint16(r2>>16)) << 32) |
+			((lo >> 48) << 48)
+	}
+}
+
+func rijndael256EncryptBlockSoftware(rk *[15][32]byte, dst, src *[32]byte) {
+	var lo, hi Block
+	xorBlock(&lo, (*Block)(src[0:16]), (*Block)(rk[0][0:16]))
+	xorBlock(&hi, (*Block)(src[16:32]), (*Block)(rk[0][16:32]))
+
+	var q, kr bsState
+	bsPack2(&q, &lo, &hi)
+
+	for r := 1; r <= 11; r += 2 {
+		bsPack4(&kr, (*Block)(rk[r][0:16]), (*Block)(rk[r][16:32]), (*Block)(rk[r+1][0:16]), (*Block)(rk[r+1][16:32]))
+		bsSubBytes(&q)
+		bsShiftRowsR256Single(&q)
+		bsMixColumns(&q)
+		for k := 0; k < 8; k++ {
+			q[k] ^= kr[k] & bsLane01Mask
+		}
+		bsSubBytes(&q)
+		bsShiftRowsR256Single(&q)
+		bsMixColumns(&q)
+		for k := 0; k < 8; k++ {
+			q[k] ^= (kr[k] >> 2) & bsLane01Mask
+		}
+	}
+
+	bsPack4(&kr, (*Block)(rk[13][0:16]), (*Block)(rk[13][16:32]), (*Block)(rk[14][0:16]), (*Block)(rk[14][16:32]))
+	bsSubBytes(&q)
+	bsShiftRowsR256Single(&q)
+	bsMixColumns(&q)
+	for k := 0; k < 8; k++ {
+		q[k] ^= kr[k] & bsLane01Mask
+	}
+	bsSubBytes(&q)
+	bsShiftRowsR256Single(&q)
+	for k := 0; k < 8; k++ {
+		q[k] ^= (kr[k] >> 2) & bsLane01Mask
+	}
+
+	bsUnpack2(&q, (*Block)(dst[0:16]), (*Block)(dst[16:32]))
+	clear(lo[:])
+	clear(hi[:])
+	clear(q[:])
+	clear(kr[:])
+	runtime.KeepAlive(&lo)
+	runtime.KeepAlive(&hi)
+	runtime.KeepAlive(&q)
+	runtime.KeepAlive(&kr)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func rijndael256Encrypt4BlocksSoftware(rk *[15][32]byte, dst, src *[4][32]byte) {
+	var bLo, bHi [4]Block
+	for lane := 0; lane < 4; lane++ {
+		xorBlock(&bLo[lane], (*Block)(src[lane][0:16]), (*Block)(rk[0][0:16]))
+		xorBlock(&bHi[lane], (*Block)(src[lane][16:32]), (*Block)(rk[0][16:32]))
+	}
+
+	var qLo, qHi, kLo, kHi bsState
+	bsPack4(&qLo, &bLo[0], &bLo[1], &bLo[2], &bLo[3])
+	bsPack4(&qHi, &bHi[0], &bHi[1], &bHi[2], &bHi[3])
+
+	for base := 1; base <= 9; base += 4 {
+		bsPack4(&kLo, (*Block)(rk[base][0:16]), (*Block)(rk[base+1][0:16]), (*Block)(rk[base+2][0:16]), (*Block)(rk[base+3][0:16]))
+		bsPack4(&kHi, (*Block)(rk[base][16:32]), (*Block)(rk[base+1][16:32]), (*Block)(rk[base+2][16:32]), (*Block)(rk[base+3][16:32]))
+		for lane := uint(0); lane < 4; lane++ {
+			bsSubBytes(&qLo)
+			bsSubBytes(&qHi)
+			bsShiftRowsR256Pair(&qLo, &qHi)
+			bsMixColumns(&qLo)
+			bsMixColumns(&qHi)
+			for k := 0; k < 8; k++ {
+				qLo[k] ^= ((kLo[k] >> lane) & bsLane0Mask) * 0xf
+				qHi[k] ^= ((kHi[k] >> lane) & bsLane0Mask) * 0xf
+			}
+		}
+	}
+
+	bsPack2(&kLo, (*Block)(rk[13][0:16]), (*Block)(rk[14][0:16]))
+	bsPack2(&kHi, (*Block)(rk[13][16:32]), (*Block)(rk[14][16:32]))
+	bsSubBytes(&qLo)
+	bsSubBytes(&qHi)
+	bsShiftRowsR256Pair(&qLo, &qHi)
+	bsMixColumns(&qLo)
+	bsMixColumns(&qHi)
+	for k := 0; k < 8; k++ {
+		qLo[k] ^= (kLo[k] & bsLane0Mask) * 0xf
+		qHi[k] ^= (kHi[k] & bsLane0Mask) * 0xf
+	}
+
+	bsSubBytes(&qLo)
+	bsSubBytes(&qHi)
+	bsShiftRowsR256Pair(&qLo, &qHi)
+	for k := 0; k < 8; k++ {
+		qLo[k] ^= ((kLo[k] >> 1) & bsLane0Mask) * 0xf
+		qHi[k] ^= ((kHi[k] >> 1) & bsLane0Mask) * 0xf
+	}
+
+	bsUnpack4(&qLo, (*Block)(dst[0][0:16]), (*Block)(dst[1][0:16]), (*Block)(dst[2][0:16]), (*Block)(dst[3][0:16]))
+	bsUnpack4(&qHi, (*Block)(dst[0][16:32]), (*Block)(dst[1][16:32]), (*Block)(dst[2][16:32]), (*Block)(dst[3][16:32]))
+	clear(bLo[:])
+	clear(bHi[:])
+	clear(qLo[:])
+	clear(qHi[:])
+	clear(kLo[:])
+	clear(kHi[:])
+	runtime.KeepAlive(&bLo)
+	runtime.KeepAlive(&bHi)
+	runtime.KeepAlive(&qLo)
+	runtime.KeepAlive(&qHi)
+	runtime.KeepAlive(&kLo)
+	runtime.KeepAlive(&kHi)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
 func emEncrypt256Software(out, m *[32]byte, k *[64]byte) {
 	var state State256
 	for i := 0; i < 32; i += 8 {
@@ -2581,6 +2741,644 @@ func tem2Decrypt512x4Software(out, ct *[4][64]byte, keys *[4][128]byte, tweaks *
 	runtime.KeepAlive(&w1)
 	runtime.KeepAlive(&w2)
 	runtime.KeepAlive(&states)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func vistrutah256StepRho(rk0, rk1 *Block) {
+	var n0, n1 Block
+	for i := 0; i < 16; i++ {
+		n0[i] = rk0[vistrutahP4[i]]
+		n1[i] = rk1[vistrutahP5[i]]
+	}
+	*rk0 = n0
+	*rk1 = n1
+	clear(n0[:])
+	clear(n1[:])
+	runtime.KeepAlive(&n0)
+	runtime.KeepAlive(&n1)
+}
+
+func vistrutah256StepRhoInv(rk0, rk1 *Block) {
+	var n0, n1 Block
+	for i := 0; i < 16; i++ {
+		n0[i] = rk0[vistrutahP4Inv[i]]
+		n1[i] = rk1[vistrutahP5Inv[i]]
+	}
+	*rk0 = n0
+	*rk1 = n1
+	clear(n0[:])
+	clear(n1[:])
+	runtime.KeepAlive(&n0)
+	runtime.KeepAlive(&n1)
+}
+
+func vistrutah256MixFwd(s0, s1 *Block) {
+	var m0, m1 Block
+	for i := 0; i < 8; i++ {
+		m0[i] = s0[2*i]
+		m0[8+i] = s1[2*i]
+		m1[i] = s0[2*i+1]
+		m1[8+i] = s1[2*i+1]
+	}
+	*s0 = m0
+	*s1 = m1
+	clear(m0[:])
+	clear(m1[:])
+	runtime.KeepAlive(&m0)
+	runtime.KeepAlive(&m1)
+}
+
+func vistrutah256MixInv(s0, s1 *Block) {
+	var m0, m1 Block
+	for i := 0; i < 8; i++ {
+		m0[2*i] = s0[i]
+		m0[2*i+1] = s1[i]
+		m1[2*i] = s0[8+i]
+		m1[2*i+1] = s1[8+i]
+	}
+	*s0 = m0
+	*s1 = m1
+	clear(m0[:])
+	clear(m1[:])
+	runtime.KeepAlive(&m0)
+	runtime.KeepAlive(&m1)
+}
+
+func vistrutah256EncryptBlockSoft(dst, src, key *[32]byte, rounds int) {
+	steps := rounds / 2
+	if steps < 1 || steps > 16 {
+		return
+	}
+	var s0, s1, fk0, fk1, rk0, rk1 Block
+	copy(s0[:], src[0:16])
+	copy(s1[:], src[16:32])
+	copy(fk0[:], key[0:16])
+	copy(fk1[:], key[16:32])
+	rk0 = fk1
+	rk1 = fk0
+
+	var q, qFK bsState
+	bsPack2(&qFK, &fk0, &fk1)
+
+	for step := 0; step < steps; step++ {
+		xorBlock(&s0, &s0, &rk0)
+		xorBlock(&s1, &s1, &rk1)
+		if step > 0 {
+			xorBlock(&s0, &s0, (*Block)(&vistrutahRoundConstants[step-1]))
+		}
+		bsPack2(&q, &s0, &s1)
+		bsRoundNoKey(&q)
+		bsXor(&q, &qFK)
+		if step < steps-1 {
+			bsRoundNoKey(&q)
+			bsUnpack2(&q, &s0, &s1)
+			vistrutah256MixFwd(&s0, &s1)
+			vistrutah256StepRho(&rk0, &rk1)
+		} else {
+			bsFinalRoundNoKey(&q)
+			bsUnpack2(&q, &s0, &s1)
+			vistrutah256StepRho(&rk0, &rk1)
+			xorBlock((*Block)(dst[0:16]), &s0, &rk0)
+			xorBlock((*Block)(dst[16:32]), &s1, &rk1)
+		}
+	}
+
+	clear(s0[:])
+	clear(s1[:])
+	clear(fk0[:])
+	clear(fk1[:])
+	clear(rk0[:])
+	clear(rk1[:])
+	clear(q[:])
+	clear(qFK[:])
+	runtime.KeepAlive(&s0)
+	runtime.KeepAlive(&s1)
+	runtime.KeepAlive(&fk0)
+	runtime.KeepAlive(&fk1)
+	runtime.KeepAlive(&rk0)
+	runtime.KeepAlive(&rk1)
+	runtime.KeepAlive(&q)
+	runtime.KeepAlive(&qFK)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func vistrutah256DecryptBlockSoft(dst, src, key *[32]byte, rounds int) {
+	steps := rounds / 2
+	if steps < 1 || steps > 16 {
+		return
+	}
+	var s0, s1, fk0, fk1, rk0, rk1 Block
+	copy(s0[:], src[0:16])
+	copy(s1[:], src[16:32])
+	copy(fk0[:], key[0:16])
+	copy(fk1[:], key[16:32])
+	rk0 = fk1
+	rk1 = fk0
+	for step := 0; step < steps; step++ {
+		vistrutah256StepRho(&rk0, &rk1)
+	}
+
+	var q, qFK bsState
+	bsPack2(&qFK, &fk0, &fk1)
+
+	for step := steps - 1; step >= 0; step-- {
+		if step == steps-1 {
+			xorBlock(&s0, &s0, &rk0)
+			xorBlock(&s1, &s1, &rk1)
+			bsPack2(&q, &s0, &s1)
+			bsInvFinalRoundNoKey(&q)
+		} else {
+			vistrutah256MixInv(&s0, &s1)
+			bsPack2(&q, &s0, &s1)
+			bsInvMixColumns(&q)
+			bsInvFinalRoundNoKey(&q)
+		}
+		vistrutah256StepRhoInv(&rk0, &rk1)
+		bsXor(&q, &qFK)
+		bsInvMixColumns(&q)
+		bsInvFinalRoundNoKey(&q)
+		bsUnpack2(&q, &s0, &s1)
+		xorBlock(&s0, &s0, &rk0)
+		xorBlock(&s1, &s1, &rk1)
+		if step > 0 {
+			xorBlock(&s0, &s0, (*Block)(&vistrutahRoundConstants[step-1]))
+		}
+	}
+
+	copy(dst[0:16], s0[:])
+	copy(dst[16:32], s1[:])
+	clear(s0[:])
+	clear(s1[:])
+	clear(fk0[:])
+	clear(fk1[:])
+	clear(rk0[:])
+	clear(rk1[:])
+	clear(q[:])
+	clear(qFK[:])
+	runtime.KeepAlive(&s0)
+	runtime.KeepAlive(&s1)
+	runtime.KeepAlive(&fk0)
+	runtime.KeepAlive(&fk1)
+	runtime.KeepAlive(&rk0)
+	runtime.KeepAlive(&rk1)
+	runtime.KeepAlive(&q)
+	runtime.KeepAlive(&qFK)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func vistrutah256Encrypt4BlocksSoft(dst, src *[4][32]byte, key *[32]byte, rounds int) {
+	steps := rounds / 2
+	if steps < 1 || steps > 16 {
+		return
+	}
+	var s0, s1 [4]Block
+	for lane := 0; lane < 4; lane++ {
+		copy(s0[lane][:], src[lane][0:16])
+		copy(s1[lane][:], src[lane][16:32])
+	}
+	var fk0, fk1, rk0, rk1, rk0rc Block
+	copy(fk0[:], key[0:16])
+	copy(fk1[:], key[16:32])
+	rk0 = fk1
+	rk1 = fk0
+
+	var q0, q1, qFK0, qFK1 bsState
+	bsPackBroadcast(&qFK0, &fk0)
+	bsPackBroadcast(&qFK1, &fk1)
+
+	for step := 0; step < steps; step++ {
+		rk0rc = rk0
+		if step > 0 {
+			xorBlock(&rk0rc, &rk0rc, (*Block)(&vistrutahRoundConstants[step-1]))
+		}
+		for lane := 0; lane < 4; lane++ {
+			xorBlock(&s0[lane], &s0[lane], &rk0rc)
+			xorBlock(&s1[lane], &s1[lane], &rk1)
+		}
+		bsPack4(&q0, &s0[0], &s0[1], &s0[2], &s0[3])
+		bsPack4(&q1, &s1[0], &s1[1], &s1[2], &s1[3])
+		bsRoundNoKey(&q0)
+		bsRoundNoKey(&q1)
+		bsXor(&q0, &qFK0)
+		bsXor(&q1, &qFK1)
+		if step < steps-1 {
+			bsRoundNoKey(&q0)
+			bsRoundNoKey(&q1)
+			bsUnpack4(&q0, &s0[0], &s0[1], &s0[2], &s0[3])
+			bsUnpack4(&q1, &s1[0], &s1[1], &s1[2], &s1[3])
+			for lane := 0; lane < 4; lane++ {
+				vistrutah256MixFwd(&s0[lane], &s1[lane])
+			}
+			vistrutah256StepRho(&rk0, &rk1)
+		} else {
+			bsFinalRoundNoKey(&q0)
+			bsFinalRoundNoKey(&q1)
+			bsUnpack4(&q0, &s0[0], &s0[1], &s0[2], &s0[3])
+			bsUnpack4(&q1, &s1[0], &s1[1], &s1[2], &s1[3])
+			vistrutah256StepRho(&rk0, &rk1)
+			for lane := 0; lane < 4; lane++ {
+				xorBlock((*Block)(dst[lane][0:16]), &s0[lane], &rk0)
+				xorBlock((*Block)(dst[lane][16:32]), &s1[lane], &rk1)
+			}
+		}
+	}
+
+	clear(s0[:])
+	clear(s1[:])
+	clear(fk0[:])
+	clear(fk1[:])
+	clear(rk0[:])
+	clear(rk1[:])
+	clear(rk0rc[:])
+	clear(q0[:])
+	clear(q1[:])
+	clear(qFK0[:])
+	clear(qFK1[:])
+	runtime.KeepAlive(&s0)
+	runtime.KeepAlive(&s1)
+	runtime.KeepAlive(&fk0)
+	runtime.KeepAlive(&fk1)
+	runtime.KeepAlive(&rk0)
+	runtime.KeepAlive(&rk1)
+	runtime.KeepAlive(&rk0rc)
+	runtime.KeepAlive(&q0)
+	runtime.KeepAlive(&q1)
+	runtime.KeepAlive(&qFK0)
+	runtime.KeepAlive(&qFK1)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func vistrutah256Decrypt4BlocksSoft(dst, src *[4][32]byte, key *[32]byte, rounds int) {
+	steps := rounds / 2
+	if steps < 1 || steps > 16 {
+		return
+	}
+	var s0, s1 [4]Block
+	for lane := 0; lane < 4; lane++ {
+		copy(s0[lane][:], src[lane][0:16])
+		copy(s1[lane][:], src[lane][16:32])
+	}
+	var fk0, fk1, rk0, rk1, rk0rc Block
+	copy(fk0[:], key[0:16])
+	copy(fk1[:], key[16:32])
+	rk0 = fk1
+	rk1 = fk0
+	for step := 0; step < steps; step++ {
+		vistrutah256StepRho(&rk0, &rk1)
+	}
+
+	var q0, q1, qFK0, qFK1 bsState
+	bsPackBroadcast(&qFK0, &fk0)
+	bsPackBroadcast(&qFK1, &fk1)
+
+	for step := steps - 1; step >= 0; step-- {
+		if step == steps-1 {
+			for lane := 0; lane < 4; lane++ {
+				xorBlock(&s0[lane], &s0[lane], &rk0)
+				xorBlock(&s1[lane], &s1[lane], &rk1)
+			}
+			bsPack4(&q0, &s0[0], &s0[1], &s0[2], &s0[3])
+			bsPack4(&q1, &s1[0], &s1[1], &s1[2], &s1[3])
+			bsInvFinalRoundNoKey(&q0)
+			bsInvFinalRoundNoKey(&q1)
+		} else {
+			for lane := 0; lane < 4; lane++ {
+				vistrutah256MixInv(&s0[lane], &s1[lane])
+			}
+			bsPack4(&q0, &s0[0], &s0[1], &s0[2], &s0[3])
+			bsPack4(&q1, &s1[0], &s1[1], &s1[2], &s1[3])
+			bsInvMixColumns(&q0)
+			bsInvMixColumns(&q1)
+			bsInvFinalRoundNoKey(&q0)
+			bsInvFinalRoundNoKey(&q1)
+		}
+		vistrutah256StepRhoInv(&rk0, &rk1)
+		bsXor(&q0, &qFK0)
+		bsXor(&q1, &qFK1)
+		bsInvMixColumns(&q0)
+		bsInvMixColumns(&q1)
+		bsInvFinalRoundNoKey(&q0)
+		bsInvFinalRoundNoKey(&q1)
+		bsUnpack4(&q0, &s0[0], &s0[1], &s0[2], &s0[3])
+		bsUnpack4(&q1, &s1[0], &s1[1], &s1[2], &s1[3])
+		rk0rc = rk0
+		if step > 0 {
+			xorBlock(&rk0rc, &rk0rc, (*Block)(&vistrutahRoundConstants[step-1]))
+		}
+		for lane := 0; lane < 4; lane++ {
+			xorBlock(&s0[lane], &s0[lane], &rk0rc)
+			xorBlock(&s1[lane], &s1[lane], &rk1)
+		}
+	}
+
+	for lane := 0; lane < 4; lane++ {
+		copy(dst[lane][0:16], s0[lane][:])
+		copy(dst[lane][16:32], s1[lane][:])
+	}
+	clear(s0[:])
+	clear(s1[:])
+	clear(fk0[:])
+	clear(fk1[:])
+	clear(rk0[:])
+	clear(rk1[:])
+	clear(rk0rc[:])
+	clear(q0[:])
+	clear(q1[:])
+	clear(qFK0[:])
+	clear(qFK1[:])
+	runtime.KeepAlive(&s0)
+	runtime.KeepAlive(&s1)
+	runtime.KeepAlive(&fk0)
+	runtime.KeepAlive(&fk1)
+	runtime.KeepAlive(&rk0)
+	runtime.KeepAlive(&rk1)
+	runtime.KeepAlive(&rk0rc)
+	runtime.KeepAlive(&q0)
+	runtime.KeepAlive(&q1)
+	runtime.KeepAlive(&qFK0)
+	runtime.KeepAlive(&qFK1)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func vistrutah512StepRho(rk *[4]Block) {
+	var n [4]Block
+	for i := 0; i < 16; i++ {
+		n[0][i] = rk[0][(i+5)&15]
+		n[1][i] = rk[1][(i+10)&15]
+		n[2][i] = rk[2][(i+5)&15]
+		n[3][i] = rk[3][(i+10)&15]
+	}
+	*rk = n
+	clear(n[:])
+	runtime.KeepAlive(&n)
+}
+
+func vistrutah512StepRhoInv(rk *[4]Block) {
+	var n [4]Block
+	for i := 0; i < 16; i++ {
+		n[0][i] = rk[0][(i+11)&15]
+		n[1][i] = rk[1][(i+6)&15]
+		n[2][i] = rk[2][(i+11)&15]
+		n[3][i] = rk[3][(i+6)&15]
+	}
+	*rk = n
+	clear(n[:])
+	runtime.KeepAlive(&n)
+}
+
+func vistrutah512MixFwd(s *[4]Block) {
+	var flat, out [64]byte
+	copy(flat[0:16], s[0][:])
+	copy(flat[16:32], s[1][:])
+	copy(flat[32:48], s[2][:])
+	copy(flat[48:64], s[3][:])
+	for i := 0; i < 64; i++ {
+		out[i] = flat[vistrutahMix512[i]]
+	}
+	copy(s[0][:], out[0:16])
+	copy(s[1][:], out[16:32])
+	copy(s[2][:], out[32:48])
+	copy(s[3][:], out[48:64])
+	clear(flat[:])
+	clear(out[:])
+	runtime.KeepAlive(&flat)
+	runtime.KeepAlive(&out)
+}
+
+func vistrutah512MixInv(s *[4]Block) {
+	var flat, out [64]byte
+	copy(flat[0:16], s[0][:])
+	copy(flat[16:32], s[1][:])
+	copy(flat[32:48], s[2][:])
+	copy(flat[48:64], s[3][:])
+	for i := 0; i < 64; i++ {
+		out[i] = flat[vistrutahInvMix512[i]]
+	}
+	copy(s[0][:], out[0:16])
+	copy(s[1][:], out[16:32])
+	copy(s[2][:], out[32:48])
+	copy(s[3][:], out[48:64])
+	clear(flat[:])
+	clear(out[:])
+	runtime.KeepAlive(&flat)
+	runtime.KeepAlive(&out)
+}
+
+func vistrutah512EncryptBlockCore(dst, src *[64]byte, fk *[4]Block, rounds int) {
+	steps := rounds / 2
+	if steps < 1 || steps > 16 {
+		return
+	}
+	var s, rk [4]Block
+	for m := 0; m < 4; m++ {
+		copy(s[m][:], src[m*16:m*16+16])
+	}
+	rk[0] = fk[1]
+	rk[1] = fk[0]
+	rk[2] = fk[3]
+	rk[3] = fk[2]
+
+	var q, qFK bsState
+	bsPack4(&qFK, &fk[0], &fk[1], &fk[2], &fk[3])
+
+	for step := 0; step < steps; step++ {
+		for m := 0; m < 4; m++ {
+			xorBlock(&s[m], &s[m], &rk[m])
+		}
+		if step > 0 {
+			xorBlock(&s[0], &s[0], (*Block)(&vistrutahRoundConstants[step-1]))
+		}
+		bsPack4(&q, &s[0], &s[1], &s[2], &s[3])
+		bsRoundNoKey(&q)
+		bsXor(&q, &qFK)
+		if step < steps-1 {
+			bsRoundNoKey(&q)
+			bsUnpack4(&q, &s[0], &s[1], &s[2], &s[3])
+			vistrutah512MixFwd(&s)
+			vistrutah512StepRho(&rk)
+		} else {
+			bsFinalRoundNoKey(&q)
+			bsUnpack4(&q, &s[0], &s[1], &s[2], &s[3])
+			vistrutah512StepRho(&rk)
+			for m := 0; m < 4; m++ {
+				xorBlock((*Block)(dst[m*16:m*16+16]), &s[m], &rk[m])
+			}
+		}
+	}
+
+	clear(s[:])
+	clear(rk[:])
+	clear(q[:])
+	clear(qFK[:])
+	runtime.KeepAlive(&s)
+	runtime.KeepAlive(&rk)
+	runtime.KeepAlive(&q)
+	runtime.KeepAlive(&qFK)
+}
+
+func vistrutah512DecryptBlockCore(dst, src *[64]byte, fk *[4]Block, rounds int) {
+	steps := rounds / 2
+	if steps < 1 || steps > 16 {
+		return
+	}
+	var s, rk [4]Block
+	for m := 0; m < 4; m++ {
+		copy(s[m][:], src[m*16:m*16+16])
+	}
+	rk[0] = fk[1]
+	rk[1] = fk[0]
+	rk[2] = fk[3]
+	rk[3] = fk[2]
+	for step := 0; step < steps; step++ {
+		vistrutah512StepRho(&rk)
+	}
+
+	var q, qFK bsState
+	bsPack4(&qFK, &fk[0], &fk[1], &fk[2], &fk[3])
+
+	for step := steps - 1; step >= 0; step-- {
+		if step == steps-1 {
+			for m := 0; m < 4; m++ {
+				xorBlock(&s[m], &s[m], &rk[m])
+			}
+			bsPack4(&q, &s[0], &s[1], &s[2], &s[3])
+			bsInvFinalRoundNoKey(&q)
+		} else {
+			vistrutah512MixInv(&s)
+			bsPack4(&q, &s[0], &s[1], &s[2], &s[3])
+			bsInvMixColumns(&q)
+			bsInvFinalRoundNoKey(&q)
+		}
+		vistrutah512StepRhoInv(&rk)
+		bsXor(&q, &qFK)
+		bsInvMixColumns(&q)
+		bsInvFinalRoundNoKey(&q)
+		bsUnpack4(&q, &s[0], &s[1], &s[2], &s[3])
+		for m := 0; m < 4; m++ {
+			xorBlock(&s[m], &s[m], &rk[m])
+		}
+		if step > 0 {
+			xorBlock(&s[0], &s[0], (*Block)(&vistrutahRoundConstants[step-1]))
+		}
+	}
+
+	for m := 0; m < 4; m++ {
+		copy(dst[m*16:m*16+16], s[m][:])
+	}
+	clear(s[:])
+	clear(rk[:])
+	clear(q[:])
+	clear(qFK[:])
+	runtime.KeepAlive(&s)
+	runtime.KeepAlive(&rk)
+	runtime.KeepAlive(&q)
+	runtime.KeepAlive(&qFK)
+}
+
+func vistrutah512ExpandFixedKey256(key *[32]byte, fk *[4]Block) {
+	copy(fk[0][:], key[0:16])
+	copy(fk[1][:], key[16:32])
+	for i := 0; i < 16; i++ {
+		fk[2][i] = key[vistrutahPsi[i]]
+		fk[3][i] = key[vistrutahPsi[16+i]]
+	}
+}
+
+func vistrutah512ExpandFixedKey512(key *[64]byte, fk *[4]Block) {
+	for m := 0; m < 4; m++ {
+		copy(fk[m][:], key[m*16:m*16+16])
+	}
+}
+
+func vistrutah512EncryptBlock256Soft(dst, src *[64]byte, key *[32]byte, rounds int) {
+	var fk [4]Block
+	vistrutah512ExpandFixedKey256(key, &fk)
+	vistrutah512EncryptBlockCore(dst, src, &fk, rounds)
+	clear(fk[:])
+	runtime.KeepAlive(&fk)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func vistrutah512DecryptBlock256Soft(dst, src *[64]byte, key *[32]byte, rounds int) {
+	var fk [4]Block
+	vistrutah512ExpandFixedKey256(key, &fk)
+	vistrutah512DecryptBlockCore(dst, src, &fk, rounds)
+	clear(fk[:])
+	runtime.KeepAlive(&fk)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func vistrutah512EncryptBlock512Soft(dst, src, key *[64]byte, rounds int) {
+	var fk [4]Block
+	vistrutah512ExpandFixedKey512(key, &fk)
+	vistrutah512EncryptBlockCore(dst, src, &fk, rounds)
+	clear(fk[:])
+	runtime.KeepAlive(&fk)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func vistrutah512DecryptBlock512Soft(dst, src, key *[64]byte, rounds int) {
+	var fk [4]Block
+	vistrutah512ExpandFixedKey512(key, &fk)
+	vistrutah512DecryptBlockCore(dst, src, &fk, rounds)
+	clear(fk[:])
+	runtime.KeepAlive(&fk)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func vistrutah512Encrypt4Blocks256Soft(dst, src *[4][64]byte, key *[32]byte, rounds int) {
+	var fk [4]Block
+	vistrutah512ExpandFixedKey256(key, &fk)
+	for lane := 0; lane < 4; lane++ {
+		vistrutah512EncryptBlockCore(&dst[lane], &src[lane], &fk, rounds)
+	}
+	clear(fk[:])
+	runtime.KeepAlive(&fk)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func vistrutah512Decrypt4Blocks256Soft(dst, src *[4][64]byte, key *[32]byte, rounds int) {
+	var fk [4]Block
+	vistrutah512ExpandFixedKey256(key, &fk)
+	for lane := 0; lane < 4; lane++ {
+		vistrutah512DecryptBlockCore(&dst[lane], &src[lane], &fk, rounds)
+	}
+	clear(fk[:])
+	runtime.KeepAlive(&fk)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func vistrutah512Encrypt4Blocks512Soft(dst, src *[4][64]byte, key *[64]byte, rounds int) {
+	var fk [4]Block
+	vistrutah512ExpandFixedKey512(key, &fk)
+	for lane := 0; lane < 4; lane++ {
+		vistrutah512EncryptBlockCore(&dst[lane], &src[lane], &fk, rounds)
+	}
+	clear(fk[:])
+	runtime.KeepAlive(&fk)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func vistrutah512Decrypt4Blocks512Soft(dst, src *[4][64]byte, key *[64]byte, rounds int) {
+	var fk [4]Block
+	vistrutah512ExpandFixedKey512(key, &fk)
+	for lane := 0; lane < 4; lane++ {
+		vistrutah512DecryptBlockCore(&dst[lane], &src[lane], &fk, rounds)
+	}
+	clear(fk[:])
+	runtime.KeepAlive(&fk)
 	wipeSoftwareStack()
 	clobberScratchGPRs()
 }

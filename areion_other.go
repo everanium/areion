@@ -106,6 +106,38 @@ func aes128Encrypt4Blocks(rk *[11][16]byte, dst, src *[64]byte) {
 	aes128Encrypt4BlocksSoftware(rk, dst, src)
 }
 
+func rijndael256EncryptBlockHW(rk *[15][32]byte, dst, src *[32]byte) {
+	rijndael256EncryptBlockSoftware(rk, dst, src)
+}
+
+func rijndael256Encrypt4BlocksHW(rk *[15][32]byte, dst, src *[4][32]byte) {
+	rijndael256Encrypt4BlocksSoftware(rk, dst, src)
+}
+
+func vistrutah256EncryptBlockHW(dst, src, key *[32]byte, rounds int) {
+	vistrutah256EncryptBlockSoft(dst, src, key, rounds)
+}
+
+func vistrutah256Encrypt4BlocksHW(dst, src *[4][32]byte, key *[32]byte, rounds int) {
+	vistrutah256Encrypt4BlocksSoft(dst, src, key, rounds)
+}
+
+func vistrutah512EncryptBlock256HW(dst, src *[64]byte, key *[32]byte, rounds int) {
+	vistrutah512EncryptBlock256Soft(dst, src, key, rounds)
+}
+
+func vistrutah512EncryptBlock512HW(dst, src, key *[64]byte, rounds int) {
+	vistrutah512EncryptBlock512Soft(dst, src, key, rounds)
+}
+
+func vistrutah512Encrypt4Blocks256HW(dst, src *[4][64]byte, key *[32]byte, rounds int) {
+	vistrutah512Encrypt4Blocks256Soft(dst, src, key, rounds)
+}
+
+func vistrutah512Encrypt4Blocks512HW(dst, src *[4][64]byte, key *[64]byte, rounds int) {
+	vistrutah512Encrypt4Blocks512Soft(dst, src, key, rounds)
+}
+
 func areionEMEncrypt256(out, m *[32]byte, k *[64]byte) {
 	emEncrypt256Software(out, m, k)
 }
