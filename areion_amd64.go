@@ -624,7 +624,6 @@ func areionSoEM256x4(keys *[4][64]byte, inputs *[4][32]byte) [4][32]byte {
 		return soem256x4Software(keys, inputs)
 	}
 
-
 	var s1b0, s1b1, s2b0, s2b1 Block4
 	for lane := 0; lane < 4; lane++ {
 
@@ -673,10 +672,8 @@ func areionSoEM512x4(keys *[4][128]byte, inputs *[4][64]byte) [4][64]byte {
 		return soem512x4Software(keys, inputs)
 	}
 
-
 	var a1, b1, c1, d1, a2, b2, c2, d2 Block4
 	for lane := 0; lane < 4; lane++ {
-
 
 		xorBlock16(a1[lane*16:lane*16+16], inputs[lane][0:16], keys[lane][0:16])
 		xorBlock16(b1[lane*16:lane*16+16], inputs[lane][16:32], keys[lane][16:32])

@@ -1,33 +1,3 @@
-// Package areion implements the Areion-256 and Areion-512 cryptographic
-// permutations, Davies-Meyer compression, the SoEM22 PRF construction, and
-// 1-round and 2-round Even-Mansour (`EM`, `EM2`) and Tweakable Even-Mansour
-// (`TEM`, `TEM2`) wide-block ciphers.
-//
-// References:
-//   - Takanori Isobe, Ryoma Ito, Fukang Liu, Kazuhiko Minematsu, Motoki Nakahashi, Kosei Sakamoto, Rentaro Shiba:
-//     "Areion: Highly-Efficient Permutations and Its Applications to Hash Functions for Short Input",
-//     IACR Transactions on Cryptographic Hardware and Embedded Systems (TCHES), Volume 2023, Issue 2, pp. 115–154,
-//     doi:10.46586/tches.v2023.i2.115-154.
-//     Extended version: "Areion: Highly-Efficient Permutations and Its Applications (Extended Version)",
-//     IACR ePrint 2023/794. Section, table and appendix numbers in this package refer to the extended version.
-//   - Yu Long Chen, Eran Lambooij, Bart Mennink:
-//     "How to Build Pseudorandom Functions from Public Random Permutations",
-//     CRYPTO 2019, Part I, LNCS vol. 11692, pp. 266–293, doi:10.1007/978-3-030-26948-7_10 / IACR ePrint 2019/554.
-//   - Shimon Even, Yishay Mansour:
-//     "A Construction of a Cipher From a Single Pseudorandom Permutation",
-//     ASIACRYPT 1991, LNCS vol. 739, pp. 210–224; Journal of Cryptology, 10(3), pp. 151–162 (1997).
-//   - Andrey Bogdanov, Lars R. Knudsen, Gregor Leander, Francois-Xavier Standaert, John Steinberger, Elmar Tischhauser:
-//     "Key-Alternating Ciphers in a Provable Setting: Encryption Using a Small Number of Public Permutations",
-//     EUROCRYPT 2012, LNCS vol. 7237, pp. 45–62.
-//   - Benoît Cogliati, Rodolphe Lampe, Yannick Seurin:
-//     "Tweaking Even-Mansour Ciphers",
-//     CRYPTO 2015, Part I, LNCS vol. 9215, pp. 189–208.
-//
-// The second permutation P2 used by the SoEM22 PRFs and the EM2, TEM, and TEM2 ciphers is the Areion
-// permutation under a second round-constant table (Table 2), proposed by Andrey Kuvshinov and derived
-// by scripts/verify_p2_table.py. The ideal-permutation security bounds of SoEM22, EM2, TEM, and TEM2 hold
-// for two independent random permutations; treating P1 and P2 as independent is an assumption about this
-// instantiation, not a proven property.
 package areion
 
 import (
@@ -62,12 +32,12 @@ func Permute256P2(state *State256) {
 	areion256PermuteP2(state)
 }
 
-// InversePermute256 applies the 10-round inverse Areion-256 permutation P1^{-1} in place.
+// InversePermute256 applies the 10-round inverse Areion-256 permutation P1⁻¹ in place.
 func InversePermute256(state *State256) {
 	areion256InversePermute(state)
 }
 
-// InversePermute256P2 applies the 10-round inverse Areion-256 permutation P2^{-1} in place.
+// InversePermute256P2 applies the 10-round inverse Areion-256 permutation P2⁻¹ in place.
 func InversePermute256P2(state *State256) {
 	areion256InversePermuteP2(state)
 }
@@ -82,12 +52,12 @@ func Permute512P2(state *State512) {
 	areion512PermuteP2(state)
 }
 
-// InversePermute512 applies the 15-round inverse Areion-512 permutation P1^{-1} in place.
+// InversePermute512 applies the 15-round inverse Areion-512 permutation P1⁻¹ in place.
 func InversePermute512(state *State512) {
 	areion512InversePermute(state)
 }
 
-// InversePermute512P2 applies the 15-round inverse Areion-512 permutation P2^{-1} in place.
+// InversePermute512P2 applies the 15-round inverse Areion-512 permutation P2⁻¹ in place.
 func InversePermute512P2(state *State512) {
 	areion512InversePermuteP2(state)
 }
@@ -113,10 +83,10 @@ func DM256(m *[32]byte) [32]byte {
 
 // DM512 computes the Davies-Meyer fixed-input compression/hash of a 64-byte input:
 //
-//	h = Truncate256(P1(m) ⊕ m)
+//	h = Trunc256(P1(m) ⊕ m)
 //
 // Areion512-DM, Section 4.1.1 of Isobe et al. (ePrint 2023/794), Eqs. (2)–(3) with Areion-512: it applies P1(m) ⊕ m
-// and keeps the 32-bit words x2‖x3‖x6‖x7‖x8‖x9‖x12‖x13, that is the four 8-byte slices
+// and keeps the 32-bit words x2 || x3 || x6 || x7 || x8 || x9 || x12 || x13, that is the four 8-byte slices
 // state[8:16] || state[24:32] || state[32:40] || state[48:56].
 func DM512(m *[64]byte) [32]byte {
 	state := *m
@@ -190,22 +160,22 @@ func Permute512P2x4(states *[4][64]byte) {
 	areion512PermuteP2x4(states)
 }
 
-// InversePermute256x4 evaluates inverse permutation P1^{-1} on four 256-bit states in parallel.
+// InversePermute256x4 evaluates inverse permutation P1⁻¹ on four 256-bit states in parallel.
 func InversePermute256x4(states *[4][32]byte) {
 	areion256InversePermutex4(states)
 }
 
-// InversePermute512x4 evaluates inverse permutation P1^{-1} on four 512-bit states in parallel.
+// InversePermute512x4 evaluates inverse permutation P1⁻¹ on four 512-bit states in parallel.
 func InversePermute512x4(states *[4][64]byte) {
 	areion512InversePermutex4(states)
 }
 
-// InversePermute256P2x4 evaluates inverse permutation P2^{-1} on four 256-bit states in parallel.
+// InversePermute256P2x4 evaluates inverse permutation P2⁻¹ on four 256-bit states in parallel.
 func InversePermute256P2x4(states *[4][32]byte) {
 	areion256InversePermuteP2x4(states)
 }
 
-// InversePermute512P2x4 evaluates inverse permutation P2^{-1} on four 512-bit states in parallel.
+// InversePermute512P2x4 evaluates inverse permutation P2⁻¹ on four 512-bit states in parallel.
 func InversePermute512P2x4(states *[4][64]byte) {
 	areion512InversePermuteP2x4(states)
 }
@@ -307,36 +277,36 @@ func AES128Encrypt4Blocks(rk *[11][16]byte, dst, src *[64]byte) {
 }
 
 // EMEncrypt256 encrypts a 32-byte block under a 64-byte key = K1 || K2 (K1 = key[0:32], K2 = key[32:64])
-// using the 1-round Even-Mansour wide-block cipher over P_{1,256}:
+// using the 1-round Even-Mansour wide-block cipher over P1_256:
 //
-//	C = P_{1,256}(M ⊕ K1) ⊕ K2
+//	C = P1_256(M ⊕ K1) ⊕ K2
 func EMEncrypt256(key *[64]byte, m *[32]byte) (out [32]byte) {
 	areionEMEncrypt256(&out, m, key)
 	return out
 }
 
 // EMDecrypt256 decrypts a 32-byte ciphertext block under a 64-byte key = K1 || K2 (K1 = key[0:32], K2 = key[32:64])
-// using the inverse 1-round Even-Mansour wide-block cipher over P_{1,256}^{-1}:
+// using the inverse 1-round Even-Mansour wide-block cipher over P1_256⁻¹:
 //
-//	M = P_{1,256}^{-1}(C ⊕ K2) ⊕ K1
+//	M = P1_256⁻¹(C ⊕ K2) ⊕ K1
 func EMDecrypt256(key *[64]byte, c *[32]byte) (out [32]byte) {
 	areionEMDecrypt256(&out, c, key)
 	return out
 }
 
 // EMEncrypt512 encrypts a 64-byte block under a 128-byte key = K1 || K2 (K1 = key[0:64], K2 = key[64:128])
-// using the 1-round Even-Mansour wide-block cipher over P_{1,512}:
+// using the 1-round Even-Mansour wide-block cipher over P1_512:
 //
-//	C = P_{1,512}(M ⊕ K1) ⊕ K2
+//	C = P1_512(M ⊕ K1) ⊕ K2
 func EMEncrypt512(key *[128]byte, m *[64]byte) (out [64]byte) {
 	areionEMEncrypt512(&out, m, key)
 	return out
 }
 
 // EMDecrypt512 decrypts a 64-byte ciphertext block under a 128-byte key = K1 || K2 (K1 = key[0:64], K2 = key[64:128])
-// using the inverse 1-round Even-Mansour wide-block cipher over P_{1,512}^{-1}:
+// using the inverse 1-round Even-Mansour wide-block cipher over P1_512⁻¹:
 //
-//	M = P_{1,512}^{-1}(C ⊕ K2) ⊕ K1
+//	M = P1_512⁻¹(C ⊕ K2) ⊕ K1
 func EMDecrypt512(key *[128]byte, c *[64]byte) (out [64]byte) {
 	areionEMDecrypt512(&out, c, key)
 	return out
@@ -371,38 +341,38 @@ func EMDecrypt512x4(keys *[4][128]byte, ct *[4][64]byte) (out [4][64]byte) {
 }
 
 // EM2Encrypt256 encrypts a 32-byte block under a 64-byte key = K1 || K2 (K1 = key[0:32], K2 = key[32:64])
-// using the 2-round independent-permutation Even-Mansour wide-block cipher over (P_{1,256}, P_{2,256})
+// using the 2-round independent-permutation Even-Mansour wide-block cipher over (P1_256, P2_256)
 // with pairwise-independent round keys (K1, K2, K1 ⊕ K2):
 //
-//	C = P_{2,256}(P_{1,256}(M ⊕ K1) ⊕ K2) ⊕ K1 ⊕ K2
+//	C = P2_256(P1_256(M ⊕ K1) ⊕ K2) ⊕ K1 ⊕ K2
 func EM2Encrypt256(key *[64]byte, m *[32]byte) (out [32]byte) {
 	areionEM2Encrypt256(&out, m, key)
 	return out
 }
 
 // EM2Decrypt256 decrypts a 32-byte ciphertext block under a 64-byte key = K1 || K2 (K1 = key[0:32], K2 = key[32:64])
-// using the inverse 2-round independent-permutation Even-Mansour wide-block cipher over (P_{2,256}^{-1}, P_{1,256}^{-1}):
+// using the inverse 2-round independent-permutation Even-Mansour wide-block cipher over (P2_256⁻¹, P1_256⁻¹):
 //
-//	M = P_{1,256}^{-1}(P_{2,256}^{-1}(C ⊕ K1 ⊕ K2) ⊕ K2) ⊕ K1
+//	M = P1_256⁻¹(P2_256⁻¹(C ⊕ K1 ⊕ K2) ⊕ K2) ⊕ K1
 func EM2Decrypt256(key *[64]byte, c *[32]byte) (out [32]byte) {
 	areionEM2Decrypt256(&out, c, key)
 	return out
 }
 
 // EM2Encrypt512 encrypts a 64-byte block under a 128-byte key = K1 || K2 (K1 = key[0:64], K2 = key[64:128])
-// using the 2-round independent-permutation Even-Mansour wide-block cipher over (P_{1,512}, P_{2,512})
+// using the 2-round independent-permutation Even-Mansour wide-block cipher over (P1_512, P2_512)
 // with pairwise-independent round keys (K1, K2, K1 ⊕ K2):
 //
-//	C = P_{2,512}(P_{1,512}(M ⊕ K1) ⊕ K2) ⊕ K1 ⊕ K2
+//	C = P2_512(P1_512(M ⊕ K1) ⊕ K2) ⊕ K1 ⊕ K2
 func EM2Encrypt512(key *[128]byte, m *[64]byte) (out [64]byte) {
 	areionEM2Encrypt512(&out, m, key)
 	return out
 }
 
 // EM2Decrypt512 decrypts a 64-byte ciphertext block under a 128-byte key = K1 || K2 (K1 = key[0:64], K2 = key[64:128])
-// using the inverse 2-round independent-permutation Even-Mansour wide-block cipher over (P_{2,512}^{-1}, P_{1,512}^{-1}):
+// using the inverse 2-round independent-permutation Even-Mansour wide-block cipher over (P2_512⁻¹, P1_512⁻¹):
 //
-//	M = P_{1,512}^{-1}(P_{2,512}^{-1}(C ⊕ K1 ⊕ K2) ⊕ K2) ⊕ K1
+//	M = P1_512⁻¹(P2_512⁻¹(C ⊕ K1 ⊕ K2) ⊕ K2) ⊕ K1
 func EM2Decrypt512(key *[128]byte, c *[64]byte) (out [64]byte) {
 	areionEM2Decrypt512(&out, c, key)
 	return out
@@ -439,8 +409,8 @@ func EM2Decrypt512x4(keys *[4][128]byte, ct *[4][64]byte) (out [4][64]byte) {
 // TEMEncrypt256 encrypts a 32-byte block under a 64-byte key = K1 || K2 (K1 = key[0:32], K2 = key[32:64])
 // and a 32-byte tweak using the 1-round nonlinear-tweakey Even-Mansour wide-block cipher:
 //
-//	W = P_{2,256}(T ⊕ K2) ⊕ K1
-//	C = P_{1,256}(M ⊕ W) ⊕ W
+//	W = P2_256(T ⊕ K2) ⊕ K1
+//	C = P1_256(M ⊕ W) ⊕ W
 func TEMEncrypt256(key *[64]byte, tweak *[32]byte, m *[32]byte) (out [32]byte) {
 	areionTEMEncrypt256(&out, m, key, tweak)
 	return out
@@ -449,8 +419,8 @@ func TEMEncrypt256(key *[64]byte, tweak *[32]byte, m *[32]byte) (out [32]byte) {
 // TEMDecrypt256 decrypts a 32-byte ciphertext block under a 64-byte key = K1 || K2 (K1 = key[0:32], K2 = key[32:64])
 // and a 32-byte tweak using the inverse 1-round nonlinear-tweakey Even-Mansour wide-block cipher:
 //
-//	W = P_{2,256}(T ⊕ K2) ⊕ K1
-//	M = P_{1,256}^{-1}(C ⊕ W) ⊕ W
+//	W = P2_256(T ⊕ K2) ⊕ K1
+//	M = P1_256⁻¹(C ⊕ W) ⊕ W
 func TEMDecrypt256(key *[64]byte, tweak *[32]byte, c *[32]byte) (out [32]byte) {
 	areionTEMDecrypt256(&out, c, key, tweak)
 	return out
@@ -459,8 +429,8 @@ func TEMDecrypt256(key *[64]byte, tweak *[32]byte, c *[32]byte) (out [32]byte) {
 // TEMEncrypt512 encrypts a 64-byte block under a 128-byte key = K1 || K2 (K1 = key[0:64], K2 = key[64:128])
 // and a 64-byte tweak using the 1-round nonlinear-tweakey Even-Mansour wide-block cipher:
 //
-//	W = P_{2,512}(T ⊕ K2) ⊕ K1
-//	C = P_{1,512}(M ⊕ W) ⊕ W
+//	W = P2_512(T ⊕ K2) ⊕ K1
+//	C = P1_512(M ⊕ W) ⊕ W
 func TEMEncrypt512(key *[128]byte, tweak *[64]byte, m *[64]byte) (out [64]byte) {
 	areionTEMEncrypt512(&out, m, key, tweak)
 	return out
@@ -469,8 +439,8 @@ func TEMEncrypt512(key *[128]byte, tweak *[64]byte, m *[64]byte) (out [64]byte) 
 // TEMDecrypt512 decrypts a 64-byte ciphertext block under a 128-byte key = K1 || K2 (K1 = key[0:64], K2 = key[64:128])
 // and a 64-byte tweak using the inverse 1-round nonlinear-tweakey Even-Mansour wide-block cipher:
 //
-//	W = P_{2,512}(T ⊕ K2) ⊕ K1
-//	M = P_{1,512}^{-1}(C ⊕ W) ⊕ W
+//	W = P2_512(T ⊕ K2) ⊕ K1
+//	M = P1_512⁻¹(C ⊕ W) ⊕ W
 func TEMDecrypt512(key *[128]byte, tweak *[64]byte, c *[64]byte) (out [64]byte) {
 	areionTEMDecrypt512(&out, c, key, tweak)
 	return out
@@ -507,8 +477,8 @@ func TEMDecrypt512x4(keys *[4][128]byte, tweaks *[4][64]byte, ct *[4][64]byte) (
 // TEM2Encrypt256 encrypts a 32-byte block under a 64-byte key = K1 || K2 (K1 = key[0:32], K2 = key[32:64])
 // and a 32-byte tweak using the 2-round independent-permutation tweakable Even-Mansour wide-block cipher:
 //
-//	W1 = P_{1,256}(T ⊕ K1) ⊕ K1,  W2 = P_{2,256}(T ⊕ K2) ⊕ K2
-//	C  = P_{2,256}(P_{1,256}(M ⊕ W1) ⊕ W2) ⊕ W1 ⊕ W2
+//	W1 = P1_256(T ⊕ K1) ⊕ K1,  W2 = P2_256(T ⊕ K2) ⊕ K2
+//	C  = P2_256(P1_256(M ⊕ W1) ⊕ W2) ⊕ W1 ⊕ W2
 func TEM2Encrypt256(key *[64]byte, tweak *[32]byte, m *[32]byte) (out [32]byte) {
 	areionTEM2Encrypt256(&out, m, key, tweak)
 	return out
@@ -517,8 +487,8 @@ func TEM2Encrypt256(key *[64]byte, tweak *[32]byte, m *[32]byte) (out [32]byte) 
 // TEM2Decrypt256 decrypts a 32-byte ciphertext block under a 64-byte key = K1 || K2 (K1 = key[0:32], K2 = key[32:64])
 // and a 32-byte tweak using the inverse 2-round independent-permutation tweakable Even-Mansour wide-block cipher:
 //
-//	W1 = P_{1,256}(T ⊕ K1) ⊕ K1,  W2 = P_{2,256}(T ⊕ K2) ⊕ K2
-//	M  = P_{1,256}^{-1}(P_{2,256}^{-1}(C ⊕ W1 ⊕ W2) ⊕ W2) ⊕ W1
+//	W1 = P1_256(T ⊕ K1) ⊕ K1,  W2 = P2_256(T ⊕ K2) ⊕ K2
+//	M  = P1_256⁻¹(P2_256⁻¹(C ⊕ W1 ⊕ W2) ⊕ W2) ⊕ W1
 func TEM2Decrypt256(key *[64]byte, tweak *[32]byte, c *[32]byte) (out [32]byte) {
 	areionTEM2Decrypt256(&out, c, key, tweak)
 	return out
@@ -527,8 +497,8 @@ func TEM2Decrypt256(key *[64]byte, tweak *[32]byte, c *[32]byte) (out [32]byte) 
 // TEM2Encrypt512 encrypts a 64-byte block under a 128-byte key = K1 || K2 (K1 = key[0:64], K2 = key[64:128])
 // and a 64-byte tweak using the 2-round independent-permutation tweakable Even-Mansour wide-block cipher:
 //
-//	W1 = P_{1,512}(T ⊕ K1) ⊕ K1,  W2 = P_{2,512}(T ⊕ K2) ⊕ K2
-//	C  = P_{2,512}(P_{1,512}(M ⊕ W1) ⊕ W2) ⊕ W1 ⊕ W2
+//	W1 = P1_512(T ⊕ K1) ⊕ K1,  W2 = P2_512(T ⊕ K2) ⊕ K2
+//	C  = P2_512(P1_512(M ⊕ W1) ⊕ W2) ⊕ W1 ⊕ W2
 func TEM2Encrypt512(key *[128]byte, tweak *[64]byte, m *[64]byte) (out [64]byte) {
 	areionTEM2Encrypt512(&out, m, key, tweak)
 	return out
@@ -537,8 +507,8 @@ func TEM2Encrypt512(key *[128]byte, tweak *[64]byte, m *[64]byte) (out [64]byte)
 // TEM2Decrypt512 decrypts a 64-byte ciphertext block under a 128-byte key = K1 || K2 (K1 = key[0:64], K2 = key[64:128])
 // and a 64-byte tweak using the inverse 2-round independent-permutation tweakable Even-Mansour wide-block cipher:
 //
-//	W1 = P_{1,512}(T ⊕ K1) ⊕ K1,  W2 = P_{2,512}(T ⊕ K2) ⊕ K2
-//	M  = P_{1,512}^{-1}(P_{2,512}^{-1}(C ⊕ W1 ⊕ W2) ⊕ W2) ⊕ W1
+//	W1 = P1_512(T ⊕ K1) ⊕ K1,  W2 = P2_512(T ⊕ K2) ⊕ K2
+//	M  = P1_512⁻¹(P2_512⁻¹(C ⊕ W1 ⊕ W2) ⊕ W2) ⊕ W1
 func TEM2Decrypt512(key *[128]byte, tweak *[64]byte, c *[64]byte) (out [64]byte) {
 	areionTEM2Decrypt512(&out, c, key, tweak)
 	return out

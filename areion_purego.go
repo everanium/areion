@@ -2148,9 +2148,9 @@ func temDecrypt512x4Software(out, ct *[4][64]byte, keys *[4][128]byte, tweaks *[
 func tem2Encrypt256Software(out, m *[32]byte, k *[64]byte, t *[32]byte) {
 	var w1, w2, state State256
 	for i := 0; i < 32; i += 8 {
-		tv := binary.LittleEndian.Uint64(t[i:i+8])
-		k1 := binary.LittleEndian.Uint64(k[i:i+8])
-		k2 := binary.LittleEndian.Uint64(k[32+i:32+i+8])
+		tv := binary.LittleEndian.Uint64(t[i : i+8])
+		k1 := binary.LittleEndian.Uint64(k[i : i+8])
+		k2 := binary.LittleEndian.Uint64(k[32+i : 32+i+8])
 		binary.LittleEndian.PutUint64(w1[i:i+8], tv^k1)
 		binary.LittleEndian.PutUint64(w2[i:i+8], tv^k2)
 	}
@@ -2204,9 +2204,9 @@ func tem2Encrypt256Software(out, m *[32]byte, k *[64]byte, t *[32]byte) {
 func tem2Decrypt256Software(out, c *[32]byte, k *[64]byte, t *[32]byte) {
 	var w1, w2, state State256
 	for i := 0; i < 32; i += 8 {
-		tv := binary.LittleEndian.Uint64(t[i:i+8])
-		k1 := binary.LittleEndian.Uint64(k[i:i+8])
-		k2 := binary.LittleEndian.Uint64(k[32+i:32+i+8])
+		tv := binary.LittleEndian.Uint64(t[i : i+8])
+		k1 := binary.LittleEndian.Uint64(k[i : i+8])
+		k2 := binary.LittleEndian.Uint64(k[32+i : 32+i+8])
 		binary.LittleEndian.PutUint64(w1[i:i+8], tv^k1)
 		binary.LittleEndian.PutUint64(w2[i:i+8], tv^k2)
 	}
@@ -2258,9 +2258,9 @@ func tem2Decrypt256Software(out, c *[32]byte, k *[64]byte, t *[32]byte) {
 func tem2Encrypt512Software(out, m *[64]byte, k *[128]byte, t *[64]byte) {
 	var w1, w2, state State512
 	for i := 0; i < 64; i += 8 {
-		tv := binary.LittleEndian.Uint64(t[i:i+8])
-		k1 := binary.LittleEndian.Uint64(k[i:i+8])
-		k2 := binary.LittleEndian.Uint64(k[64+i:64+i+8])
+		tv := binary.LittleEndian.Uint64(t[i : i+8])
+		k1 := binary.LittleEndian.Uint64(k[i : i+8])
+		k2 := binary.LittleEndian.Uint64(k[64+i : 64+i+8])
 		binary.LittleEndian.PutUint64(w1[i:i+8], tv^k1)
 		binary.LittleEndian.PutUint64(w2[i:i+8], tv^k2)
 	}
@@ -2330,9 +2330,9 @@ func tem2Encrypt512Software(out, m *[64]byte, k *[128]byte, t *[64]byte) {
 func tem2Decrypt512Software(out, c *[64]byte, k *[128]byte, t *[64]byte) {
 	var w1, w2, state State512
 	for i := 0; i < 64; i += 8 {
-		tv := binary.LittleEndian.Uint64(t[i:i+8])
-		k1 := binary.LittleEndian.Uint64(k[i:i+8])
-		k2 := binary.LittleEndian.Uint64(k[64+i:64+i+8])
+		tv := binary.LittleEndian.Uint64(t[i : i+8])
+		k1 := binary.LittleEndian.Uint64(k[i : i+8])
+		k2 := binary.LittleEndian.Uint64(k[64+i : 64+i+8])
 		binary.LittleEndian.PutUint64(w1[i:i+8], tv^k1)
 		binary.LittleEndian.PutUint64(w2[i:i+8], tv^k2)
 	}
@@ -2401,9 +2401,9 @@ func tem2Encrypt256x4Software(out, msgs *[4][32]byte, keys *[4][64]byte, tweaks 
 	var w1, w2, states [4]State256
 	for lane := 0; lane < 4; lane++ {
 		for i := 0; i < 32; i += 8 {
-			tv := binary.LittleEndian.Uint64(tweaks[lane][i:i+8])
-			k1 := binary.LittleEndian.Uint64(keys[lane][i:i+8])
-			k2 := binary.LittleEndian.Uint64(keys[lane][32+i:32+i+8])
+			tv := binary.LittleEndian.Uint64(tweaks[lane][i : i+8])
+			k1 := binary.LittleEndian.Uint64(keys[lane][i : i+8])
+			k2 := binary.LittleEndian.Uint64(keys[lane][32+i : 32+i+8])
 			binary.LittleEndian.PutUint64(w1[lane][i:i+8], tv^k1)
 			binary.LittleEndian.PutUint64(w2[lane][i:i+8], tv^k2)
 		}
@@ -2449,9 +2449,9 @@ func tem2Decrypt256x4Software(out, ct *[4][32]byte, keys *[4][64]byte, tweaks *[
 	var w1, w2, states [4]State256
 	for lane := 0; lane < 4; lane++ {
 		for i := 0; i < 32; i += 8 {
-			tv := binary.LittleEndian.Uint64(tweaks[lane][i:i+8])
-			k1 := binary.LittleEndian.Uint64(keys[lane][i:i+8])
-			k2 := binary.LittleEndian.Uint64(keys[lane][32+i:32+i+8])
+			tv := binary.LittleEndian.Uint64(tweaks[lane][i : i+8])
+			k1 := binary.LittleEndian.Uint64(keys[lane][i : i+8])
+			k2 := binary.LittleEndian.Uint64(keys[lane][32+i : 32+i+8])
 			binary.LittleEndian.PutUint64(w1[lane][i:i+8], tv^k1)
 			binary.LittleEndian.PutUint64(w2[lane][i:i+8], tv^k2)
 		}
@@ -2495,9 +2495,9 @@ func tem2Encrypt512x4Software(out, msgs *[4][64]byte, keys *[4][128]byte, tweaks
 	var w1, w2, states [4]State512
 	for lane := 0; lane < 4; lane++ {
 		for i := 0; i < 64; i += 8 {
-			tv := binary.LittleEndian.Uint64(tweaks[lane][i:i+8])
-			k1 := binary.LittleEndian.Uint64(keys[lane][i:i+8])
-			k2 := binary.LittleEndian.Uint64(keys[lane][64+i:64+i+8])
+			tv := binary.LittleEndian.Uint64(tweaks[lane][i : i+8])
+			k1 := binary.LittleEndian.Uint64(keys[lane][i : i+8])
+			k2 := binary.LittleEndian.Uint64(keys[lane][64+i : 64+i+8])
 			binary.LittleEndian.PutUint64(w1[lane][i:i+8], tv^k1)
 			binary.LittleEndian.PutUint64(w2[lane][i:i+8], tv^k2)
 		}
@@ -2543,9 +2543,9 @@ func tem2Decrypt512x4Software(out, ct *[4][64]byte, keys *[4][128]byte, tweaks *
 	var w1, w2, states [4]State512
 	for lane := 0; lane < 4; lane++ {
 		for i := 0; i < 64; i += 8 {
-			tv := binary.LittleEndian.Uint64(tweaks[lane][i:i+8])
-			k1 := binary.LittleEndian.Uint64(keys[lane][i:i+8])
-			k2 := binary.LittleEndian.Uint64(keys[lane][64+i:64+i+8])
+			tv := binary.LittleEndian.Uint64(tweaks[lane][i : i+8])
+			k1 := binary.LittleEndian.Uint64(keys[lane][i : i+8])
+			k2 := binary.LittleEndian.Uint64(keys[lane][64+i : 64+i+8])
 			binary.LittleEndian.PutUint64(w1[lane][i:i+8], tv^k1)
 			binary.LittleEndian.PutUint64(w2[lane][i:i+8], tv^k2)
 		}

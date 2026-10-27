@@ -154,8 +154,8 @@ func TestAreion512Roundtrip(t *testing.T) {
 	}
 }
 
-// TestInversePermuteP2Roundtrip checks P2^-1(P2(x)) = x and P2(P2^-1(x)) = x on every tier,
-// and that P2^-1 differs from P1^-1.
+// TestInversePermuteP2Roundtrip checks P2⁻¹(P2(x)) = x and P2(P2⁻¹(x)) = x on every tier,
+// and that P2⁻¹ differs from P1⁻¹.
 func TestInversePermuteP2Roundtrip(t *testing.T) {
 	eachTier(t, func(t *testing.T, tier string) {
 		for trial := 0; trial < 100; trial++ {
@@ -206,7 +206,7 @@ func TestInversePermuteP2Roundtrip(t *testing.T) {
 }
 
 func TestDaviesMeyer(t *testing.T) {
-	// DM256: h = P(m) ⊕ m
+	// DM256: h = P1(m) ⊕ m
 	var m256 [32]byte
 	rand.Read(m256[:])
 	h256 := DM256(&m256)
@@ -220,7 +220,7 @@ func TestDaviesMeyer(t *testing.T) {
 		t.Fatalf("DM256 mismatch\nGot:  %x\nWant: %x", h256[:], p256[:])
 	}
 
-	// DM512: h = Truncate(P(m) ⊕ m)
+	// DM512: h = Trunc256(P1(m) ⊕ m)
 	var m512 [64]byte
 	rand.Read(m512[:])
 	h512 := DM512(&m512)
@@ -697,7 +697,7 @@ func TestCrossTierParity(t *testing.T) {
 	}
 }
 
-// TestInversePermuteP2CrossTier checks that every tier computes the same P2^-1 as the
+// TestInversePermuteP2CrossTier checks that every tier computes the same P2⁻¹ as the
 // portable implementation.
 func TestInversePermuteP2CrossTier(t *testing.T) {
 	var x256 State256
@@ -1885,7 +1885,7 @@ func rijndael256DecryptBlockRef(rk *[15][32]byte, dst, src *[32]byte) {
 	*dst = s
 }
 
-// rijndael256PrePermute applies ShiftRows_{AES128}^{-1} ∘ ShiftRows_{R256(0,1,3,4)}
+// rijndael256PrePermute applies ShiftRows_AES128⁻¹ ∘ ShiftRows_R256(0,1,3,4)
 // across the two 128-bit halves so that two subsequent AES-128 rounds (or final rounds)
 // execute a full Rijndael-256 round.
 func rijndael256PrePermute(lo, hi *Block, s *[32]byte) {
@@ -2734,7 +2734,6 @@ func BenchmarkAES128Encrypt4Blocks(b *testing.B) {
 	}
 }
 
-
 func BenchmarkEMEncrypt256(b *testing.B) {
 	var key [64]byte
 	var m [32]byte
@@ -3078,7 +3077,6 @@ func BenchmarkRijndael256Encrypt4BlocksHW(b *testing.B) {
 	}
 }
 
-
 func TestNISTKATVectors(t *testing.T) {
 	var k256 [64]byte
 	var t256, m256 [32]byte
@@ -3104,12 +3102,12 @@ func TestNISTKATVectors(t *testing.T) {
 	}
 
 	const (
-		katEM256    = "b1590de6b0ee589c39dc130140c0b38b8320605182e5f37a01e5104c4a7bfeab"
-		katEM512    = "77650fae672e2b9d12e5d4004383a162e46993489094adc4a4cea15a658d78a53b7cc457f108ce51fc2eb6f12310cfc38741efb0b0dae58fe54e9663792997e7"
+		katEM256   = "b1590de6b0ee589c39dc130140c0b38b8320605182e5f37a01e5104c4a7bfeab"
+		katEM512   = "77650fae672e2b9d12e5d4004383a162e46993489094adc4a4cea15a658d78a53b7cc457f108ce51fc2eb6f12310cfc38741efb0b0dae58fe54e9663792997e7"
 		katEM2256  = "061a5e8782647a6baecc87722ddff3beab731f41cc40091bafa683ce5f80ca78"
 		katEM2512  = "4965bb05380e69a5d77e4ee5e1b16ec59d4b38dbe44bd5f8f657d4723f0b0a0ccae921cf3ac653ca95e8bd3dbbbf3d88835c869837180e3beeccc1f9f81ba2f8"
-		katTEM256   = "de632e745419ba1eb0fb400014e4ba88314836532fcbe6911a618961d619305b"
-		katTEM512   = "90595f2a0b87fda6cc751c95dcedc8d6f39bc1830bf2918a470d701ff81b7d35e867d4d8ba3c8636b74f82f37f9b61ac8b34ab4354d349161599cb369d2edbc3"
+		katTEM256  = "de632e745419ba1eb0fb400014e4ba88314836532fcbe6911a618961d619305b"
+		katTEM512  = "90595f2a0b87fda6cc751c95dcedc8d6f39bc1830bf2918a470d701ff81b7d35e867d4d8ba3c8636b74f82f37f9b61ac8b34ab4354d349161599cb369d2edbc3"
 		katTEM2256 = "74dee40d0ae82e8f0d62675ead6c54f4976c539629c21aeb29c2db431640f954"
 		katTEM2512 = "6d6f7d5c0de2fc65779fc4794eb32075107c70b415b0093743993925559b543c8372cf001d9adc5ff4f4ad02676ce6d3908e64fdffcb8aeccd3f51ac729bb2e1"
 	)
@@ -4409,7 +4407,7 @@ func TestWideBlockNonAffinityAndSymmetries(t *testing.T) {
 				t.Fatalf("[%s] %s exhibited shift symmetry F(M) == F(M ^ K1 ^ K2)", tier, name)
 			}
 			if fa == f(&k256Swap, &a256) {
-				t.Fatalf("[%s] %s exhibited subkey-swap symmetry F_{K1,K2}(M) == F_{K2,K1}(M)", tier, name)
+				t.Fatalf("[%s] %s exhibited subkey-swap symmetry F(K1,K2,M) == F(K2,K1,M)", tier, name)
 			}
 			if rotateWords256(fa, 4) == f(&k256, &rot32M256) {
 				t.Fatalf("[%s] %s exhibited 32-bit word rotational symmetry Rot32(F(M)) == F(Rot32(M))", tier, name)
@@ -4439,7 +4437,7 @@ func TestWideBlockNonAffinityAndSymmetries(t *testing.T) {
 				t.Fatalf("[%s] %s exhibited shift symmetry F(M) == F(M ^ K1 ^ K2)", tier, name)
 			}
 			if fa == f(&k512Swap, &a512) {
-				t.Fatalf("[%s] %s exhibited subkey-swap symmetry F_{K1,K2}(M) == F_{K2,K1}(M)", tier, name)
+				t.Fatalf("[%s] %s exhibited subkey-swap symmetry F(K1,K2,M) == F(K2,K1,M)", tier, name)
 			}
 			if rotateWords512(fa, 4) == f(&k512, &rot32M512) {
 				t.Fatalf("[%s] %s exhibited 32-bit word rotational symmetry Rot32(F(M)) == F(Rot32(M))", tier, name)
@@ -4467,7 +4465,7 @@ func TestWideBlockNonAffinityAndSymmetries(t *testing.T) {
 		check512("TEM2Encrypt512", func(k *[128]byte, m *[64]byte) [64]byte { return TEM2Encrypt512(k, &t512, m) })
 		check512("TEM2Decrypt512", func(k *[128]byte, m *[64]byte) [64]byte { return TEM2Decrypt512(k, &t512, m) })
 
-		// Tweak 2nd-order non-affinity at fixed (K, M): E_K(T_a ^ T_b ^ T_c, M) != E_K(T_a, M) ^ E_K(T_b, M) ^ E_K(T_c, M)
+		// Tweak 2nd-order non-affinity at fixed (K, M): E_K(T_a ⊕ T_b ⊕ T_c, M) ≠ E_K(T_a, M) ⊕ E_K(T_b, M) ⊕ E_K(T_c, M)
 		checkTweak256 := func(name string, f func(k *[64]byte, t, m *[32]byte) [32]byte) {
 			fa := f(&k256, &a256, &t256)
 			fb := f(&k256, &b256, &t256)
@@ -4475,7 +4473,7 @@ func TestWideBlockNonAffinityAndSymmetries(t *testing.T) {
 			fabc := f(&k256, &abc256, &t256)
 			nonZero := false
 			for i := 0; i < 32; i++ {
-				if (fa[i]^fb[i]^fc[i]^fabc[i]) != 0 {
+				if (fa[i] ^ fb[i] ^ fc[i] ^ fabc[i]) != 0 {
 					nonZero = true
 				}
 			}
@@ -4490,7 +4488,7 @@ func TestWideBlockNonAffinityAndSymmetries(t *testing.T) {
 			fabc := f(&k512, &abc512, &t512)
 			nonZero := false
 			for i := 0; i < 64; i++ {
-				if (fa[i]^fb[i]^fc[i]^fabc[i]) != 0 {
+				if (fa[i] ^ fb[i] ^ fc[i] ^ fabc[i]) != 0 {
 					nonZero = true
 				}
 			}
@@ -4507,7 +4505,7 @@ func TestWideBlockNonAffinityAndSymmetries(t *testing.T) {
 		checkTweak512("TEM2Encrypt512", TEM2Encrypt512)
 		checkTweak512("TEM2Decrypt512", TEM2Decrypt512)
 
-		// Tweak/Message asymmetry: E_K(T, M) != E_K(M, T) for T != M
+		// Tweak/Message asymmetry: E_K(T, M) ≠ E_K(M, T) for T ≠ M
 		if TEMEncrypt256(&k256, &t256, &a256) == TEMEncrypt256(&k256, &a256, &t256) ||
 			TEMDecrypt256(&k256, &t256, &a256) == TEMDecrypt256(&k256, &a256, &t256) ||
 			TEM2Encrypt256(&k256, &t256, &a256) == TEM2Encrypt256(&k256, &a256, &t256) ||
