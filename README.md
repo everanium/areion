@@ -104,30 +104,30 @@ In addition to the non-invertible `SoEM22` PRF, this package provides four famil
    ```
    Note that the outer whitening mask `W1 ⊕ W2 = P1(T ⊕ K1) ⊕ P2(T ⊕ K2) ⊕ K1 ⊕ K2` equals the `SoEM22` PRF evaluation on the tweak `T`. In the ideal-permutation model for independent `(P1, P2)`, this 2-round nonlinear-tweakable Even–Mansour construction achieves **Beyond-Birthday-Bound (BBB) TPRP security** up to `2^(2n/3)` queries ([Cogliati, Lampe, and Seurin, CRYPTO 2015](https://doi.org/10.1007/978-3-662-47989-6_29); [Dutta, ASIACRYPT 2020](https://doi.org/10.1007/978-3-030-64837-4_19)), making `TEM2Encrypt256/512` suited as a wide tweakable block cipher primitive for modes of the `Acc256` / `BBBAcc` / `HCTR2` class.
 
-### Table 2 Round Constants (`P2`)
-Table 2 is proposed by Andrey Kuvshinov and derived by [`scripts/verify_p2_table.py`](scripts/README.md). Following the Nothing-Up-My-Sleeve (NUMS) methodology of the original Areion paper, it continues the same stream of π words:
+### Round Constants (`P1` and `P2`)
+Table 2 (`P2`) is proposed by Andrey Kuvshinov and derived by [`scripts/verify_p2_table.py`](scripts/README.md). Following the Nothing-Up-My-Sleeve (NUMS) methodology of the original Areion paper, it continues the same stream of π words:
 - **Table 1 (`P1`)**: Words 0..14 of the fractional part of π (Table 1 and Appendix A.1 of ePrint 2023/794); RC7 is kept as published, `0x801f2e2858efc16636920d871574e690`, a one-nibble shift from π word 7.
 - **Table 2 (`P2`)**: Words 15..29 of the fractional part of π (15 consecutive 128-bit words); RC7, π word 22, takes the same one-nibble shift, `0xf6d6ff383f442392e0b4482a48420040`, in agreement with the Areion authors. Words 7 and 22 are the only words among 0..29 that begin with a zero nibble, so the shift falls on RC7 in both tables. The shift is a matter of consistency with Table 1: every claim of [`analysis/`](analysis/README.md) holds for both forms of this word.
 
-The 15 hexadecimal entries of Table 2 (each stored in memory as 16 little-endian bytes; e.g., round 0 begins with bytes `93 e9 72 7c`; Areion-256 uses rounds 0..9 and Areion-512 uses rounds 0..14):
+The 15 hexadecimal entries of Table 1 (`P1`) and Table 2 (`P2`) (each stored in memory as 16 little-endian bytes; e.g., round 0 of `P1` begins with bytes `44 73 70 03` and round 0 of `P2` begins with bytes `93 e9 72 7c`; Areion-256 uses rounds 0..9 and Areion-512 uses rounds 0..14):
 
-| Round | Hexadecimal constant (`P2`) |
-| ---: | :--- |
-| 0 | `b4cc5c341141e8cea15486af7c72e993` |
-| 1 | `b3ee1411636fbc2a2ba9c55d741831f6` |
-| 2 | `ce5c3e169b87931eafd6ba336c24cf5c` |
-| 3 | `7a325381289586773b8f48986b4bb9af` |
-| 4 | `c4bfe81b6628219361d809ccfb21a991` |
-| 5 | `487cac605dec8032ef845d5de98575b1` |
-| 6 | `dc262302eb651b8823893e81d396acc5` |
-| 7 | `f6d6ff383f442392e0b4482a48420040` |
-| 8 | `69c8f04a9e1f9b5e21c66842f6e96c9a` |
-| 9 | `670c9c61abd388f06a51a0d2d8542f68` |
-| 10 | `960fa728ab5133a36eef0b6c137a3be4` |
-| 11 | `ba3bf0507efb2a98a1f1651d39af0176` |
-| 12 | `66ca593e82430e888cee8619456f9fb4` |
-| 13 | `7d84a5c33b8b5ebee06f75d885c12073` |
-| 14 | `401a449f56c16aa64ed3aa62363f7706` |
+| Round | Hexadecimal constant (`P1`) | Hexadecimal constant (`P2`) |
+| ---: | :--- | :--- |
+| 0 | `243f6a8885a308d313198a2e03707344` | `b4cc5c341141e8cea15486af7c72e993` |
+| 1 | `a4093822299f31d0082efa98ec4e6c89` | `b3ee1411636fbc2a2ba9c55d741831f6` |
+| 2 | `452821e638d01377be5466cf34e90c6c` | `ce5c3e169b87931eafd6ba336c24cf5c` |
+| 3 | `c0ac29b7c97c50dd3f84d5b5b5470917` | `7a325381289586773b8f48986b4bb9af` |
+| 4 | `9216d5d98979fb1bd1310ba698dfb5ac` | `c4bfe81b6628219361d809ccfb21a991` |
+| 5 | `2ffd72dbd01adfb7b8e1afed6a267e96` | `487cac605dec8032ef845d5de98575b1` |
+| 6 | `ba7c9045f12c7f9924a19947b3916cf7` | `dc262302eb651b8823893e81d396acc5` |
+| 7 | `801f2e2858efc16636920d871574e690` | `f6d6ff383f442392e0b4482a48420040` |
+| 8 | `a458fea3f4933d7e0d95748f728eb658` | `69c8f04a9e1f9b5e21c66842f6e96c9a` |
+| 9 | `718bcd5882154aee7b54a41dc25a59b5` | `670c9c61abd388f06a51a0d2d8542f68` |
+| 10 | `9c30d5392af26013c5d1b023286085f0` | `960fa728ab5133a36eef0b6c137a3be4` |
+| 11 | `ca417918b8db38ef8e79dcb0603a180e` | `ba3bf0507efb2a98a1f1651d39af0176` |
+| 12 | `6c9e0e8bb01e8a3ed71577c1bd314b27` | `66ca593e82430e888cee8619456f9fb4` |
+| 13 | `78af2fda55605c60e65525f3aa55ab94` | `7d84a5c33b8b5ebee06f75d885c12073` |
+| 14 | `5748986263e8144055ca396a2aab10b6` | `401a449f56c16aa64ed3aa62363f7706` |
 
 [`scripts/verify_p2_table.py`](scripts/README.md) checks:
 - All 30 constants are distinct: `|P1 ∩ P2| = 0`.
@@ -149,18 +149,18 @@ The package automatically detects host CPU features:
 
 | Tier | Architectures | Instructions Used | Register Width (x4 functions) |
 | :--- | :--- | :--- | :--- |
-| **`avx512`** | Intel Ice Lake, Tiger Lake, Rocket Lake, Xeon Ice Lake-SP+; AMD Zen 4+ (`AVX-512F + AVX-512VL + VAES`) | `VAESENC`, `VAESENCLAST`, `VAESDEC`, `VAESDECLAST`, `VPXORD`, `VPXORQ`, `VBROADCASTI32X4` (2-instruction `VAESENCLAST` + `VAESDEC` 512-bit `InvMixColumns`) | 512-bit ZMM (4 AES blocks) |
-| **`vaesavx2`** | Intel Alder Lake+ (no AVX-512); AMD Zen 3 (`AVX2 + VAES`) | `VAESENC`, `VAESENCLAST`, `VAESDEC`, `VAESDECLAST`, `VPXOR`, `VBROADCASTI128` (2-instruction `VAESENCLAST` + `VAESDEC` 256-bit `InvMixColumns`) | 256-bit YMM (2 AES blocks) |
-| **`vex`** | Intel Sandy Bridge+, AMD Bulldozer+ (`AVX + AES-NI`) | 3-operand VEX XMM `VAESENC`, `VAESENCLAST`, `VAESDECLAST`, `VAESIMC`, `VPXOR` | 128-bit XMM (3-operand VEX) |
-| **`aesni`** | Intel Westmere+ (`AES-NI` without `AVX`) | Legacy SSE `AESENC`, `AESENCLAST`, `AESDECLAST`, `AESIMC`, `PXOR` | 128-bit XMM (2-operand SSE) |
-| **`arm64`** | ARMv8 with Cryptographic Extension, Apple Silicon, Graviton (`NEON + AES`) | `AESE`, `AESMC`, `AESD`, `AESIMC`, `VEOR` | 128-bit NEON |
+| **`avx512`** | Intel Ice Lake, Tiger Lake, Rocket Lake, Xeon Ice Lake-SP+; AMD Zen 4+ (`AVX-512F + AVX-512VL + VAES`) | `VAESENC`, `VAESENCLAST`, `VAESDEC`, `VAESDECLAST`, `VPXOR`, `VPXORQ`, `VSHUFI64X2`, `VINSERTI64X4` (2-instruction `VAESENCLAST` + `VAESDEC` 512-bit `InvMixColumns`) | 512-bit ZMM (4 AES blocks) |
+| **`vaesavx2`** | Intel Alder Lake+ (no AVX-512); AMD Zen 3 (`AVX2 + VAES`) | `VAESENC`, `VAESENCLAST`, `VAESDEC`, `VAESDECLAST`, `VPXOR`, `VPERM2I128` (2-instruction `VAESENCLAST` + `VAESDEC` 256-bit `InvMixColumns`) | 256-bit YMM (2 AES blocks / reg, up to 4 lanes in `Y0..Y7`) |
+| **`vex`** | Intel Sandy Bridge+, AMD Bulldozer+ (`AVX + AES-NI`) | 3-operand VEX XMM `VAESENC`, `VAESENCLAST`, `VAESDECLAST`, `VAESIMC`, `VAESKEYGENASSIST`, `VPXOR`, `VPUNPCKLQDQ`, `VPUNPCKHQDQ`, `VPSRLDQ` | 128-bit XMM (3-operand VEX) |
+| **`aesni`** | Intel Westmere+ (`AES-NI` without `AVX`) | Legacy SSE `AESENC`, `AESENCLAST`, `AESDECLAST`, `AESIMC`, `AESKEYGENASSIST`, `PXOR`, `PUNPCKLQDQ`, `PUNPCKHQDQ`, `PSRLDQ` | 128-bit XMM (2-operand SSE) |
+| **`arm64`** | ARMv8 with Cryptographic Extension, Apple Silicon, Graviton (`NEON + AES`) | `AESE`, `AESMC`, `AESD`, `AESIMC`, `VEOR`, `VTRN1`, `VTRN2` | 128-bit NEON (up to 4 lanes in `V0..V31`) |
 | **`purego`** | All architectures | Constant-time 64-bit bitsliced Boyar–Peralta forward/inverse S-boxes & maskless linear layer | 64-bit bitsliced software (up to 4 blocks/word) |
 
 > **Note on single-block execution:** Single-block functions (`Permute256/512`, `InversePermute256/512` and their `P2` forms, `DM256/512`, `SoEM256/512`, `EM*`, `EM2*`, `TEM*`, `TEM2*`, `AES128Round`, `AES128FinalRound`, `ExpandKey128`, `AES128EncryptBlock`) use 3-operand VEX XMM instructions on `vex`, `vaesavx2`, and `avx512` tiers (eliminating destructive `MOVOA` register copies and legacy SSE transition penalties), and legacy 2-operand XMM instructions on `aesni`. `SoEM256`, `SoEM512`, `TEMEncrypt*`, and `TEM2*` interleave independent `P1` and `P2` evaluations in a single assembly call (and in lanes 0 and 1 of a single bitsliced pass on `purego`).
 
 > **Note on VAES detection:** `golang.org/x/sys/cpu` reports VAES only together with AVX-512; the package reads CPUID leaf 7 directly so that VAES+AVX2 hosts (AMD Zen 3, Intel Alder Lake) activate the `vaesavx2` tier.
 
-> **Register and stack zeroization:** All hardware assembly kernels (both single-block and `×4` batch functions) execute directly in registers with zero local stack spills (zero-byte stack frame, no intermediate AoS↔SoA stack buffers) and clear all touched vector registers (`PXOR` / `VPXOR` / `VPXORD` on `X0..X30` plus `VZEROUPPER` on `x86-64`; `VEOR` on `V0..V31` on `arm64`) and scratch general-purpose registers (`XORQ` on `x86-64`; `MOVD ZR` on `arm64`) before returning. Hardware wrappers invoke `clobberScratchGPRs` before returning, while the `purego` fallback scrubs its local buffers and 1,024-byte software stack frame (`wipeSoftwareStack`). Verified by `areion_zeroize*_test.go`; see [`analysis/README.md` (Section L)](analysis/README.md#l-register-and-stack-clearing-cost) for instruction-count and cycle-per-byte overhead measurements.
+> **Register and stack zeroization:** All hardware assembly kernels (both single-block and `×4` batch functions) execute directly in registers with zero local stack spills (zero-byte stack frame, no intermediate AoS↔SoA stack buffers) and clear all touched vector registers (`PXOR` / `VPXOR` / `VPXORD` on `X0..X30` plus `VZEROUPPER` on `x86-64`; `VEOR` on `V0..V31` on `arm64`) and scratch general-purpose registers (`XORQ` on `x86-64`; `MOVD ZR` on `arm64`) before returning. On `purego` fallback paths, Go routines scrub their local buffers, scrub their 1,024-byte software stack frame (`wipeSoftwareStack`), and clobber volatile scratch GPRs (`clobberScratchGPRs`). Verified by `areion_zeroize*_test.go`; see [`analysis/README.md` (Section L)](analysis/README.md#l-register-and-stack-clearing-cost) for instruction-count and cycle-per-byte overhead measurements.
 
 ---
 
