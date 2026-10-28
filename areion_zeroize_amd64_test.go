@@ -526,8 +526,65 @@ func testAreionArchAsmKernels(t *testing.T, tier string, res *[areionTotalWords]
 		}
 	}
 
+	runDM256 := func(name string, fn func(*[32]byte, *[32]byte)) {
+		m := new([32]byte)
+		out := new([32]byte)
+		for i := range m {
+			m[i] = byte(0x37 + i*11)
+		}
+		if w := captureAreionFrameAndRegResidue(func() {
+			fn(out, m)
+		}, res); w == 0 {
+			t.Fatalf("[%s] %s: probe missed stack window", tier, name)
+		}
+		targets := bytesToNonZeroWords(m[:], out[:])
+		if word, off, found := scanForAreionWords(res, targets); found {
+			t.Fatalf("[%s] %s leaked word %#016x at offset %d (window=%d)", tier, name, word, off, areionResidueWindow)
+		}
+	}
+
+	runDM512 := func(name string, fn func(*[32]byte, *[64]byte)) {
+		m := new([64]byte)
+		out := new([32]byte)
+		for i := range m {
+			m[i] = byte(0x41 + i*7)
+		}
+		if w := captureAreionFrameAndRegResidue(func() {
+			fn(out, m)
+		}, res); w == 0 {
+			t.Fatalf("[%s] %s: probe missed stack window", tier, name)
+		}
+		targets := bytesToNonZeroWords(m[:], out[:])
+		if word, off, found := scanForAreionWords(res, targets); found {
+			t.Fatalf("[%s] %s leaked word %#016x at offset %d (window=%d)", tier, name, word, off, areionResidueWindow)
+		}
+	}
+
+	runExpandKey128 := func(name string, fn func(*[11][16]byte, *[16]byte)) {
+		key := new([16]byte)
+		rk := new([11][16]byte)
+		for i := range key {
+			key[i] = byte(0x53 + i*13)
+		}
+		if w := captureAreionFrameAndRegResidue(func() {
+			fn(rk, key)
+		}, res); w == 0 {
+			t.Fatalf("[%s] %s: probe missed stack window", tier, name)
+		}
+		targets := bytesToNonZeroWords(key[:])
+		for r := range rk {
+			targets = append(targets, bytesToNonZeroWords(rk[r][:])...)
+		}
+		if word, off, found := scanForAreionWords(res, targets); found {
+			t.Fatalf("[%s] %s leaked word %#016x at offset %d (window=%d)", tier, name, word, off, areionResidueWindow)
+		}
+	}
+
 	switch tier {
 	case "aesni":
+		runDM256("areion256DMAsm", areion256DMAsm)
+		runDM512("areion512DMAsm", areion512DMAsm)
+		runExpandKey128("aes128ExpandKeyAsm", aes128ExpandKeyAsm)
 		runR256Block("rijndael256EncryptBlockAsm", rijndael256EncryptBlockAsm)
 		runR256Block4("rijndael256Encrypt4BlocksAesNiAsm", rijndael256Encrypt4BlocksAesNiAsm)
 		runV256Block("vistrutah256EncryptBlockAsm", vistrutah256EncryptBlockAsm)
@@ -575,6 +632,9 @@ func testAreionArchAsmKernels(t *testing.T, tier string, res *[areionTotalWords]
 		runTEM512x4("areion512TEM2Encryptx4AESNI", areion512TEM2Encryptx4AESNI)
 		runTEM512x4("areion512TEM2Decryptx4AESNI", areion512TEM2Decryptx4AESNI)
 	case "vex":
+		runDM256("areion256DMVexAsm", areion256DMVexAsm)
+		runDM512("areion512DMVexAsm", areion512DMVexAsm)
+		runExpandKey128("aes128ExpandKeyVexAsm", aes128ExpandKeyVexAsm)
 		runR256Block("rijndael256EncryptBlockVexAsm", rijndael256EncryptBlockVexAsm)
 		runR256Block4("rijndael256Encrypt4BlocksVexAsm", rijndael256Encrypt4BlocksVexAsm)
 		runV256Block("vistrutah256EncryptBlockVexAsm", vistrutah256EncryptBlockVexAsm)
@@ -622,6 +682,9 @@ func testAreionArchAsmKernels(t *testing.T, tier string, res *[areionTotalWords]
 		runTEM512x4("areion512TEM2Encryptx4VEX", areion512TEM2Encryptx4VEX)
 		runTEM512x4("areion512TEM2Decryptx4VEX", areion512TEM2Decryptx4VEX)
 	case "vaesavx2":
+		runDM256("areion256DMVexAsm", areion256DMVexAsm)
+		runDM512("areion512DMVexAsm", areion512DMVexAsm)
+		runExpandKey128("aes128ExpandKeyVexAsm", aes128ExpandKeyVexAsm)
 		runR256Block("rijndael256EncryptBlockVexAsm", rijndael256EncryptBlockVexAsm)
 		runR256Block4("rijndael256Encrypt4BlocksYmmAsm", rijndael256Encrypt4BlocksYmmAsm)
 		runV256Block("vistrutah256EncryptBlockYmmAsm", vistrutah256EncryptBlockYmmAsm)
@@ -669,6 +732,9 @@ func testAreionArchAsmKernels(t *testing.T, tier string, res *[areionTotalWords]
 		runTEM512x4("areion512TEM2Encryptx4VAESAVX2", areion512TEM2Encryptx4VAESAVX2)
 		runTEM512x4("areion512TEM2Decryptx4VAESAVX2", areion512TEM2Decryptx4VAESAVX2)
 	case "avx512":
+		runDM256("areion256DMVexAsm", areion256DMVexAsm)
+		runDM512("areion512DMVexAsm", areion512DMVexAsm)
+		runExpandKey128("aes128ExpandKeyVexAsm", aes128ExpandKeyVexAsm)
 		runR256Block("rijndael256EncryptBlockVexAsm", rijndael256EncryptBlockVexAsm)
 		runR256Block4("rijndael256Encrypt4BlocksZmmAsm", rijndael256Encrypt4BlocksZmmAsm)
 		runV256Block("vistrutah256EncryptBlockYmmAsm", vistrutah256EncryptBlockYmmAsm)

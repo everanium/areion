@@ -42,6 +42,14 @@ func areionSoEM512(key *[128]byte, m *[64]byte) [64]byte {
 	return soem512Software(key, m)
 }
 
+func areionDM256(out, m *[32]byte) {
+	dm256Software(out, m)
+}
+
+func areionDM512(out *[32]byte, m *[64]byte) {
+	dm512Software(out, m)
+}
+
 func areion256Permutex4(states *[4][32]byte) {
 	areion256Permutex4SoftwareRC(states, &roundConstantsP1)
 }
@@ -104,6 +112,10 @@ func aes128EncryptBlock(rk *[11][16]byte, dst, src *[16]byte) {
 
 func aes128Encrypt4Blocks(rk *[11][16]byte, dst, src *[64]byte) {
 	aes128Encrypt4BlocksSoftware(rk, dst, src)
+}
+
+func expandKey128(key *[16]byte, rk *[11][16]byte) {
+	expandKey128Software(key, rk)
 }
 
 func rijndael256EncryptBlockHW(rk *[15][32]byte, dst, src *[32]byte) {

@@ -69,15 +69,8 @@ func InversePermute512P2(state *State512) {
 // Returns a 32-byte digest: Areion256-DM, Section 4.1.1 of Isobe et al. (ePrint 2023/794),
 // Eq. (1) with Areion-256 in place of the Haraka v2 permutation.
 func DM256(m *[32]byte) [32]byte {
-	state := *m
-	Permute256(&state)
 	var out [32]byte
-	for i := range state {
-		out[i] = state[i] ^ m[i]
-	}
-	clear(state[:])
-	runtime.KeepAlive(&state)
-	clobberScratchGPRs()
+	areionDM256(&out, m)
 	return out
 }
 
@@ -89,19 +82,8 @@ func DM256(m *[32]byte) [32]byte {
 // and keeps the 32-bit words x2 || x3 || x6 || x7 || x8 || x9 || x12 || x13, that is the four 8-byte slices
 // state[8:16] || state[24:32] || state[32:40] || state[48:56].
 func DM512(m *[64]byte) [32]byte {
-	state := *m
-	Permute512(&state)
-	for i := range state {
-		state[i] ^= m[i]
-	}
 	var out [32]byte
-	copy(out[0:8], state[8:16])
-	copy(out[8:16], state[24:32])
-	copy(out[16:24], state[32:40])
-	copy(out[24:32], state[48:56])
-	clear(state[:])
-	runtime.KeepAlive(&state)
-	clobberScratchGPRs()
+	areionDM512(&out, m)
 	return out
 }
 

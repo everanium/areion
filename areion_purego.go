@@ -927,78 +927,146 @@ func areion512InversePermuteSoftwareRC(state *State512, rcs *[15][16]byte) {
 	clobberScratchGPRs()
 }
 
-func areion256Permutex4SoftwareRC(states *[4][32]byte, rcs *[15][16]byte) {
+func areion256Permutex4BS(states *[4][32]byte, rcs *[15]bsState) {
 	var x0, x1 bsState
 	bsPack4(&x0, (*Block)(states[0][0:16]), (*Block)(states[1][0:16]), (*Block)(states[2][0:16]), (*Block)(states[3][0:16]))
 	bsPack4(&x1, (*Block)(states[0][16:32]), (*Block)(states[1][16:32]), (*Block)(states[2][16:32]), (*Block)(states[3][16:32]))
-	areion256PermuteBS(&x0, &x1, getBSRC(rcs))
+	areion256PermuteBS(&x0, &x1, rcs)
 	bsUnpack4(&x0, (*Block)(states[0][0:16]), (*Block)(states[1][0:16]), (*Block)(states[2][0:16]), (*Block)(states[3][0:16]))
 	bsUnpack4(&x1, (*Block)(states[0][16:32]), (*Block)(states[1][16:32]), (*Block)(states[2][16:32]), (*Block)(states[3][16:32]))
 	clear(x0[:])
 	clear(x1[:])
 	runtime.KeepAlive(&x0)
 	runtime.KeepAlive(&x1)
+}
+
+func areion256InversePermutex4BS(states *[4][32]byte, rcs *[15]bsState) {
+	var x0, x1 bsState
+	bsPack4(&x0, (*Block)(states[0][0:16]), (*Block)(states[1][0:16]), (*Block)(states[2][0:16]), (*Block)(states[3][0:16]))
+	bsPack4(&x1, (*Block)(states[0][16:32]), (*Block)(states[1][16:32]), (*Block)(states[2][16:32]), (*Block)(states[3][16:32]))
+	areion256InversePermuteBS(&x0, &x1, rcs)
+	bsUnpack4(&x0, (*Block)(states[0][0:16]), (*Block)(states[1][0:16]), (*Block)(states[2][0:16]), (*Block)(states[3][0:16]))
+	bsUnpack4(&x1, (*Block)(states[0][16:32]), (*Block)(states[1][16:32]), (*Block)(states[2][16:32]), (*Block)(states[3][16:32]))
+	clear(x0[:])
+	clear(x1[:])
+	runtime.KeepAlive(&x0)
+	runtime.KeepAlive(&x1)
+}
+
+func areion512Permutex4BS(states *[4][64]byte, rcs *[15]bsState) {
+	var x0, x1, x2, x3 bsState
+	bsPack4(&x0, (*Block)(states[0][0:16]), (*Block)(states[1][0:16]), (*Block)(states[2][0:16]), (*Block)(states[3][0:16]))
+	bsPack4(&x1, (*Block)(states[0][16:32]), (*Block)(states[1][16:32]), (*Block)(states[2][16:32]), (*Block)(states[3][16:32]))
+	bsPack4(&x2, (*Block)(states[0][32:48]), (*Block)(states[1][32:48]), (*Block)(states[2][32:48]), (*Block)(states[3][32:48]))
+	bsPack4(&x3, (*Block)(states[0][48:64]), (*Block)(states[1][48:64]), (*Block)(states[2][48:64]), (*Block)(states[3][48:64]))
+	areion512PermuteBS4(&x0, &x1, &x2, &x3, rcs)
+	bsUnpack4(&x0, (*Block)(states[0][0:16]), (*Block)(states[1][0:16]), (*Block)(states[2][0:16]), (*Block)(states[3][0:16]))
+	bsUnpack4(&x1, (*Block)(states[0][16:32]), (*Block)(states[1][16:32]), (*Block)(states[2][16:32]), (*Block)(states[3][16:32]))
+	bsUnpack4(&x2, (*Block)(states[0][32:48]), (*Block)(states[1][32:48]), (*Block)(states[2][32:48]), (*Block)(states[3][32:48]))
+	bsUnpack4(&x3, (*Block)(states[0][48:64]), (*Block)(states[1][48:64]), (*Block)(states[2][48:64]), (*Block)(states[3][48:64]))
+	clear(x0[:])
+	clear(x1[:])
+	clear(x2[:])
+	clear(x3[:])
+	runtime.KeepAlive(&x0)
+	runtime.KeepAlive(&x1)
+	runtime.KeepAlive(&x2)
+	runtime.KeepAlive(&x3)
+}
+
+func areion512InversePermutex4BS(states *[4][64]byte, rcs *[15]bsState) {
+	var x0, x1, x2, x3 bsState
+	bsPack4(&x0, (*Block)(states[0][0:16]), (*Block)(states[1][0:16]), (*Block)(states[2][0:16]), (*Block)(states[3][0:16]))
+	bsPack4(&x1, (*Block)(states[0][16:32]), (*Block)(states[1][16:32]), (*Block)(states[2][16:32]), (*Block)(states[3][16:32]))
+	bsPack4(&x2, (*Block)(states[0][32:48]), (*Block)(states[1][32:48]), (*Block)(states[2][32:48]), (*Block)(states[3][32:48]))
+	bsPack4(&x3, (*Block)(states[0][48:64]), (*Block)(states[1][48:64]), (*Block)(states[2][48:64]), (*Block)(states[3][48:64]))
+	areion512InversePermuteBS4(&x0, &x1, &x2, &x3, rcs)
+	bsUnpack4(&x0, (*Block)(states[0][0:16]), (*Block)(states[1][0:16]), (*Block)(states[2][0:16]), (*Block)(states[3][0:16]))
+	bsUnpack4(&x1, (*Block)(states[0][16:32]), (*Block)(states[1][16:32]), (*Block)(states[2][16:32]), (*Block)(states[3][16:32]))
+	bsUnpack4(&x2, (*Block)(states[0][32:48]), (*Block)(states[1][32:48]), (*Block)(states[2][32:48]), (*Block)(states[3][32:48]))
+	bsUnpack4(&x3, (*Block)(states[0][48:64]), (*Block)(states[1][48:64]), (*Block)(states[2][48:64]), (*Block)(states[3][48:64]))
+	clear(x0[:])
+	clear(x1[:])
+	clear(x2[:])
+	clear(x3[:])
+	runtime.KeepAlive(&x0)
+	runtime.KeepAlive(&x1)
+	runtime.KeepAlive(&x2)
+	runtime.KeepAlive(&x3)
+}
+
+func areion256Permutex4SoftwareRC(states *[4][32]byte, rcs *[15][16]byte) {
+	areion256Permutex4BS(states, getBSRC(rcs))
 	wipeSoftwareStack()
 	clobberScratchGPRs()
 }
 
 func areion256InversePermutex4SoftwareRC(states *[4][32]byte, rcs *[15][16]byte) {
-	var x0, x1 bsState
-	bsPack4(&x0, (*Block)(states[0][0:16]), (*Block)(states[1][0:16]), (*Block)(states[2][0:16]), (*Block)(states[3][0:16]))
-	bsPack4(&x1, (*Block)(states[0][16:32]), (*Block)(states[1][16:32]), (*Block)(states[2][16:32]), (*Block)(states[3][16:32]))
-	areion256InversePermuteBS(&x0, &x1, getBSRC(rcs))
-	bsUnpack4(&x0, (*Block)(states[0][0:16]), (*Block)(states[1][0:16]), (*Block)(states[2][0:16]), (*Block)(states[3][0:16]))
-	bsUnpack4(&x1, (*Block)(states[0][16:32]), (*Block)(states[1][16:32]), (*Block)(states[2][16:32]), (*Block)(states[3][16:32]))
-	clear(x0[:])
-	clear(x1[:])
-	runtime.KeepAlive(&x0)
-	runtime.KeepAlive(&x1)
+	areion256InversePermutex4BS(states, getBSRC(rcs))
 	wipeSoftwareStack()
 	clobberScratchGPRs()
 }
 
 func areion512Permutex4SoftwareRC(states *[4][64]byte, rcs *[15][16]byte) {
-	var x0, x1, x2, x3 bsState
-	bsPack4(&x0, (*Block)(states[0][0:16]), (*Block)(states[1][0:16]), (*Block)(states[2][0:16]), (*Block)(states[3][0:16]))
-	bsPack4(&x1, (*Block)(states[0][16:32]), (*Block)(states[1][16:32]), (*Block)(states[2][16:32]), (*Block)(states[3][16:32]))
-	bsPack4(&x2, (*Block)(states[0][32:48]), (*Block)(states[1][32:48]), (*Block)(states[2][32:48]), (*Block)(states[3][32:48]))
-	bsPack4(&x3, (*Block)(states[0][48:64]), (*Block)(states[1][48:64]), (*Block)(states[2][48:64]), (*Block)(states[3][48:64]))
-	areion512PermuteBS4(&x0, &x1, &x2, &x3, getBSRC(rcs))
-	bsUnpack4(&x0, (*Block)(states[0][0:16]), (*Block)(states[1][0:16]), (*Block)(states[2][0:16]), (*Block)(states[3][0:16]))
-	bsUnpack4(&x1, (*Block)(states[0][16:32]), (*Block)(states[1][16:32]), (*Block)(states[2][16:32]), (*Block)(states[3][16:32]))
-	bsUnpack4(&x2, (*Block)(states[0][32:48]), (*Block)(states[1][32:48]), (*Block)(states[2][32:48]), (*Block)(states[3][32:48]))
-	bsUnpack4(&x3, (*Block)(states[0][48:64]), (*Block)(states[1][48:64]), (*Block)(states[2][48:64]), (*Block)(states[3][48:64]))
-	clear(x0[:])
-	clear(x1[:])
-	clear(x2[:])
-	clear(x3[:])
-	runtime.KeepAlive(&x0)
-	runtime.KeepAlive(&x1)
-	runtime.KeepAlive(&x2)
-	runtime.KeepAlive(&x3)
+	areion512Permutex4BS(states, getBSRC(rcs))
 	wipeSoftwareStack()
 	clobberScratchGPRs()
 }
 
 func areion512InversePermutex4SoftwareRC(states *[4][64]byte, rcs *[15][16]byte) {
+	areion512InversePermutex4BS(states, getBSRC(rcs))
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func dm256Software(out, m *[32]byte) {
+	var state State256
+	var x0, x1 bsState
+	bsPack1(&x0, (*Block)(m[0:16]))
+	bsPack1(&x1, (*Block)(m[16:32]))
+	areion256PermuteBS(&x0, &x1, &bsRCP1)
+	bsUnpack1(&x0, (*Block)(state[0:16]))
+	bsUnpack1(&x1, (*Block)(state[16:32]))
+	for i := 0; i < 32; i += 8 {
+		v := binary.LittleEndian.Uint64(state[i:i+8]) ^ binary.LittleEndian.Uint64(m[i:i+8])
+		binary.LittleEndian.PutUint64(out[i:i+8], v)
+	}
+	clear(x0[:])
+	clear(x1[:])
+	clear(state[:])
+	runtime.KeepAlive(&x0)
+	runtime.KeepAlive(&x1)
+	runtime.KeepAlive(&state)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+func dm512Software(out *[32]byte, m *[64]byte) {
+	var state State512
 	var x0, x1, x2, x3 bsState
-	bsPack4(&x0, (*Block)(states[0][0:16]), (*Block)(states[1][0:16]), (*Block)(states[2][0:16]), (*Block)(states[3][0:16]))
-	bsPack4(&x1, (*Block)(states[0][16:32]), (*Block)(states[1][16:32]), (*Block)(states[2][16:32]), (*Block)(states[3][16:32]))
-	bsPack4(&x2, (*Block)(states[0][32:48]), (*Block)(states[1][32:48]), (*Block)(states[2][32:48]), (*Block)(states[3][32:48]))
-	bsPack4(&x3, (*Block)(states[0][48:64]), (*Block)(states[1][48:64]), (*Block)(states[2][48:64]), (*Block)(states[3][48:64]))
-	areion512InversePermuteBS4(&x0, &x1, &x2, &x3, getBSRC(rcs))
-	bsUnpack4(&x0, (*Block)(states[0][0:16]), (*Block)(states[1][0:16]), (*Block)(states[2][0:16]), (*Block)(states[3][0:16]))
-	bsUnpack4(&x1, (*Block)(states[0][16:32]), (*Block)(states[1][16:32]), (*Block)(states[2][16:32]), (*Block)(states[3][16:32]))
-	bsUnpack4(&x2, (*Block)(states[0][32:48]), (*Block)(states[1][32:48]), (*Block)(states[2][32:48]), (*Block)(states[3][32:48]))
-	bsUnpack4(&x3, (*Block)(states[0][48:64]), (*Block)(states[1][48:64]), (*Block)(states[2][48:64]), (*Block)(states[3][48:64]))
+	bsPack1(&x0, (*Block)(m[0:16]))
+	bsPack1(&x1, (*Block)(m[16:32]))
+	bsPack1(&x2, (*Block)(m[32:48]))
+	bsPack1(&x3, (*Block)(m[48:64]))
+	areion512PermuteBS12(&x0, &x1, &x2, &x3, &bsRCP1)
+	bsUnpack1(&x0, (*Block)(state[0:16]))
+	bsUnpack1(&x1, (*Block)(state[16:32]))
+	bsUnpack1(&x2, (*Block)(state[32:48]))
+	bsUnpack1(&x3, (*Block)(state[48:64]))
+	binary.LittleEndian.PutUint64(out[0:8], binary.LittleEndian.Uint64(state[8:16])^binary.LittleEndian.Uint64(m[8:16]))
+	binary.LittleEndian.PutUint64(out[8:16], binary.LittleEndian.Uint64(state[24:32])^binary.LittleEndian.Uint64(m[24:32]))
+	binary.LittleEndian.PutUint64(out[16:24], binary.LittleEndian.Uint64(state[32:40])^binary.LittleEndian.Uint64(m[32:40]))
+	binary.LittleEndian.PutUint64(out[24:32], binary.LittleEndian.Uint64(state[48:56])^binary.LittleEndian.Uint64(m[48:56]))
 	clear(x0[:])
 	clear(x1[:])
 	clear(x2[:])
 	clear(x3[:])
+	clear(state[:])
 	runtime.KeepAlive(&x0)
 	runtime.KeepAlive(&x1)
 	runtime.KeepAlive(&x2)
 	runtime.KeepAlive(&x3)
+	runtime.KeepAlive(&state)
 	wipeSoftwareStack()
 	clobberScratchGPRs()
 }
@@ -1098,8 +1166,8 @@ func soem256x4Software(keys *[4][64]byte, inputs *[4][32]byte) [4][32]byte {
 			binary.LittleEndian.PutUint64(state2[lane][i:i+8], m^k2)
 		}
 	}
-	areion256Permutex4SoftwareRC(&state1, &roundConstantsP1)
-	areion256Permutex4SoftwareRC(&state2, &roundConstantsP2)
+	areion256Permutex4BS(&state1, &bsRCP1)
+	areion256Permutex4BS(&state2, &bsRCP2)
 	var out [4][32]byte
 	for lane := 0; lane < 4; lane++ {
 		for i := 0; i < 32; i += 8 {
@@ -1130,8 +1198,8 @@ func soem512x4Software(keys *[4][128]byte, inputs *[4][64]byte) [4][64]byte {
 			binary.LittleEndian.PutUint64(state2[lane][i:i+8], m^k2)
 		}
 	}
-	areion512Permutex4SoftwareRC(&state1, &roundConstantsP1)
-	areion512Permutex4SoftwareRC(&state2, &roundConstantsP2)
+	areion512Permutex4BS(&state1, &bsRCP1)
+	areion512Permutex4BS(&state2, &bsRCP2)
 	var out [4][64]byte
 	for lane := 0; lane < 4; lane++ {
 		for i := 0; i < 64; i += 8 {
@@ -1192,27 +1260,16 @@ func bsSubWord(rot uint32) uint32 {
 	return uint32(out)
 }
 
-func expandKey128(key *[16]byte, rk *[11][16]byte) {
+func expandKey128Software(key *[16]byte, rk *[11][16]byte) {
 	var w [44]uint32
 	for i := 0; i < 4; i++ {
 		w[i] = binary.LittleEndian.Uint32(key[i*4 : i*4+4])
 	}
-	var blk, zeroBlk Block
-	useHW := (hasAESNI || hasARMCrypto) && TierCode() != TierPureGo
 	for i := 4; i < 44; i++ {
 		temp := w[i-1]
 		if i%4 == 0 {
 			rot := (temp >> 8) | (temp << 24)
-			if useHW {
-				binary.LittleEndian.PutUint32(blk[0:4], rot)
-				binary.LittleEndian.PutUint32(blk[4:8], rot)
-				binary.LittleEndian.PutUint32(blk[8:12], rot)
-				binary.LittleEndian.PutUint32(blk[12:16], rot)
-				aesFinalRoundHW(&blk, &zeroBlk)
-				temp = binary.LittleEndian.Uint32(blk[0:4]) ^ aesRcon[i/4]
-			} else {
-				temp = bsSubWord(rot) ^ aesRcon[i/4]
-			}
+			temp = bsSubWord(rot) ^ aesRcon[i/4]
 		}
 		w[i] = w[i-4] ^ temp
 	}
@@ -1222,9 +1279,7 @@ func expandKey128(key *[16]byte, rk *[11][16]byte) {
 		}
 	}
 	clear(w[:])
-	clear(blk[:])
 	runtime.KeepAlive(&w)
-	runtime.KeepAlive(&blk)
 	wipeSoftwareStack()
 	clobberScratchGPRs()
 }
@@ -1637,7 +1692,7 @@ func emEncrypt256x4Software(out, msgs *[4][32]byte, keys *[4][64]byte) {
 			binary.LittleEndian.PutUint64(states[lane][i:i+8], v)
 		}
 	}
-	areion256Permutex4SoftwareRC(&states, &roundConstantsP1)
+	areion256Permutex4BS(&states, &bsRCP1)
 	for lane := 0; lane < 4; lane++ {
 		for i := 0; i < 32; i += 8 {
 			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][32+i:32+i+8])
@@ -1658,7 +1713,7 @@ func emDecrypt256x4Software(out, ct *[4][32]byte, keys *[4][64]byte) {
 			binary.LittleEndian.PutUint64(states[lane][i:i+8], v)
 		}
 	}
-	areion256InversePermutex4SoftwareRC(&states, &roundConstantsP1)
+	areion256InversePermutex4BS(&states, &bsRCP1)
 	for lane := 0; lane < 4; lane++ {
 		for i := 0; i < 32; i += 8 {
 			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][i:i+8])
@@ -1679,7 +1734,7 @@ func emEncrypt512x4Software(out, msgs *[4][64]byte, keys *[4][128]byte) {
 			binary.LittleEndian.PutUint64(states[lane][i:i+8], v)
 		}
 	}
-	areion512Permutex4SoftwareRC(&states, &roundConstantsP1)
+	areion512Permutex4BS(&states, &bsRCP1)
 	for lane := 0; lane < 4; lane++ {
 		for i := 0; i < 64; i += 8 {
 			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][64+i:64+i+8])
@@ -1700,7 +1755,7 @@ func emDecrypt512x4Software(out, ct *[4][64]byte, keys *[4][128]byte) {
 			binary.LittleEndian.PutUint64(states[lane][i:i+8], v)
 		}
 	}
-	areion512InversePermutex4SoftwareRC(&states, &roundConstantsP1)
+	areion512InversePermutex4BS(&states, &bsRCP1)
 	for lane := 0; lane < 4; lane++ {
 		for i := 0; i < 64; i += 8 {
 			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][i:i+8])
@@ -1893,14 +1948,14 @@ func em2Encrypt256x4Software(out, msgs *[4][32]byte, keys *[4][64]byte) {
 			binary.LittleEndian.PutUint64(states[lane][i:i+8], v)
 		}
 	}
-	areion256Permutex4SoftwareRC(&states, &roundConstantsP1)
+	areion256Permutex4BS(&states, &bsRCP1)
 	for lane := 0; lane < 4; lane++ {
 		for i := 0; i < 32; i += 8 {
 			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][32+i:32+i+8])
 			binary.LittleEndian.PutUint64(states[lane][i:i+8], v)
 		}
 	}
-	areion256Permutex4SoftwareRC(&states, &roundConstantsP2)
+	areion256Permutex4BS(&states, &bsRCP2)
 	for lane := 0; lane < 4; lane++ {
 		for i := 0; i < 32; i += 8 {
 			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^
@@ -1925,14 +1980,14 @@ func em2Decrypt256x4Software(out, ct *[4][32]byte, keys *[4][64]byte) {
 			binary.LittleEndian.PutUint64(states[lane][i:i+8], v)
 		}
 	}
-	areion256InversePermutex4SoftwareRC(&states, &roundConstantsP2)
+	areion256InversePermutex4BS(&states, &bsRCP2)
 	for lane := 0; lane < 4; lane++ {
 		for i := 0; i < 32; i += 8 {
 			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][32+i:32+i+8])
 			binary.LittleEndian.PutUint64(states[lane][i:i+8], v)
 		}
 	}
-	areion256InversePermutex4SoftwareRC(&states, &roundConstantsP1)
+	areion256InversePermutex4BS(&states, &bsRCP1)
 	for lane := 0; lane < 4; lane++ {
 		for i := 0; i < 32; i += 8 {
 			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][i:i+8])
@@ -1953,14 +2008,14 @@ func em2Encrypt512x4Software(out, msgs *[4][64]byte, keys *[4][128]byte) {
 			binary.LittleEndian.PutUint64(states[lane][i:i+8], v)
 		}
 	}
-	areion512Permutex4SoftwareRC(&states, &roundConstantsP1)
+	areion512Permutex4BS(&states, &bsRCP1)
 	for lane := 0; lane < 4; lane++ {
 		for i := 0; i < 64; i += 8 {
 			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][64+i:64+i+8])
 			binary.LittleEndian.PutUint64(states[lane][i:i+8], v)
 		}
 	}
-	areion512Permutex4SoftwareRC(&states, &roundConstantsP2)
+	areion512Permutex4BS(&states, &bsRCP2)
 	for lane := 0; lane < 4; lane++ {
 		for i := 0; i < 64; i += 8 {
 			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^
@@ -1985,14 +2040,14 @@ func em2Decrypt512x4Software(out, ct *[4][64]byte, keys *[4][128]byte) {
 			binary.LittleEndian.PutUint64(states[lane][i:i+8], v)
 		}
 	}
-	areion512InversePermutex4SoftwareRC(&states, &roundConstantsP2)
+	areion512InversePermutex4BS(&states, &bsRCP2)
 	for lane := 0; lane < 4; lane++ {
 		for i := 0; i < 64; i += 8 {
 			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][64+i:64+i+8])
 			binary.LittleEndian.PutUint64(states[lane][i:i+8], v)
 		}
 	}
-	areion512InversePermutex4SoftwareRC(&states, &roundConstantsP1)
+	areion512InversePermutex4BS(&states, &bsRCP1)
 	for lane := 0; lane < 4; lane++ {
 		for i := 0; i < 64; i += 8 {
 			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][i:i+8])
@@ -2189,7 +2244,7 @@ func temEncrypt256x4Software(out, msgs *[4][32]byte, keys *[4][64]byte, tweaks *
 			binary.LittleEndian.PutUint64(w[lane][i:i+8], v)
 		}
 	}
-	areion256Permutex4SoftwareRC(&w, &roundConstantsP2)
+	areion256Permutex4BS(&w, &bsRCP2)
 	for lane := 0; lane < 4; lane++ {
 		for i := 0; i < 32; i += 8 {
 			wv := binary.LittleEndian.Uint64(w[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][i:i+8])
@@ -2197,7 +2252,7 @@ func temEncrypt256x4Software(out, msgs *[4][32]byte, keys *[4][64]byte, tweaks *
 			binary.LittleEndian.PutUint64(states[lane][i:i+8], binary.LittleEndian.Uint64(msgs[lane][i:i+8])^wv)
 		}
 	}
-	areion256Permutex4SoftwareRC(&states, &roundConstantsP1)
+	areion256Permutex4BS(&states, &bsRCP1)
 	for lane := 0; lane < 4; lane++ {
 		for i := 0; i < 32; i += 8 {
 			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^ binary.LittleEndian.Uint64(w[lane][i:i+8])
@@ -2220,7 +2275,7 @@ func temDecrypt256x4Software(out, ct *[4][32]byte, keys *[4][64]byte, tweaks *[4
 			binary.LittleEndian.PutUint64(w[lane][i:i+8], v)
 		}
 	}
-	areion256Permutex4SoftwareRC(&w, &roundConstantsP2)
+	areion256Permutex4BS(&w, &bsRCP2)
 	for lane := 0; lane < 4; lane++ {
 		for i := 0; i < 32; i += 8 {
 			wv := binary.LittleEndian.Uint64(w[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][i:i+8])
@@ -2228,7 +2283,7 @@ func temDecrypt256x4Software(out, ct *[4][32]byte, keys *[4][64]byte, tweaks *[4
 			binary.LittleEndian.PutUint64(states[lane][i:i+8], binary.LittleEndian.Uint64(ct[lane][i:i+8])^wv)
 		}
 	}
-	areion256InversePermutex4SoftwareRC(&states, &roundConstantsP1)
+	areion256InversePermutex4BS(&states, &bsRCP1)
 	for lane := 0; lane < 4; lane++ {
 		for i := 0; i < 32; i += 8 {
 			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^ binary.LittleEndian.Uint64(w[lane][i:i+8])
@@ -2251,7 +2306,7 @@ func temEncrypt512x4Software(out, msgs *[4][64]byte, keys *[4][128]byte, tweaks 
 			binary.LittleEndian.PutUint64(w[lane][i:i+8], v)
 		}
 	}
-	areion512Permutex4SoftwareRC(&w, &roundConstantsP2)
+	areion512Permutex4BS(&w, &bsRCP2)
 	for lane := 0; lane < 4; lane++ {
 		for i := 0; i < 64; i += 8 {
 			wv := binary.LittleEndian.Uint64(w[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][i:i+8])
@@ -2259,7 +2314,7 @@ func temEncrypt512x4Software(out, msgs *[4][64]byte, keys *[4][128]byte, tweaks 
 			binary.LittleEndian.PutUint64(states[lane][i:i+8], binary.LittleEndian.Uint64(msgs[lane][i:i+8])^wv)
 		}
 	}
-	areion512Permutex4SoftwareRC(&states, &roundConstantsP1)
+	areion512Permutex4BS(&states, &bsRCP1)
 	for lane := 0; lane < 4; lane++ {
 		for i := 0; i < 64; i += 8 {
 			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^ binary.LittleEndian.Uint64(w[lane][i:i+8])
@@ -2282,7 +2337,7 @@ func temDecrypt512x4Software(out, ct *[4][64]byte, keys *[4][128]byte, tweaks *[
 			binary.LittleEndian.PutUint64(w[lane][i:i+8], v)
 		}
 	}
-	areion512Permutex4SoftwareRC(&w, &roundConstantsP2)
+	areion512Permutex4BS(&w, &bsRCP2)
 	for lane := 0; lane < 4; lane++ {
 		for i := 0; i < 64; i += 8 {
 			wv := binary.LittleEndian.Uint64(w[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][i:i+8])
@@ -2290,7 +2345,7 @@ func temDecrypt512x4Software(out, ct *[4][64]byte, keys *[4][128]byte, tweaks *[
 			binary.LittleEndian.PutUint64(states[lane][i:i+8], binary.LittleEndian.Uint64(ct[lane][i:i+8])^wv)
 		}
 	}
-	areion512InversePermutex4SoftwareRC(&states, &roundConstantsP1)
+	areion512InversePermutex4BS(&states, &bsRCP1)
 	for lane := 0; lane < 4; lane++ {
 		for i := 0; i < 64; i += 8 {
 			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^ binary.LittleEndian.Uint64(w[lane][i:i+8])
@@ -2568,8 +2623,8 @@ func tem2Encrypt256x4Software(out, msgs *[4][32]byte, keys *[4][64]byte, tweaks 
 			binary.LittleEndian.PutUint64(w2[lane][i:i+8], tv^k2)
 		}
 	}
-	areion256Permutex4SoftwareRC(&w1, &roundConstantsP1)
-	areion256Permutex4SoftwareRC(&w2, &roundConstantsP2)
+	areion256Permutex4BS(&w1, &bsRCP1)
+	areion256Permutex4BS(&w2, &bsRCP2)
 	for lane := 0; lane < 4; lane++ {
 		for i := 0; i < 32; i += 8 {
 			w1v := binary.LittleEndian.Uint64(w1[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][i:i+8])
@@ -2579,14 +2634,14 @@ func tem2Encrypt256x4Software(out, msgs *[4][32]byte, keys *[4][64]byte, tweaks 
 			binary.LittleEndian.PutUint64(states[lane][i:i+8], binary.LittleEndian.Uint64(msgs[lane][i:i+8])^w1v)
 		}
 	}
-	areion256Permutex4SoftwareRC(&states, &roundConstantsP1)
+	areion256Permutex4BS(&states, &bsRCP1)
 	for lane := 0; lane < 4; lane++ {
 		for i := 0; i < 32; i += 8 {
 			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^ binary.LittleEndian.Uint64(w2[lane][i:i+8])
 			binary.LittleEndian.PutUint64(states[lane][i:i+8], v)
 		}
 	}
-	areion256Permutex4SoftwareRC(&states, &roundConstantsP2)
+	areion256Permutex4BS(&states, &bsRCP2)
 	for lane := 0; lane < 4; lane++ {
 		for i := 0; i < 32; i += 8 {
 			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^
@@ -2616,8 +2671,8 @@ func tem2Decrypt256x4Software(out, ct *[4][32]byte, keys *[4][64]byte, tweaks *[
 			binary.LittleEndian.PutUint64(w2[lane][i:i+8], tv^k2)
 		}
 	}
-	areion256Permutex4SoftwareRC(&w1, &roundConstantsP1)
-	areion256Permutex4SoftwareRC(&w2, &roundConstantsP2)
+	areion256Permutex4BS(&w1, &bsRCP1)
+	areion256Permutex4BS(&w2, &bsRCP2)
 	for lane := 0; lane < 4; lane++ {
 		for i := 0; i < 32; i += 8 {
 			w1v := binary.LittleEndian.Uint64(w1[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][i:i+8])
@@ -2627,14 +2682,14 @@ func tem2Decrypt256x4Software(out, ct *[4][32]byte, keys *[4][64]byte, tweaks *[
 			binary.LittleEndian.PutUint64(states[lane][i:i+8], binary.LittleEndian.Uint64(ct[lane][i:i+8])^w1v^w2v)
 		}
 	}
-	areion256InversePermutex4SoftwareRC(&states, &roundConstantsP2)
+	areion256InversePermutex4BS(&states, &bsRCP2)
 	for lane := 0; lane < 4; lane++ {
 		for i := 0; i < 32; i += 8 {
 			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^ binary.LittleEndian.Uint64(w2[lane][i:i+8])
 			binary.LittleEndian.PutUint64(states[lane][i:i+8], v)
 		}
 	}
-	areion256InversePermutex4SoftwareRC(&states, &roundConstantsP1)
+	areion256InversePermutex4BS(&states, &bsRCP1)
 	for lane := 0; lane < 4; lane++ {
 		for i := 0; i < 32; i += 8 {
 			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^ binary.LittleEndian.Uint64(w1[lane][i:i+8])
@@ -2662,8 +2717,8 @@ func tem2Encrypt512x4Software(out, msgs *[4][64]byte, keys *[4][128]byte, tweaks
 			binary.LittleEndian.PutUint64(w2[lane][i:i+8], tv^k2)
 		}
 	}
-	areion512Permutex4SoftwareRC(&w1, &roundConstantsP1)
-	areion512Permutex4SoftwareRC(&w2, &roundConstantsP2)
+	areion512Permutex4BS(&w1, &bsRCP1)
+	areion512Permutex4BS(&w2, &bsRCP2)
 	for lane := 0; lane < 4; lane++ {
 		for i := 0; i < 64; i += 8 {
 			w1v := binary.LittleEndian.Uint64(w1[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][i:i+8])
@@ -2673,14 +2728,14 @@ func tem2Encrypt512x4Software(out, msgs *[4][64]byte, keys *[4][128]byte, tweaks
 			binary.LittleEndian.PutUint64(states[lane][i:i+8], binary.LittleEndian.Uint64(msgs[lane][i:i+8])^w1v)
 		}
 	}
-	areion512Permutex4SoftwareRC(&states, &roundConstantsP1)
+	areion512Permutex4BS(&states, &bsRCP1)
 	for lane := 0; lane < 4; lane++ {
 		for i := 0; i < 64; i += 8 {
 			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^ binary.LittleEndian.Uint64(w2[lane][i:i+8])
 			binary.LittleEndian.PutUint64(states[lane][i:i+8], v)
 		}
 	}
-	areion512Permutex4SoftwareRC(&states, &roundConstantsP2)
+	areion512Permutex4BS(&states, &bsRCP2)
 	for lane := 0; lane < 4; lane++ {
 		for i := 0; i < 64; i += 8 {
 			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^
@@ -2710,8 +2765,8 @@ func tem2Decrypt512x4Software(out, ct *[4][64]byte, keys *[4][128]byte, tweaks *
 			binary.LittleEndian.PutUint64(w2[lane][i:i+8], tv^k2)
 		}
 	}
-	areion512Permutex4SoftwareRC(&w1, &roundConstantsP1)
-	areion512Permutex4SoftwareRC(&w2, &roundConstantsP2)
+	areion512Permutex4BS(&w1, &bsRCP1)
+	areion512Permutex4BS(&w2, &bsRCP2)
 	for lane := 0; lane < 4; lane++ {
 		for i := 0; i < 64; i += 8 {
 			w1v := binary.LittleEndian.Uint64(w1[lane][i:i+8]) ^ binary.LittleEndian.Uint64(keys[lane][i:i+8])
@@ -2721,14 +2776,14 @@ func tem2Decrypt512x4Software(out, ct *[4][64]byte, keys *[4][128]byte, tweaks *
 			binary.LittleEndian.PutUint64(states[lane][i:i+8], binary.LittleEndian.Uint64(ct[lane][i:i+8])^w1v^w2v)
 		}
 	}
-	areion512InversePermutex4SoftwareRC(&states, &roundConstantsP2)
+	areion512InversePermutex4BS(&states, &bsRCP2)
 	for lane := 0; lane < 4; lane++ {
 		for i := 0; i < 64; i += 8 {
 			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^ binary.LittleEndian.Uint64(w2[lane][i:i+8])
 			binary.LittleEndian.PutUint64(states[lane][i:i+8], v)
 		}
 	}
-	areion512InversePermutex4SoftwareRC(&states, &roundConstantsP1)
+	areion512InversePermutex4BS(&states, &bsRCP1)
 	for lane := 0; lane < 4; lane++ {
 		for i := 0; i < 64; i += 8 {
 			v := binary.LittleEndian.Uint64(states[lane][i:i+8]) ^ binary.LittleEndian.Uint64(w1[lane][i:i+8])

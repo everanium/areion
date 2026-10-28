@@ -149,8 +149,8 @@ The package automatically detects host CPU features:
 
 | Tier | Architectures | Instructions Used | Register Width (x4 functions) |
 | :--- | :--- | :--- | :--- |
-| **`avx512`** | Intel Ice Lake, Tiger Lake, Rocket Lake, Xeon Ice Lake-SP+; AMD Zen 4+ (`AVX-512F + AVX-512VL + VAES`) | `VAESENC`, `VAESENCLAST`, `VAESDECLAST`, `VPXORD`, `VPXORQ`, `VBROADCASTI32X4`, plus `VEXTRACTI32X4` / 128-bit `VAESIMC` / `VINSERTI32X4` | 512-bit ZMM (4 AES blocks) |
-| **`vaesavx2`** | Intel Alder Lake+ (no AVX-512); AMD Zen 3 (`AVX2 + VAES`) | `VAESENC`, `VAESENCLAST`, `VAESDECLAST`, `VPXOR`, `VBROADCASTI128`, plus `VEXTRACTI128` / 128-bit `VAESIMC` / `VINSERTI128` | 256-bit YMM (2 AES blocks) |
+| **`avx512`** | Intel Ice Lake, Tiger Lake, Rocket Lake, Xeon Ice Lake-SP+; AMD Zen 4+ (`AVX-512F + AVX-512VL + VAES`) | `VAESENC`, `VAESENCLAST`, `VAESDEC`, `VAESDECLAST`, `VPXORD`, `VPXORQ`, `VBROADCASTI32X4` (2-instruction `VAESENCLAST` + `VAESDEC` 512-bit `InvMixColumns`) | 512-bit ZMM (4 AES blocks) |
+| **`vaesavx2`** | Intel Alder Lake+ (no AVX-512); AMD Zen 3 (`AVX2 + VAES`) | `VAESENC`, `VAESENCLAST`, `VAESDEC`, `VAESDECLAST`, `VPXOR`, `VBROADCASTI128` (2-instruction `VAESENCLAST` + `VAESDEC` 256-bit `InvMixColumns`) | 256-bit YMM (2 AES blocks) |
 | **`vex`** | Intel Sandy Bridge+, AMD Bulldozer+ (`AVX + AES-NI`) | 3-operand VEX XMM `VAESENC`, `VAESENCLAST`, `VAESDECLAST`, `VAESIMC`, `VPXOR` | 128-bit XMM (3-operand VEX) |
 | **`aesni`** | Intel Westmere+ (`AES-NI` without `AVX`) | Legacy SSE `AESENC`, `AESENCLAST`, `AESDECLAST`, `AESIMC`, `PXOR` | 128-bit XMM (2-operand SSE) |
 | **`arm64`** | ARMv8 with Cryptographic Extension, Apple Silicon, Graviton (`NEON + AES`) | `AESE`, `AESMC`, `AESD`, `AESIMC`, `VEOR` | 128-bit NEON |
@@ -168,167 +168,183 @@ The package automatically detects host CPU features:
 
 ### 1. Intel® Core™ i7-11700K @ 3.60GHz (Rocket Lake, x86-64)
 
-3-run averaged throughput comparison across execution tiers on the same physical CPU (with reference cycles per byte `c = f · t / B` at `f = 3.60 GHz` reaching `0.336 c/B` on `Permute512x4`, `0.498` / `0.612 c/B` on `SoEM256x4` / `SoEM512x4`, and `0.491 c/B` on `EMEncrypt512x4`):
+3-run averaged throughput comparison across execution tiers on the same physical CPU (with reference cycles per byte `c = f · t / B` at `f = 3.60 GHz` reaching `0.32` / `0.33 c/B` on `Permute512x4` / `Permute512P2x4`, `0.58 c/B` on `InversePermute512x4` / `InversePermute512P2x4`, `0.43` / `0.58 c/B` on `SoEM256x4` / `SoEM512x4`, and `0.28` / `0.29 c/B` on `EMEncrypt256x4` / `EMEncrypt512x4`):
 
 #### Core Permutations, Davies-Meyer, SoEM22 & AES-128 Primitives
 
-| Operation | `purego` (Bitsliced) | `aesni` (128-bit SSE) | `vex` (128-bit VEX) | `vaesavx2` (256-bit YMM) | `avx512` (512-bit ZMM) |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| **`Permute256`** | 36.6 MB/s (876.6 ns) | 2,070 MB/s (15.5 ns) | 2,121 MB/s (15.1 ns) | 2,109 MB/s (15.2 ns) | 2,086 MB/s (15.3 ns) |
-| **`Permute512`** | 40.5 MB/s (1,579 ns) | 3,997 MB/s (16.0 ns) | 4,024 MB/s (15.9 ns) | 4,025 MB/s (15.9 ns) | 4,019 MB/s (15.9 ns) |
-| **`InversePermute256`** | 35.3 MB/s (907.7 ns) | 1,468 MB/s (21.8 ns) | 1,469 MB/s (21.8 ns) | 1,460 MB/s (21.9 ns) | 1,457 MB/s (22.0 ns) |
-| **`InversePermute512`** | 32.2 MB/s (1,992 ns) | 1,724 MB/s (37.1 ns) | 1,727 MB/s (37.1 ns) | 1,720 MB/s (37.2 ns) | 1,721 MB/s (37.2 ns) |
-| **`DM256`** | 36.5 MB/s (878.4 ns) | 985 MB/s (32.5 ns) | 1,035 MB/s (30.9 ns) | 1,052 MB/s (30.4 ns) | 1,035 MB/s (30.9 ns) |
-| **`DM512`** | 38.9 MB/s (1,648 ns) | 1,301 MB/s (49.2 ns) | 1,391 MB/s (46.1 ns) | 1,409 MB/s (45.5 ns) | 1,405 MB/s (45.6 ns) |
-| **`SoEM256`** | 34.8 MB/s (920.7 ns) | 2,589 MB/s (12.4 ns) | 2,882 MB/s (11.1 ns) | 2,778 MB/s (11.5 ns) | 2,854 MB/s (11.2 ns) |
-| **`SoEM512`** | 37.9 MB/s (1,696 ns) | 2,870 MB/s (22.3 ns) | 2,877 MB/s (22.3 ns) | 3,032 MB/s (21.1 ns) | 2,976 MB/s (21.6 ns) |
-| **`Permute256x4`** | 140.3 MB/s (913.3 ns) | 6,208 MB/s (20.6 ns) | 6,727 MB/s (19.0 ns) | 6,816 MB/s (18.8 ns) | 6,432 MB/s (19.9 ns) |
-| **`Permute512x4`** | 116.0 MB/s (2,211 ns) | 6,342 MB/s (40.4 ns) | 6,434 MB/s (39.8 ns) | 10,599 MB/s (24.2 ns) | 10,712 MB/s (23.9 ns) |
-| **`InversePermute256x4`** | 127.4 MB/s (1,006 ns) | 5,354 MB/s (23.9 ns) | 5,567 MB/s (23.0 ns) | 5,278 MB/s (24.3 ns) | 4,899 MB/s (26.1 ns) |
-| **`InversePermute512x4`** | 104.2 MB/s (2,461 ns) | 3,581 MB/s (71.5 ns) | 3,623 MB/s (70.7 ns) | 6,145 MB/s (41.7 ns) | 6,001 MB/s (42.7 ns) |
-| **`SoEM256x4`** | 68.0 MB/s (1,882 ns) | 3,406 MB/s (37.6 ns) | 3,612 MB/s (35.4 ns) | 5,765 MB/s (22.2 ns) | 7,228 MB/s (17.7 ns) |
-| **`SoEM512x4`** | 58.2 MB/s (4,412 ns) | 3,277 MB/s (78.2 ns) | 3,181 MB/s (80.6 ns) | 5,248 MB/s (48.8 ns) | 5,887 MB/s (43.5 ns) |
-| **`AES128Round`** | 238 MB/s (67.2 ns) | 5,743 MB/s (2.79 ns) | 6,722 MB/s (2.38 ns) | 6,618 MB/s (2.42 ns) | 6,261 MB/s (2.58 ns) |
-| **`AES128Round4`** | 629 MB/s (101.8 ns) | 14,563 MB/s (4.40 ns) | 16,464 MB/s (3.89 ns) | 18,141 MB/s (3.55 ns) | 21,592 MB/s (2.96 ns) |
-| **`ExpandKey128`** | 490 MB/s (359.5 ns) | 1,026 MB/s (171.5 ns) | 1,017 MB/s (173.1 ns) | 1,056 MB/s (166.6 ns) | 1,058 MB/s (166.5 ns) |
-| **`AES128EncryptBlock`** | 31.9 MB/s (502.9 ns) | 1,891 MB/s (8.46 ns) | 1,898 MB/s (8.43 ns) | 1,890 MB/s (8.47 ns) | 1,900 MB/s (8.42 ns) |
-| **`AES128Encrypt4Blocks`** | 117.7 MB/s (544.1 ns) | 7,104 MB/s (9.01 ns) | 7,225 MB/s (8.86 ns) | 7,346 MB/s (8.71 ns) | 7,357 MB/s (8.70 ns) |
+| Operation | `purego` (Bitsliced) | `aesni` (128-bit SSE) | `vex` (128-bit VEX) | `vaesavx2` (256-bit YMM) | `avx512` (512-bit ZMM) | Speedup vs `purego` | Cycles/Byte (best tier) |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **`Permute256`** | 35.6 MB/s (905.33 ns) | 2,062.3 MB/s (15.52 ns) | 2,125.3 MB/s (15.06 ns) | 2,116.8 MB/s (15.12 ns) | 2,125.5 MB/s (15.06 ns) | 59.7× | 1.69 c/B |
+| **`Permute512`** | 39.4 MB/s (1,627.33 ns) | 4,029.9 MB/s (15.90 ns) | 4,043.4 MB/s (15.83 ns) | 4,039.1 MB/s (15.85 ns) | 4,039.2 MB/s (15.85 ns) | 102.6× | 0.89 c/B |
+| **`InversePermute256`** | 37.7 MB/s (847.87 ns) | 1,460.3 MB/s (21.92 ns) | 1,462.8 MB/s (21.88 ns) | 1,465.6 MB/s (21.83 ns) | 1,462.8 MB/s (21.88 ns) | 38.9× | 2.46 c/B |
+| **`InversePermute512`** | 32.6 MB/s (1,964.33 ns) | 1,714.4 MB/s (37.33 ns) | 1,713.0 MB/s (37.36 ns) | 1,719.3 MB/s (37.23 ns) | 1,715.6 MB/s (37.30 ns) | 52.7× | 2.09 c/B |
+| **`Permute256P2`** | 35.9 MB/s (894.17 ns) | 2,065.7 MB/s (15.49 ns) | 2,117.8 MB/s (15.11 ns) | 2,115.3 MB/s (15.13 ns) | 2,124.6 MB/s (15.06 ns) | 59.2× | 1.69 c/B |
+| **`Permute512P2`** | 39.7 MB/s (1,618.00 ns) | 4,089.1 MB/s (15.65 ns) | 4,046.6 MB/s (15.82 ns) | 4,004.0 MB/s (15.99 ns) | 4,013.0 MB/s (15.95 ns) | 103.0× | 0.88 c/B |
+| **`InversePermute256P2`** | 36.0 MB/s (891.30 ns) | 1,470.5 MB/s (21.76 ns) | 1,467.9 MB/s (21.80 ns) | 1,466.6 MB/s (21.82 ns) | 1,460.8 MB/s (21.91 ns) | 40.8× | 2.45 c/B |
+| **`InversePermute512P2`** | 33.6 MB/s (1,905.00 ns) | 1,710.0 MB/s (37.43 ns) | 1,711.9 MB/s (37.39 ns) | 1,717.1 MB/s (37.27 ns) | 1,718.1 MB/s (37.25 ns) | 51.1× | 2.10 c/B |
+| **`DM256`** | 35.7 MB/s (900.77 ns) | 4,866.5 MB/s (6.58 ns) | 5,446.6 MB/s (5.91 ns) | 6,109.0 MB/s (5.24 ns) | 5,816.5 MB/s (5.51 ns) | 171.1× | 0.59 c/B |
+| **`DM512`** | 42.3 MB/s (1,517.33 ns) | 5,503.4 MB/s (11.63 ns) | 5,521.3 MB/s (11.59 ns) | 5,406.2 MB/s (11.88 ns) | 5,361.2 MB/s (11.94 ns) | 130.5× | 0.65 c/B |
+| **`SoEM256`** | 35.1 MB/s (912.07 ns) | 2,871.6 MB/s (11.18 ns) | 3,248.5 MB/s (9.86 ns) | 3,175.9 MB/s (10.09 ns) | 3,080.4 MB/s (10.47 ns) | 92.5× | 1.11 c/B |
+| **`SoEM512`** | 38.4 MB/s (1,665.33 ns) | 3,076.2 MB/s (20.81 ns) | 3,337.8 MB/s (19.18 ns) | 3,311.1 MB/s (19.35 ns) | 3,155.6 MB/s (20.30 ns) | 86.9× | 1.08 c/B |
+| **`Permute256x4`** | 138.0 MB/s (930.10 ns) | 6,878.6 MB/s (18.61 ns) | 6,910.9 MB/s (18.53 ns) | 7,224.2 MB/s (17.72 ns) | 6,497.1 MB/s (19.70 ns) | 52.3× | 0.50 c/B |
+| **`Permute512x4`** | 124.7 MB/s (2,053.33 ns) | 6,836.9 MB/s (37.44 ns) | 7,039.8 MB/s (36.41 ns) | 11,337.0 MB/s (22.59 ns) | 10,875.5 MB/s (23.54 ns) | 90.9× | 0.32 c/B |
+| **`InversePermute256x4`** | 131.3 MB/s (976.13 ns) | 5,400.9 MB/s (23.70 ns) | 5,366.2 MB/s (23.88 ns) | 5,323.5 MB/s (24.04 ns) | 4,884.9 MB/s (26.20 ns) | 41.1× | 0.67 c/B |
+| **`InversePermute512x4`** | 109.4 MB/s (2,341.67 ns) | 3,679.5 MB/s (69.59 ns) | 3,793.5 MB/s (67.50 ns) | 6,228.8 MB/s (41.10 ns) | 6,025.3 MB/s (42.49 ns) | 56.9× | 0.58 c/B |
+| **`Permute256P2x4`** | 138.5 MB/s (926.57 ns) | 6,744.3 MB/s (18.98 ns) | 7,075.9 MB/s (18.09 ns) | 7,332.7 MB/s (17.46 ns) | 6,463.6 MB/s (19.80 ns) | 52.9× | 0.49 c/B |
+| **`Permute512P2x4`** | 120.9 MB/s (2,122.00 ns) | 7,066.7 MB/s (36.23 ns) | 6,886.6 MB/s (37.21 ns) | 10,975.3 MB/s (23.35 ns) | 10,656.6 MB/s (24.03 ns) | 90.8× | 0.33 c/B |
+| **`InversePermute256P2x4`** | 136.2 MB/s (939.93 ns) | 5,302.6 MB/s (24.17 ns) | 5,460.7 MB/s (23.44 ns) | 5,324.9 MB/s (24.04 ns) | 4,898.2 MB/s (26.13 ns) | 40.1× | 0.66 c/B |
+| **`InversePermute512P2x4`** | 107.8 MB/s (2,378.00 ns) | 3,634.1 MB/s (70.46 ns) | 3,792.7 MB/s (67.51 ns) | 6,219.0 MB/s (41.17 ns) | 5,997.5 MB/s (42.68 ns) | 57.7× | 0.58 c/B |
+| **`SoEM256x4`** | 70.3 MB/s (1,821.67 ns) | 3,700.6 MB/s (34.61 ns) | 3,906.6 MB/s (32.77 ns) | 6,030.7 MB/s (21.23 ns) | 8,400.8 MB/s (15.24 ns) | 119.5× | 0.43 c/B |
+| **`SoEM512x4`** | 61.4 MB/s (4,167.33 ns) | 3,370.5 MB/s (76.02 ns) | 3,372.6 MB/s (75.93 ns) | 5,582.8 MB/s (45.86 ns) | 6,177.8 MB/s (41.45 ns) | 100.6× | 0.58 c/B |
+| **`AES128Round`** | 243.0 MB/s (65.95 ns) | 5,992.4 MB/s (2.67 ns) | 6,563.4 MB/s (2.45 ns) | 6,760.8 MB/s (2.37 ns) | 6,713.3 MB/s (2.39 ns) | 27.8× | 0.53 c/B |
+| **`AES128Round4`** | 627.3 MB/s (102.07 ns) | 14,438.0 MB/s (4.46 ns) | 16,977.1 MB/s (3.78 ns) | 19,402.6 MB/s (3.30 ns) | 21,714.9 MB/s (2.98 ns) | 34.6× | 0.17 c/B |
+| **`ExpandKey128`** | 506.7 MB/s (347.57 ns) | 4,694.4 MB/s (37.52 ns) | 4,813.8 MB/s (36.56 ns) | 4,723.4 MB/s (37.27 ns) | 4,657.4 MB/s (37.81 ns) | 9.5× | 0.75 c/B |
+| **`AES128EncryptBlock`** | 30.8 MB/s (523.27 ns) | 1,889.3 MB/s (8.47 ns) | 1,899.6 MB/s (8.42 ns) | 1,902.4 MB/s (8.41 ns) | 1,903.3 MB/s (8.41 ns) | 61.8× | 1.89 c/B |
+| **`AES128Encrypt4Blocks`** | 118.2 MB/s (541.53 ns) | 7,272.8 MB/s (8.80 ns) | 7,390.9 MB/s (8.66 ns) | 7,381.9 MB/s (8.67 ns) | 7,386.2 MB/s (8.67 ns) | 62.5× | 0.49 c/B |
 
 #### Wide-Block Ciphers (`EM`, `EM2`, `TEM`, `TEM2`) vs. `Rijndael-256` & `Vistrutah-256/512`
 
-| Operation | `purego` (Bitsliced) | `aesni` (128-bit SSE) | `vex` (128-bit VEX) | `vaesavx2` (256-bit YMM) | `avx512` (512-bit ZMM) |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| **`EMEncrypt256`** | 35.9 MB/s (892.3 ns) | 1,852 MB/s (17.3 ns) | 1,882 MB/s (17.0 ns) | 1,891 MB/s (16.9 ns) | 1,889 MB/s (16.9 ns) |
-| **`EMDecrypt256`** | 36.2 MB/s (884.6 ns) | 1,355 MB/s (23.6 ns) | 1,353 MB/s (23.7 ns) | 1,347 MB/s (23.8 ns) | 1,351 MB/s (23.7 ns) |
-| **`EMEncrypt512`** | 40.7 MB/s (1,581 ns) | 3,494 MB/s (18.3 ns) | 3,545 MB/s (18.1 ns) | 3,563 MB/s (18.0 ns) | 3,449 MB/s (18.6 ns) |
-| **`EMDecrypt512`** | 32.4 MB/s (1,980 ns) | 1,638 MB/s (39.1 ns) | 1,631 MB/s (39.2 ns) | 1,639 MB/s (39.0 ns) | 1,637 MB/s (39.1 ns) |
-| **`EM2Encrypt256`** | 19.0 MB/s (1,684 ns) | 1,002 MB/s (31.9 ns) | 1,021 MB/s (31.3 ns) | 1,018 MB/s (31.4 ns) | 1,022 MB/s (31.3 ns) |
-| **`EM2Decrypt256`** | 18.2 MB/s (1,760 ns) | 710 MB/s (45.0 ns) | 710 MB/s (45.1 ns) | 709 MB/s (45.1 ns) | 712 MB/s (45.0 ns) |
-| **`EM2Encrypt512`** | 20.7 MB/s (3,100 ns) | 1,920 MB/s (33.4 ns) | 1,907 MB/s (33.6 ns) | 1,910 MB/s (33.5 ns) | 1,916 MB/s (33.4 ns) |
-| **`EM2Decrypt512`** | 16.0 MB/s (3,996 ns) | 843 MB/s (76.0 ns) | 839 MB/s (76.3 ns) | 841 MB/s (76.1 ns) | 842 MB/s (76.0 ns) |
-| **`TEMEncrypt256`** | 18.9 MB/s (1,696 ns) | 1,744 MB/s (18.4 ns) | 1,742 MB/s (18.4 ns) | 1,810 MB/s (17.7 ns) | 1,744 MB/s (18.4 ns) |
-| **`TEMDecrypt256`** | 18.7 MB/s (1,711 ns) | 1,306 MB/s (24.5 ns) | 1,321 MB/s (24.2 ns) | 1,303 MB/s (24.6 ns) | 1,314 MB/s (24.4 ns) |
-| **`TEMEncrypt512`** | 20.7 MB/s (3,087 ns) | 2,117 MB/s (30.2 ns) | 2,122 MB/s (30.2 ns) | 2,157 MB/s (29.7 ns) | 2,123 MB/s (30.1 ns) |
-| **`TEMDecrypt512`** | 17.1 MB/s (3,745 ns) | 1,436 MB/s (44.6 ns) | 1,450 MB/s (44.1 ns) | 1,466 MB/s (43.7 ns) | 1,440 MB/s (44.5 ns) |
-| **`TEM2Encrypt256`** | 12.1 MB/s (2,658 ns) | 924 MB/s (34.7 ns) | 959 MB/s (33.4 ns) | 979 MB/s (32.7 ns) | 973 MB/s (32.9 ns) |
-| **`TEM2Decrypt256`** | 11.6 MB/s (2,751 ns) | 683 MB/s (46.9 ns) | 684 MB/s (46.8 ns) | 681 MB/s (47.0 ns) | 681 MB/s (47.0 ns) |
-| **`TEM2Encrypt512`** | 13.6 MB/s (4,695 ns) | 1,243 MB/s (51.5 ns) | 1,257 MB/s (50.9 ns) | 1,280 MB/s (50.0 ns) | 1,296 MB/s (49.4 ns) |
-| **`TEM2Decrypt512`** | 11.2 MB/s (5,743 ns) | 707 MB/s (90.6 ns) | 728 MB/s (88.0 ns) | 739 MB/s (86.6 ns) | 733 MB/s (87.3 ns) |
-| **`EMEncrypt256x4`** | 133.2 MB/s (960.9 ns) | 5,663 MB/s (22.6 ns) | 6,030 MB/s (21.2 ns) | 5,007 MB/s (25.6 ns) | 4,837 MB/s (26.5 ns) |
-| **`EMDecrypt256x4`** | 128.0 MB/s (1,001 ns) | 4,573 MB/s (28.0 ns) | 4,649 MB/s (27.6 ns) | 3,994 MB/s (32.0 ns) | 3,901 MB/s (32.8 ns) |
-| **`EMEncrypt512x4`** | 119.5 MB/s (2,144 ns) | 5,337 MB/s (48.0 ns) | 5,544 MB/s (46.2 ns) | 6,508 MB/s (39.3 ns) | 7,343 MB/s (34.9 ns) |
-| **`EMDecrypt512x4`** | 100.8 MB/s (2,542 ns) | 3,212 MB/s (79.7 ns) | 3,234 MB/s (79.2 ns) | 3,627 MB/s (70.6 ns) | 4,847 MB/s (52.8 ns) |
-| **`EM2Encrypt256x4`** | 67.3 MB/s (1,902 ns) | 3,160 MB/s (40.5 ns) | 3,247 MB/s (39.4 ns) | 3,135 MB/s (40.8 ns) | 3,114 MB/s (41.1 ns) |
-| **`EM2Decrypt256x4`** | 64.4 MB/s (1,991 ns) | 2,497 MB/s (51.3 ns) | 2,591 MB/s (49.4 ns) | 2,380 MB/s (53.8 ns) | 2,359 MB/s (54.3 ns) |
-| **`EM2Encrypt512x4`** | 60.6 MB/s (4,230 ns) | 2,875 MB/s (89.1 ns) | 2,967 MB/s (86.4 ns) | 3,590 MB/s (71.3 ns) | 4,842 MB/s (52.9 ns) |
-| **`EM2Decrypt512x4`** | 51.7 MB/s (4,966 ns) | 1,600 MB/s (160.0 ns) | 1,616 MB/s (158.4 ns) | 1,765 MB/s (145.1 ns) | 2,820 MB/s (90.8 ns) |
-| **`TEMEncrypt256x4`** | 65.3 MB/s (1,963 ns) | 2,496 MB/s (51.3 ns) | 2,682 MB/s (47.8 ns) | 4,065 MB/s (31.5 ns) | 4,783 MB/s (26.8 ns) |
-| **`TEMDecrypt256x4`** | 62.8 MB/s (2,039 ns) | 2,391 MB/s (53.5 ns) | 2,625 MB/s (48.8 ns) | 3,692 MB/s (34.7 ns) | 3,714 MB/s (34.5 ns) |
-| **`TEMEncrypt512x4`** | 58.4 MB/s (4,388 ns) | 2,645 MB/s (96.8 ns) | 2,716 MB/s (94.3 ns) | 3,785 MB/s (67.7 ns) | 4,816 MB/s (53.2 ns) |
-| **`TEMDecrypt512x4`** | 52.0 MB/s (4,943 ns) | 2,035 MB/s (125.9 ns) | 2,045 MB/s (125.2 ns) | 2,720 MB/s (94.1 ns) | 3,953 MB/s (64.8 ns) |
-| **`TEM2Encrypt256x4`** | 34.7 MB/s (3,690 ns) | 1,421 MB/s (90.2 ns) | 1,493 MB/s (85.7 ns) | 2,660 MB/s (48.1 ns) | 2,948 MB/s (43.5 ns) |
-| **`TEM2Decrypt256x4`** | 33.8 MB/s (3,783 ns) | 1,207 MB/s (106.1 ns) | 1,205 MB/s (106.3 ns) | 2,029 MB/s (63.1 ns) | 2,256 MB/s (56.8 ns) |
-| **`TEM2Encrypt512x4`** | 30.5 MB/s (8,407 ns) | 1,272 MB/s (201.3 ns) | 1,255 MB/s (204.1 ns) | 2,298 MB/s (111.4 ns) | 2,904 MB/s (88.2 ns) |
-| **`TEM2Decrypt512x4`** | 27.5 MB/s (9,332 ns) | 750 MB/s (341.2 ns) | 743 MB/s (344.8 ns) | 1,349 MB/s (189.8 ns) | 2,098 MB/s (122.1 ns) |
-| **`Rijndael-256`** | 30.3 MB/s (1,057 ns) | 1,154 MB/s (27.7 ns) | 1,034 MB/s (30.9 ns) | 1,033 MB/s (31.0 ns) | 1,031 MB/s (31.0 ns) |
-| **`Rijndael-256x4`** | 87.6 MB/s (1,464 ns) | 3,314 MB/s (38.6 ns) | 2,719 MB/s (47.1 ns) | 3,413 MB/s (37.6 ns) | 3,795 MB/s (33.7 ns) |
-| **`Vistrutah-256 (10r)`** | 43.5 MB/s (738.1 ns) | 1,994 MB/s (16.1 ns) | 1,832 MB/s (17.5 ns) | 1,452 MB/s (22.0 ns) | 1,474 MB/s (21.7 ns) |
-| **`Vistrutah-256 (14r)`** | 30.7 MB/s (1,043 ns) | 1,449 MB/s (22.1 ns) | 1,343 MB/s (23.8 ns) | 1,142 MB/s (28.0 ns) | 1,137 MB/s (28.2 ns) |
-| **`Vistrutah-256x4 (10r)`** | 77.8 MB/s (1,650 ns) | 5,022 MB/s (25.6 ns) | 5,256 MB/s (24.4 ns) | 5,238 MB/s (24.4 ns) | 6,033 MB/s (21.2 ns) |
-| **`Vistrutah-256x4 (14r)`** | 59.5 MB/s (2,153 ns) | 3,835 MB/s (33.4 ns) | 3,901 MB/s (32.8 ns) | 4,089 MB/s (31.3 ns) | 4,504 MB/s (28.4 ns) |
-| **`Vistrutah-512-256 (10r)`** | 62.7 MB/s (1,023 ns) | 3,245 MB/s (19.7 ns) | 3,036 MB/s (21.1 ns) | 2,345 MB/s (27.3 ns) | 1,881 MB/s (34.0 ns) |
-| **`Vistrutah-512-256 (14r)`** | 47.6 MB/s (1,346 ns) | 2,334 MB/s (27.4 ns) | 2,282 MB/s (28.1 ns) | 1,752 MB/s (36.5 ns) | 1,377 MB/s (46.5 ns) |
-| **`Vistrutah-512-256 (18r)`** | 39.2 MB/s (1,634 ns) | 1,843 MB/s (34.7 ns) | 1,816 MB/s (35.3 ns) | 1,412 MB/s (45.3 ns) | 1,085 MB/s (59.0 ns) |
-| **`Vistrutah-512-512 (12r)`** | 58.2 MB/s (1,101 ns) | 2,677 MB/s (23.9 ns) | 2,603 MB/s (24.6 ns) | 2,019 MB/s (31.7 ns) | 1,589 MB/s (40.3 ns) |
-| **`Vistrutah-512-512 (18r)`** | 38.1 MB/s (1,682 ns) | 1,791 MB/s (35.7 ns) | 1,761 MB/s (36.4 ns) | 1,409 MB/s (45.4 ns) | 1,088 MB/s (58.8 ns) |
-| **`Vistrutah-512-256x4 (10r)`** | 70.7 MB/s (3,624 ns) | 4,488 MB/s (57.1 ns) | 4,589 MB/s (55.8 ns) | 7,020 MB/s (36.5 ns) | 6,844 MB/s (37.4 ns) |
-| **`Vistrutah-512-256x4 (14r)`** | 50.6 MB/s (5,058 ns) | 2,988 MB/s (85.8 ns) | 3,110 MB/s (82.4 ns) | 5,015 MB/s (51.1 ns) | 5,484 MB/s (46.7 ns) |
-| **`Vistrutah-512-256x4 (18r)`** | 39.1 MB/s (6,557 ns) | 2,247 MB/s (113.9 ns) | 2,240 MB/s (114.3 ns) | 4,423 MB/s (57.9 ns) | 4,544 MB/s (56.3 ns) |
-| **`Vistrutah-512-512x4 (12r)`** | 58.9 MB/s (4,347 ns) | 3,531 MB/s (72.5 ns) | 3,598 MB/s (71.2 ns) | 6,394 MB/s (40.0 ns) | 6,341 MB/s (40.4 ns) |
-| **`Vistrutah-512-512x4 (18r)`** | 38.9 MB/s (6,589 ns) | 2,219 MB/s (115.4 ns) | 2,311 MB/s (110.8 ns) | 4,600 MB/s (55.7 ns) | 4,629 MB/s (55.3 ns) |
+| Operation | `purego` (Bitsliced) | `aesni` (128-bit SSE) | `vex` (128-bit VEX) | `vaesavx2` (256-bit YMM) | `avx512` (512-bit ZMM) | Speedup vs `purego` | Cycles/Byte (best tier) |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **`EMEncrypt256`** | 37.8 MB/s (847.17 ns) | 4,561.2 MB/s (7.03 ns) | 5,810.6 MB/s (5.51 ns) | 5,378.3 MB/s (5.95 ns) | 5,667.7 MB/s (5.65 ns) | 153.7× | 0.62 c/B |
+| **`EMDecrypt256`** | 34.9 MB/s (918.73 ns) | 3,554.7 MB/s (9.03 ns) | 4,101.7 MB/s (7.80 ns) | 4,400.4 MB/s (7.28 ns) | 4,306.1 MB/s (7.43 ns) | 126.1× | 0.82 c/B |
+| **`EMEncrypt512`** | 42.2 MB/s (1,519.33 ns) | 5,362.0 MB/s (11.96 ns) | 5,450.9 MB/s (11.74 ns) | 5,615.2 MB/s (11.40 ns) | 5,256.1 MB/s (12.21 ns) | 133.1× | 0.64 c/B |
+| **`EMDecrypt512`** | 32.2 MB/s (1,995.00 ns) | 2,719.5 MB/s (23.55 ns) | 2,883.7 MB/s (22.20 ns) | 2,842.5 MB/s (22.53 ns) | 2,832.9 MB/s (22.59 ns) | 89.6× | 1.25 c/B |
+| **`EM2Encrypt256`** | 18.1 MB/s (1,774.67 ns) | 2,160.9 MB/s (14.83 ns) | 2,268.8 MB/s (14.15 ns) | 2,348.6 MB/s (13.64 ns) | 2,328.2 MB/s (13.76 ns) | 129.8× | 1.53 c/B |
+| **`EM2Decrypt256`** | 17.7 MB/s (1,813.33 ns) | 1,668.9 MB/s (19.21 ns) | 1,717.5 MB/s (18.69 ns) | 1,764.2 MB/s (18.15 ns) | 1,713.9 MB/s (18.71 ns) | 99.7× | 2.04 c/B |
+| **`EM2Encrypt512`** | 20.6 MB/s (3,105.00 ns) | 2,419.0 MB/s (26.46 ns) | 2,356.2 MB/s (27.17 ns) | 2,347.5 MB/s (27.27 ns) | 2,392.5 MB/s (26.75 ns) | 117.4× | 1.49 c/B |
+| **`EM2Decrypt512`** | 15.9 MB/s (4,087.33 ns) | 1,070.8 MB/s (59.77 ns) | 1,082.1 MB/s (59.15 ns) | 1,080.5 MB/s (59.24 ns) | 1,064.7 MB/s (60.14 ns) | 68.1× | 3.33 c/B |
+| **`TEMEncrypt256`** | 19.0 MB/s (1,686.67 ns) | 2,166.6 MB/s (14.78 ns) | 2,245.3 MB/s (14.26 ns) | 2,341.2 MB/s (13.68 ns) | 2,307.4 MB/s (13.89 ns) | 123.2× | 1.54 c/B |
+| **`TEMDecrypt256`** | 18.2 MB/s (1,755.00 ns) | 1,904.6 MB/s (16.81 ns) | 2,082.2 MB/s (15.41 ns) | 2,213.9 MB/s (14.46 ns) | 1,989.2 MB/s (16.12 ns) | 121.6× | 1.63 c/B |
+| **`TEMEncrypt512`** | 20.7 MB/s (3,100.00 ns) | 2,241.2 MB/s (28.57 ns) | 2,293.8 MB/s (27.92 ns) | 2,317.4 MB/s (27.63 ns) | 2,273.8 MB/s (28.15 ns) | 112.0× | 1.55 c/B |
+| **`TEMDecrypt512`** | 18.0 MB/s (3,547.67 ns) | 1,569.7 MB/s (40.78 ns) | 1,603.1 MB/s (39.93 ns) | 1,569.6 MB/s (40.84 ns) | 1,627.0 MB/s (39.34 ns) | 90.4× | 2.21 c/B |
+| **`TEM2Encrypt256`** | 12.3 MB/s (2,606.00 ns) | 1,087.5 MB/s (29.44 ns) | 1,187.8 MB/s (26.95 ns) | 1,138.3 MB/s (28.13 ns) | 1,147.4 MB/s (27.89 ns) | 96.6× | 3.03 c/B |
+| **`TEM2Decrypt256`** | 11.7 MB/s (2,746.00 ns) | 901.6 MB/s (35.55 ns) | 901.7 MB/s (35.50 ns) | 966.1 MB/s (33.12 ns) | 916.1 MB/s (34.96 ns) | 82.6× | 3.73 c/B |
+| **`TEM2Encrypt512`** | 13.1 MB/s (4,876.00 ns) | 1,271.0 MB/s (50.39 ns) | 1,341.3 MB/s (47.72 ns) | 1,315.9 MB/s (48.65 ns) | 1,334.2 MB/s (47.98 ns) | 102.4× | 2.68 c/B |
+| **`TEM2Decrypt512`** | 11.3 MB/s (5,663.67 ns) | 752.5 MB/s (85.07 ns) | 758.9 MB/s (84.34 ns) | 775.8 MB/s (82.49 ns) | 766.1 MB/s (83.55 ns) | 68.7× | 4.64 c/B |
+| **`EMEncrypt256x4`** | 130.0 MB/s (985.23 ns) | 6,998.3 MB/s (18.30 ns) | 7,446.8 MB/s (17.21 ns) | 9,081.6 MB/s (14.11 ns) | 12,789.7 MB/s (10.04 ns) | 98.4× | 0.28 c/B |
+| **`EMDecrypt256x4`** | 130.3 MB/s (983.07 ns) | 5,853.5 MB/s (21.88 ns) | 6,208.6 MB/s (20.62 ns) | 7,882.1 MB/s (16.25 ns) | 10,932.6 MB/s (11.71 ns) | 83.9× | 0.33 c/B |
+| **`EMEncrypt512x4`** | 120.9 MB/s (2,117.33 ns) | 6,127.2 MB/s (41.83 ns) | 6,150.4 MB/s (41.68 ns) | 10,282.9 MB/s (24.93 ns) | 12,409.3 MB/s (20.64 ns) | 102.6× | 0.29 c/B |
+| **`EMDecrypt512x4`** | 102.1 MB/s (2,509.33 ns) | 3,493.8 MB/s (73.27 ns) | 3,475.5 MB/s (73.71 ns) | 6,057.0 MB/s (42.27 ns) | 7,438.8 MB/s (34.44 ns) | 72.9× | 0.48 c/B |
+| **`EM2Encrypt256x4`** | 70.2 MB/s (1,826.33 ns) | 3,200.1 MB/s (40.01 ns) | 3,752.7 MB/s (34.14 ns) | 4,707.8 MB/s (27.21 ns) | 6,513.2 MB/s (19.66 ns) | 92.8× | 0.55 c/B |
+| **`EM2Decrypt256x4`** | 63.8 MB/s (2,009.00 ns) | 2,691.9 MB/s (47.57 ns) | 2,768.8 MB/s (46.26 ns) | 3,730.1 MB/s (34.32 ns) | 5,327.8 MB/s (24.03 ns) | 83.5× | 0.68 c/B |
+| **`EM2Encrypt512x4`** | 59.0 MB/s (4,343.67 ns) | 3,256.9 MB/s (78.60 ns) | 3,103.4 MB/s (82.63 ns) | 4,153.8 MB/s (61.66 ns) | 5,838.2 MB/s (43.88 ns) | 99.0× | 0.62 c/B |
+| **`EM2Decrypt512x4`** | 54.4 MB/s (4,704.67 ns) | 1,680.7 MB/s (152.30 ns) | 1,695.7 MB/s (150.93 ns) | 2,032.6 MB/s (125.97 ns) | 3,606.7 MB/s (70.99 ns) | 66.3× | 1.00 c/B |
+| **`TEMEncrypt256x4`** | 68.0 MB/s (1,884.67 ns) | 2,714.8 MB/s (47.15 ns) | 2,933.0 MB/s (43.65 ns) | 4,581.3 MB/s (27.95 ns) | 6,282.9 MB/s (20.39 ns) | 92.4× | 0.57 c/B |
+| **`TEMDecrypt256x4`** | 68.9 MB/s (1,858.33 ns) | 2,715.7 MB/s (47.14 ns) | 2,842.7 MB/s (45.05 ns) | 4,433.2 MB/s (28.89 ns) | 5,944.5 MB/s (21.56 ns) | 86.3× | 0.61 c/B |
+| **`TEMEncrypt512x4`** | 62.5 MB/s (4,099.33 ns) | 2,905.3 MB/s (88.16 ns) | 3,060.6 MB/s (83.65 ns) | 4,106.4 MB/s (62.36 ns) | 5,788.9 MB/s (44.24 ns) | 92.6× | 0.62 c/B |
+| **`TEMDecrypt512x4`** | 56.1 MB/s (4,572.33 ns) | 2,077.0 MB/s (123.33 ns) | 2,136.1 MB/s (119.90 ns) | 2,861.4 MB/s (89.52 ns) | 4,553.0 MB/s (56.28 ns) | 81.2× | 0.79 c/B |
+| **`TEM2Encrypt256x4`** | 35.1 MB/s (3,652.33 ns) | 1,480.5 MB/s (86.48 ns) | 1,517.6 MB/s (84.38 ns) | 2,779.8 MB/s (46.06 ns) | 3,250.3 MB/s (39.42 ns) | 92.6× | 1.11 c/B |
+| **`TEM2Decrypt256x4`** | 30.3 MB/s (4,226.67 ns) | 1,276.5 MB/s (100.30 ns) | 1,279.9 MB/s (100.03 ns) | 2,324.0 MB/s (55.09 ns) | 2,714.4 MB/s (47.16 ns) | 89.6× | 1.33 c/B |
+| **`TEM2Encrypt512x4`** | 30.3 MB/s (8,475.33 ns) | 1,342.2 MB/s (190.77 ns) | 1,358.9 MB/s (188.37 ns) | 2,536.5 MB/s (100.93 ns) | 3,219.3 MB/s (79.53 ns) | 106.2× | 1.12 c/B |
+| **`TEM2Decrypt512x4`** | 27.5 MB/s (9,322.67 ns) | 752.3 MB/s (340.30 ns) | 747.6 MB/s (343.40 ns) | 1,440.6 MB/s (177.67 ns) | 2,321.2 MB/s (110.33 ns) | 84.4× | 1.55 c/B |
+| **`Rijndael-256`** | 28.9 MB/s (1,106.33 ns) | 2,182.3 MB/s (14.68 ns) | 1,936.8 MB/s (16.52 ns) | 1,909.1 MB/s (16.77 ns) | 1,827.5 MB/s (17.53 ns) | 75.5× | 1.65 c/B |
+| **`Rijndael-256x4`** | 91.1 MB/s (1,406.00 ns) | 3,649.8 MB/s (35.10 ns) | 3,168.7 MB/s (40.42 ns) | 4,257.9 MB/s (30.13 ns) | 6,929.4 MB/s (18.50 ns) | 76.1× | 0.52 c/B |
+| **`Vistrutah-256 (10r)`** | 44.0 MB/s (727.07 ns) | 3,746.5 MB/s (8.55 ns) | 3,819.1 MB/s (8.40 ns) | 4,704.6 MB/s (6.84 ns) | 4,831.2 MB/s (6.66 ns) | 109.8× | 0.75 c/B |
+| **`Vistrutah-256 (14r)`** | 32.2 MB/s (993.83 ns) | 2,574.6 MB/s (12.43 ns) | 2,660.7 MB/s (12.04 ns) | 3,390.7 MB/s (9.45 ns) | 3,489.6 MB/s (9.17 ns) | 108.4× | 1.03 c/B |
+| **`Vistrutah-256x4 (10r)`** | 84.4 MB/s (1,517.67 ns) | 6,284.6 MB/s (20.37 ns) | 6,253.2 MB/s (20.48 ns) | 9,024.8 MB/s (14.20 ns) | 11,948.8 MB/s (10.72 ns) | 141.6× | 0.30 c/B |
+| **`Vistrutah-256x4 (14r)`** | 59.9 MB/s (2,143.67 ns) | 4,596.4 MB/s (27.86 ns) | 4,367.4 MB/s (29.34 ns) | 6,066.8 MB/s (21.12 ns) | 8,263.1 MB/s (15.50 ns) | 137.9× | 0.44 c/B |
+| **`Vistrutah-512-256 (10r)`** | 73.5 MB/s (870.80 ns) | 4,166.5 MB/s (15.38 ns) | 4,280.1 MB/s (14.96 ns) | 4,892.2 MB/s (13.09 ns) | 3,973.1 MB/s (16.13 ns) | 66.6× | 0.74 c/B |
+| **`Vistrutah-512-256 (14r)`** | 50.9 MB/s (1,257.00 ns) | 2,819.3 MB/s (22.70 ns) | 2,811.0 MB/s (22.79 ns) | 3,185.5 MB/s (20.10 ns) | 2,648.3 MB/s (24.20 ns) | 62.6× | 1.13 c/B |
+| **`Vistrutah-512-256 (18r)`** | 38.5 MB/s (1,661.33 ns) | 2,058.6 MB/s (31.13 ns) | 2,035.9 MB/s (31.57 ns) | 2,444.7 MB/s (26.18 ns) | 1,927.2 MB/s (33.24 ns) | 63.5× | 1.47 c/B |
+| **`Vistrutah-512-512 (12r)`** | 59.4 MB/s (1,080.33 ns) | 3,432.1 MB/s (18.65 ns) | 3,596.6 MB/s (17.81 ns) | 4,038.6 MB/s (15.85 ns) | 3,447.0 MB/s (18.59 ns) | 68.0× | 0.89 c/B |
+| **`Vistrutah-512-512 (18r)`** | 40.0 MB/s (1,603.67 ns) | 2,152.3 MB/s (29.75 ns) | 2,205.8 MB/s (29.02 ns) | 2,364.7 MB/s (27.10 ns) | 2,061.4 MB/s (31.05 ns) | 59.1× | 1.52 c/B |
+| **`Vistrutah-512-256x4 (10r)`** | 70.8 MB/s (3,618.67 ns) | 5,004.8 MB/s (51.15 ns) | 5,094.1 MB/s (50.29 ns) | 8,644.8 MB/s (29.62 ns) | 10,641.0 MB/s (24.06 ns) | 150.3× | 0.34 c/B |
+| **`Vistrutah-512-256x4 (14r)`** | 53.8 MB/s (4,763.00 ns) | 3,221.1 MB/s (79.51 ns) | 3,302.8 MB/s (77.51 ns) | 6,251.4 MB/s (40.99 ns) | 7,111.6 MB/s (36.01 ns) | 132.2× | 0.51 c/B |
+| **`Vistrutah-512-256x4 (18r)`** | 36.9 MB/s (6,949.33 ns) | 2,377.0 MB/s (107.70 ns) | 2,399.0 MB/s (106.83 ns) | 5,115.6 MB/s (50.06 ns) | 5,564.7 MB/s (46.02 ns) | 150.8× | 0.65 c/B |
+| **`Vistrutah-512-512x4 (12r)`** | 59.8 MB/s (4,285.33 ns) | 4,074.7 MB/s (62.83 ns) | 4,091.8 MB/s (62.58 ns) | 7,663.2 MB/s (33.43 ns) | 8,820.2 MB/s (29.05 ns) | 147.5× | 0.41 c/B |
+| **`Vistrutah-512-512x4 (18r)`** | 39.6 MB/s (6,487.33 ns) | 2,391.3 MB/s (107.07 ns) | 2,433.8 MB/s (105.20 ns) | 5,169.4 MB/s (49.53 ns) | 5,729.1 MB/s (44.71 ns) | 144.7× | 0.63 c/B |
 
-All operations: 0 B/op, 0 allocs/op. On Intel® Core™ i7-11700K, `EMEncrypt256` (`1,891 MB/s`, `16.9 ns`) and `EMEncrypt256x4` (`6,030 MB/s`, `21.2 ns`) outperform 14-round `Rijndael-256` (`1,154 MB/s` single-block, `3,795 MB/s` 4-block) and 14-round `Vistrutah-256` (`1,449 MB/s` single-block, `4,504 MB/s` 4-block), while `EMEncrypt512` (`3,563 MB/s`) and `EMEncrypt512x4` (`7,343 MB/s`, `0.491 c/B`) outperform all `Vistrutah-512` variants (`10r`, `12r`, `14r`, `18r`).
+All operations: 0 B/op, 0 allocs/op. On Intel® Core™ i7-11700K, `EMEncrypt256` (`5,810.6 MB/s`, `5.51 ns`, `0.62 c/B`) and `EMEncrypt256x4` (`12,789.7 MB/s`, `10.04 ns`, `0.28 c/B`) outperform both 14-round `Rijndael-256` (`2,182.3 MB/s` single-block, `6,929.4 MB/s` 4-block) and 10r/14r `Vistrutah-256` (`4,831.2` / `3,489.6 MB/s` single-block, `11,948.8` / `8,263.1 MB/s` 4-block), while `EMEncrypt512` (`5,615.2 MB/s`, `11.40 ns`, `0.64 c/B`) and `EMEncrypt512x4` (`12,409.3 MB/s`, `20.64 ns`, `0.29 c/B`) outperform all `Vistrutah-512` variants (`10r`, `12r`, `14r`, `18r`).
 
 ### 2. AWS Graviton 4 (`c8g.4xlarge`, Neoverse-V2, 16 vCPUs, ARM64)
 
-3-run averaged throughput measured on AWS Graviton 4 (`purego` bitsliced fallback vs `arm64` ARMv8 Cryptographic Extension; reference cycles per byte `c = f · t / B` at `f = 2.80 GHz` reach `0.652 c/B` on `Permute512x4`, `1.170 c/B` on `SoEM256x4`, and `0.989 c/B` on `EMEncrypt256x4`):
+3-run averaged throughput measured on AWS Graviton 4 (`purego` bitsliced fallback vs `arm64` ARMv8 Cryptographic Extension; reference cycles per byte `c = f · t / B` at `f = 2.80 GHz` reach `0.55 c/B` on `Permute512x4` / `Permute512P2x4`, `0.57` / `0.63 c/B` on `InversePermute256x4` / `InversePermute512x4`, `1.05` / `1.63 c/B` on `SoEM256x4` / `SoEM512x4`, and `0.75` / `0.64 c/B` on `EMEncrypt256x4` / `EMEncrypt512x4`):
 
 #### Core Permutations, Davies-Meyer, SoEM22 & AES-128 Primitives
 
-| Operation | `purego` (Bitsliced) | `arm64` (128-bit NEON) |
-| :--- | :---: | :---: |
-| **`Permute256`** | 35.4 MB/s (904.1 ns) | 929.8 MB/s (34.4 ns) |
-| **`Permute512`** | 39.8 MB/s (1,610 ns) | 1,572.5 MB/s (40.7 ns) |
-| **`InversePermute256`** | 34.3 MB/s (933.0 ns) | 759.6 MB/s (42.1 ns) |
-| **`InversePermute512`** | 30.5 MB/s (2,098 ns) | 1,027.1 MB/s (62.3 ns) |
-| **`DM256`** | 34.7 MB/s (922.8 ns) | 645.1 MB/s (49.6 ns) |
-| **`DM512`** | 38.8 MB/s (1,650 ns) | 932.3 MB/s (68.6 ns) |
-| **`SoEM256`** | 33.6 MB/s (951.9 ns) | 684.3 MB/s (46.8 ns) |
-| **`SoEM512`** | 37.2 MB/s (1,719 ns) | 1,054.6 MB/s (60.7 ns) |
-| **`Permute256x4`** | 132.5 MB/s (965.9 ns) | 3,337.4 MB/s (38.4 ns) |
-| **`Permute512x4`** | 117.2 MB/s (2,185 ns) | 4,294.9 MB/s (59.6 ns) |
-| **`InversePermute256x4`** | 128.7 MB/s (995.0 ns) | 2,745.6 MB/s (46.6 ns) |
-| **`InversePermute512x4`** | 100.3 MB/s (2,552 ns) | 3,143.2 MB/s (81.5 ns) |
-| **`SoEM256x4`** | 64.0 MB/s (1,999 ns) | 2,391.9 MB/s (53.5 ns) |
-| **`SoEM512x4`** | 56.6 MB/s (4,519 ns) | 1,159.6 MB/s (220.8 ns) |
-| **`AES128Round`** | 207.7 MB/s (77.0 ns) | 4,459.3 MB/s (3.59 ns) |
-| **`AES128Round4`** | 582.7 MB/s (109.8 ns) | 16,798.0 MB/s (3.81 ns) |
-| **`ExpandKey128`** | 459.1 MB/s (383.4 ns) | 752.0 MB/s (234.0 ns) |
-| **`AES128EncryptBlock`** | 31.5 MB/s (507.7 ns) | 1,589.9 MB/s (10.1 ns) |
-| **`AES128Encrypt4Blocks`** | 114.3 MB/s (560.0 ns) | 6,023.9 MB/s (10.6 ns) |
+| Operation | `purego` (Bitsliced) | `arm64` (128-bit NEON) | Speedup vs `purego` | Cycles/Byte (`arm64`) |
+| :--- | :---: | :---: | :---: | :---: |
+| **`Permute256`** | 35.6 MB/s (898.00 ns) | 1,034.3 MB/s (30.94 ns) | 29.0× | 2.71 c/B |
+| **`Permute512`** | 39.8 MB/s (1,606.33 ns) | 1,853.8 MB/s (34.52 ns) | 46.5× | 1.51 c/B |
+| **`InversePermute256`** | 34.3 MB/s (932.80 ns) | 1,350.0 MB/s (23.70 ns) | 39.4× | 2.07 c/B |
+| **`InversePermute512`** | 30.4 MB/s (2,105.67 ns) | 1,592.9 MB/s (40.18 ns) | 52.4× | 1.76 c/B |
+| **`Permute256P2`** | 35.6 MB/s (897.67 ns) | 1,031.1 MB/s (31.04 ns) | 28.9× | 2.72 c/B |
+| **`Permute512P2`** | 39.8 MB/s (1,607.33 ns) | 1,853.4 MB/s (34.53 ns) | 46.5× | 1.51 c/B |
+| **`InversePermute256P2`** | 34.4 MB/s (930.17 ns) | 1,350.3 MB/s (23.70 ns) | 39.3× | 2.07 c/B |
+| **`InversePermute512P2`** | 30.4 MB/s (2,106.00 ns) | 1,593.5 MB/s (40.16 ns) | 52.4× | 1.76 c/B |
+| **`DM256`** | 35.7 MB/s (895.77 ns) | 2,419.2 MB/s (13.23 ns) | 67.7× | 1.16 c/B |
+| **`DM512`** | 39.5 MB/s (1,619.00 ns) | 2,351.2 MB/s (27.22 ns) | 59.5× | 1.19 c/B |
+| **`SoEM256`** | 34.0 MB/s (942.27 ns) | 1,167.5 MB/s (27.41 ns) | 34.4× | 2.40 c/B |
+| **`SoEM512`** | 37.3 MB/s (1,714.67 ns) | 1,669.4 MB/s (38.34 ns) | 44.7× | 1.68 c/B |
+| **`Permute256x4`** | 133.3 MB/s (960.27 ns) | 4,070.9 MB/s (31.44 ns) | 30.5× | 0.69 c/B |
+| **`Permute512x4`** | 120.2 MB/s (2,129.67 ns) | 5,050.5 MB/s (50.69 ns) | 42.0× | 0.55 c/B |
+| **`InversePermute256x4`** | 127.7 MB/s (1,002.80 ns) | 4,879.4 MB/s (26.23 ns) | 38.2× | 0.57 c/B |
+| **`InversePermute512x4`** | 100.1 MB/s (2,558.00 ns) | 4,452.0 MB/s (57.50 ns) | 44.5× | 0.63 c/B |
+| **`Permute256P2x4`** | 133.4 MB/s (959.57 ns) | 4,074.3 MB/s (31.42 ns) | 30.5× | 0.69 c/B |
+| **`Permute512P2x4`** | 120.2 MB/s (2,130.33 ns) | 5,049.8 MB/s (50.70 ns) | 42.0× | 0.55 c/B |
+| **`InversePermute256P2x4`** | 128.4 MB/s (996.73 ns) | 4,869.5 MB/s (26.29 ns) | 37.9× | 0.58 c/B |
+| **`InversePermute512P2x4`** | 99.9 MB/s (2,563.67 ns) | 4,443.6 MB/s (57.61 ns) | 44.5× | 0.63 c/B |
+| **`SoEM256x4`** | 65.8 MB/s (1,944.67 ns) | 2,655.9 MB/s (48.20 ns) | 40.4× | 1.05 c/B |
+| **`SoEM512x4`** | 58.5 MB/s (4,374.67 ns) | 1,716.6 MB/s (149.13 ns) | 29.3× | 1.63 c/B |
+| **`AES128Round`** | 207.8 MB/s (77.00 ns) | 4,459.5 MB/s (3.59 ns) | 21.5× | 0.63 c/B |
+| **`AES128Round4`** | 580.9 MB/s (110.20 ns) | 16,739.7 MB/s (3.82 ns) | 28.8× | 0.17 c/B |
+| **`ExpandKey128`** | 459.5 MB/s (383.07 ns) | 6,511.9 MB/s (27.03 ns) | 14.2× | 0.43 c/B |
+| **`AES128EncryptBlock`** | 31.3 MB/s (511.17 ns) | 1,594.2 MB/s (10.04 ns) | 50.9× | 1.76 c/B |
+| **`AES128Encrypt4Blocks`** | 113.8 MB/s (562.37 ns) | 6,053.8 MB/s (10.57 ns) | 53.2× | 0.46 c/B |
 
 #### Wide-Block Ciphers (`EM`, `EM2`, `TEM`, `TEM2`) vs. `Rijndael-256` & `Vistrutah-256/512`
 
-| Operation | `purego` (Bitsliced) | `arm64` (128-bit NEON) |
-| :--- | :---: | :---: |
-| **`EMEncrypt256`** | 35.2 MB/s (907.7 ns) | 841.3 MB/s (38.0 ns) |
-| **`EMDecrypt256`** | 34.1 MB/s (938.9 ns) | 706.6 MB/s (45.3 ns) |
-| **`EMEncrypt512`** | 39.2 MB/s (1,633 ns) | 1,442.8 MB/s (44.4 ns) |
-| **`EMDecrypt512`** | 30.1 MB/s (2,125 ns) | 966.1 MB/s (66.2 ns) |
-| **`EM2Encrypt256`** | 17.9 MB/s (1,791 ns) | 449.8 MB/s (71.1 ns) |
-| **`EM2Decrypt256`** | 17.4 MB/s (1,844 ns) | 371.3 MB/s (86.2 ns) |
-| **`EM2Encrypt512`** | 19.8 MB/s (3,233 ns) | 771.9 MB/s (82.9 ns) |
-| **`EM2Decrypt512`** | 15.2 MB/s (4,218 ns) | 501.3 MB/s (127.7 ns) |
-| **`TEMEncrypt256`** | 17.9 MB/s (1,792 ns) | 623.0 MB/s (51.4 ns) |
-| **`TEMDecrypt256`** | 17.6 MB/s (1,823 ns) | 598.4 MB/s (53.5 ns) |
-| **`TEMEncrypt512`** | 19.8 MB/s (3,238 ns) | 787.9 MB/s (81.2 ns) |
-| **`TEMDecrypt512`** | 16.9 MB/s (3,793 ns) | 634.7 MB/s (100.8 ns) |
-| **`TEM2Encrypt256`** | 11.8 MB/s (2,718 ns) | 318.6 MB/s (100.4 ns) |
-| **`TEM2Decrypt256`** | 11.5 MB/s (2,778 ns) | 292.8 MB/s (109.3 ns) |
-| **`TEM2Encrypt512`** | 13.0 MB/s (4,931 ns) | 474.2 MB/s (134.9 ns) |
-| **`TEM2Decrypt512`** | 10.7 MB/s (6,008 ns) | 363.4 MB/s (176.1 ns) |
-| **`EMEncrypt256x4`** | 125.8 MB/s (1,018 ns) | 2,830.0 MB/s (45.2 ns) |
-| **`EMDecrypt256x4`** | 122.3 MB/s (1,046 ns) | 2,408.8 MB/s (53.1 ns) |
-| **`EMEncrypt512x4`** | 111.7 MB/s (2,292 ns) | 2,110.7 MB/s (121.3 ns) |
-| **`EMDecrypt512x4`** | 96.8 MB/s (2,646 ns) | 1,587.7 MB/s (161.2 ns) |
-| **`EM2Encrypt256x4`** | 64.1 MB/s (1,996 ns) | 1,565.5 MB/s (81.8 ns) |
-| **`EM2Decrypt256x4`** | 62.5 MB/s (2,049 ns) | 1,346.6 MB/s (95.0 ns) |
-| **`EM2Encrypt512x4`** | 56.8 MB/s (4,508 ns) | 1,112.0 MB/s (230.2 ns) |
-| **`EM2Decrypt512x4`** | 48.9 MB/s (5,230 ns) | 828.0 MB/s (309.2 ns) |
-| **`TEMEncrypt256x4`** | 64.2 MB/s (1,995 ns) | 1,581.5 MB/s (80.9 ns) |
-| **`TEMDecrypt256x4`** | 62.8 MB/s (2,039 ns) | 1,471.7 MB/s (87.0 ns) |
-| **`TEMEncrypt512x4`** | 57.1 MB/s (4,486 ns) | 1,128.8 MB/s (226.8 ns) |
-| **`TEMDecrypt512x4`** | 51.6 MB/s (4,965 ns) | 959.1 MB/s (266.9 ns) |
-| **`TEM2Encrypt256x4`** | 32.4 MB/s (3,950 ns) | 880.8 MB/s (145.3 ns) |
-| **`TEM2Decrypt256x4`** | 31.7 MB/s (4,034 ns) | 798.1 MB/s (160.4 ns) |
-| **`TEM2Encrypt512x4`** | 28.8 MB/s (8,892 ns) | 598.5 MB/s (427.7 ns) |
-| **`TEM2Decrypt512x4`** | 26.0 MB/s (9,843 ns) | 499.1 MB/s (513.0 ns) |
-| **`Rijndael-256`** | 33.5 MB/s (955.1 ns) | 738.0 MB/s (43.4 ns) |
-| **`Rijndael-256x4`** | 93.6 MB/s (1,368 ns) | 2,357.8 MB/s (54.3 ns) |
-| **`Vistrutah-256 (10r)`** | 42.3 MB/s (756.6 ns) | 1,611.2 MB/s (19.9 ns) |
-| **`Vistrutah-256 (14r)`** | 30.5 MB/s (1,051 ns) | 1,221.0 MB/s (26.2 ns) |
-| **`Vistrutah-256x4 (10r)`** | 80.7 MB/s (1,586 ns) | 4,485.7 MB/s (28.5 ns) |
-| **`Vistrutah-256x4 (14r)`** | 57.5 MB/s (2,224 ns) | 3,552.6 MB/s (36.0 ns) |
-| **`Vistrutah-512-256 (10r)`** | 66.4 MB/s (963.6 ns) | 2,783.5 MB/s (23.0 ns) |
-| **`Vistrutah-512-256 (14r)`** | 47.9 MB/s (1,337 ns) | 2,069.1 MB/s (30.9 ns) |
-| **`Vistrutah-512-256 (18r)`** | 37.4 MB/s (1,710 ns) | 1,648.4 MB/s (38.8 ns) |
-| **`Vistrutah-512-512 (12r)`** | 55.9 MB/s (1,145 ns) | 2,369.6 MB/s (27.0 ns) |
-| **`Vistrutah-512-512 (18r)`** | 37.5 MB/s (1,708 ns) | 1,645.3 MB/s (38.9 ns) |
-| **`Vistrutah-512-256x4 (10r)`** | 68.0 MB/s (3,767 ns) | 4,442.6 MB/s (57.6 ns) |
-| **`Vistrutah-512-256x4 (14r)`** | 48.6 MB/s (5,270 ns) | 3,447.4 MB/s (74.3 ns) |
-| **`Vistrutah-512-256x4 (18r)`** | 37.8 MB/s (6,768 ns) | 2,809.7 MB/s (91.1 ns) |
-| **`Vistrutah-512-512x4 (12r)`** | 56.0 MB/s (4,570 ns) | 3,802.1 MB/s (67.3 ns) |
-| **`Vistrutah-512-512x4 (18r)`** | 37.4 MB/s (6,844 ns) | 2,835.1 MB/s (90.3 ns) |
+| Operation | `purego` (Bitsliced) | `arm64` (128-bit NEON) | Speedup vs `purego` | Cycles/Byte (`arm64`) |
+| :--- | :---: | :---: | :---: | :---: |
+| **`EMEncrypt256`** | 35.5 MB/s (900.30 ns) | 2,335.2 MB/s (13.70 ns) | 65.7× | 1.20 c/B |
+| **`EMDecrypt256`** | 34.2 MB/s (934.30 ns) | 2,566.0 MB/s (12.47 ns) | 74.9× | 1.09 c/B |
+| **`EMEncrypt512`** | 39.3 MB/s (1,628.67 ns) | 2,291.8 MB/s (27.93 ns) | 58.3× | 1.22 c/B |
+| **`EMDecrypt512`** | 30.1 MB/s (2,129.33 ns) | 1,746.0 MB/s (36.66 ns) | 58.1× | 1.60 c/B |
+| **`EM2Encrypt256`** | 18.0 MB/s (1,776.33 ns) | 994.4 MB/s (32.18 ns) | 55.2× | 2.82 c/B |
+| **`EM2Decrypt256`** | 17.4 MB/s (1,842.67 ns) | 1,136.5 MB/s (28.16 ns) | 65.5× | 2.46 c/B |
+| **`EM2Encrypt512`** | 19.8 MB/s (3,228.33 ns) | 1,049.9 MB/s (60.96 ns) | 53.0× | 2.67 c/B |
+| **`EM2Decrypt512`** | 15.1 MB/s (4,226.00 ns) | 841.3 MB/s (76.07 ns) | 55.6× | 3.33 c/B |
+| **`TEMEncrypt256`** | 18.0 MB/s (1,776.00 ns) | 975.5 MB/s (32.81 ns) | 54.1× | 2.87 c/B |
+| **`TEMDecrypt256`** | 17.6 MB/s (1,813.00 ns) | 936.2 MB/s (34.18 ns) | 53.0× | 2.99 c/B |
+| **`TEMEncrypt512`** | 19.8 MB/s (3,227.67 ns) | 1,033.5 MB/s (61.93 ns) | 52.1× | 2.71 c/B |
+| **`TEMDecrypt512`** | 17.0 MB/s (3,764.33 ns) | 912.2 MB/s (70.16 ns) | 53.7× | 3.07 c/B |
+| **`TEM2Encrypt256`** | 11.9 MB/s (2,688.00 ns) | 451.1 MB/s (70.93 ns) | 37.9× | 6.21 c/B |
+| **`TEM2Decrypt256`** | 11.5 MB/s (2,773.00 ns) | 494.4 MB/s (64.73 ns) | 42.8× | 5.66 c/B |
+| **`TEM2Encrypt512`** | 13.0 MB/s (4,908.33 ns) | 644.1 MB/s (99.36 ns) | 49.4× | 4.35 c/B |
+| **`TEM2Decrypt512`** | 10.7 MB/s (5,966.67 ns) | 567.8 MB/s (112.70 ns) | 52.9× | 4.93 c/B |
+| **`EMEncrypt256x4`** | 129.3 MB/s (990.13 ns) | 3,743.4 MB/s (34.19 ns) | 29.0× | 0.75 c/B |
+| **`EMDecrypt256x4`** | 124.7 MB/s (1,027.00 ns) | 4,397.9 MB/s (29.11 ns) | 35.3× | 0.64 c/B |
+| **`EMEncrypt512x4`** | 115.5 MB/s (2,217.67 ns) | 4,384.3 MB/s (58.39 ns) | 38.0× | 0.64 c/B |
+| **`EMDecrypt512x4`** | 97.8 MB/s (2,618.33 ns) | 3,951.8 MB/s (64.78 ns) | 40.4× | 0.71 c/B |
+| **`EM2Encrypt256x4`** | 66.0 MB/s (1,939.33 ns) | 1,990.0 MB/s (64.32 ns) | 30.2× | 1.41 c/B |
+| **`EM2Decrypt256x4`** | 63.7 MB/s (2,010.33 ns) | 2,392.1 MB/s (53.51 ns) | 37.6× | 1.17 c/B |
+| **`EM2Encrypt512x4`** | 58.4 MB/s (4,386.00 ns) | 2,381.6 MB/s (107.50 ns) | 40.8× | 1.18 c/B |
+| **`EM2Decrypt512x4`** | 49.5 MB/s (5,176.00 ns) | 2,151.7 MB/s (118.97 ns) | 43.5× | 1.30 c/B |
+| **`TEMEncrypt256x4`** | 65.8 MB/s (1,944.67 ns) | 2,027.9 MB/s (63.12 ns) | 30.8× | 1.38 c/B |
+| **`TEMDecrypt256x4`** | 64.5 MB/s (1,985.33 ns) | 2,189.1 MB/s (58.47 ns) | 33.9× | 1.28 c/B |
+| **`TEMEncrypt512x4`** | 58.8 MB/s (4,352.33 ns) | 1,709.3 MB/s (149.80 ns) | 29.1× | 1.64 c/B |
+| **`TEMDecrypt512x4`** | 52.5 MB/s (4,872.00 ns) | 1,578.5 MB/s (162.20 ns) | 30.0× | 1.77 c/B |
+| **`TEM2Encrypt256x4`** | 33.4 MB/s (3,838.00 ns) | 1,078.6 MB/s (118.70 ns) | 32.3× | 2.60 c/B |
+| **`TEM2Decrypt256x4`** | 32.7 MB/s (3,919.33 ns) | 1,169.4 MB/s (109.43 ns) | 35.8× | 2.39 c/B |
+| **`TEM2Encrypt512x4`** | 29.7 MB/s (8,631.33 ns) | 885.2 MB/s (289.20 ns) | 29.8× | 3.16 c/B |
+| **`TEM2Decrypt512x4`** | 26.5 MB/s (9,645.67 ns) | 822.0 MB/s (311.47 ns) | 31.0× | 3.41 c/B |
+| **`Rijndael-256`** | 32.4 MB/s (987.53 ns) | 1,405.3 MB/s (22.77 ns) | 43.4× | 1.99 c/B |
+| **`Rijndael-256x4`** | 93.0 MB/s (1,376.00 ns) | 2,717.9 MB/s (47.10 ns) | 29.2× | 1.03 c/B |
+| **`Vistrutah-256 (10r)`** | 42.5 MB/s (752.67 ns) | 3,635.5 MB/s (8.80 ns) | 85.5× | 0.77 c/B |
+| **`Vistrutah-256 (14r)`** | 30.6 MB/s (1,045.67 ns) | 2,482.3 MB/s (12.89 ns) | 81.1× | 1.13 c/B |
+| **`Vistrutah-256x4 (10r)`** | 80.4 MB/s (1,591.33 ns) | 6,323.2 MB/s (20.24 ns) | 78.6× | 0.44 c/B |
+| **`Vistrutah-256x4 (14r)`** | 57.4 MB/s (2,230.67 ns) | 4,575.8 MB/s (27.97 ns) | 79.7× | 0.61 c/B |
+| **`Vistrutah-512-256 (10r)`** | 64.7 MB/s (988.80 ns) | 3,786.7 MB/s (16.90 ns) | 58.5× | 0.74 c/B |
+| **`Vistrutah-512-256 (14r)`** | 46.6 MB/s (1,373.33 ns) | 2,594.4 MB/s (24.67 ns) | 55.7× | 1.08 c/B |
+| **`Vistrutah-512-256 (18r)`** | 36.5 MB/s (1,754.00 ns) | 1,961.1 MB/s (32.64 ns) | 53.7× | 1.43 c/B |
+| **`Vistrutah-512-512 (12r)`** | 55.2 MB/s (1,159.67 ns) | 3,094.8 MB/s (20.68 ns) | 56.1× | 0.90 c/B |
+| **`Vistrutah-512-512 (18r)`** | 37.0 MB/s (1,732.00 ns) | 1,985.3 MB/s (32.24 ns) | 53.7× | 1.41 c/B |
+| **`Vistrutah-512-256x4 (10r)`** | 66.4 MB/s (3,853.00 ns) | 5,449.5 MB/s (46.98 ns) | 82.0× | 0.51 c/B |
+| **`Vistrutah-512-256x4 (14r)`** | 47.5 MB/s (5,383.00 ns) | 4,147.9 MB/s (61.72 ns) | 87.2× | 0.68 c/B |
+| **`Vistrutah-512-256x4 (18r)`** | 37.0 MB/s (6,916.33 ns) | 3,235.4 MB/s (79.13 ns) | 87.4× | 0.87 c/B |
+| **`Vistrutah-512-512x4 (12r)`** | 55.3 MB/s (4,632.67 ns) | 4,849.4 MB/s (52.79 ns) | 87.8× | 0.58 c/B |
+| **`Vistrutah-512-512x4 (18r)`** | 36.9 MB/s (6,945.00 ns) | 3,262.1 MB/s (78.48 ns) | 88.5× | 0.86 c/B |
 
 All operations: 0 B/op, 0 allocs/op.
 
@@ -340,26 +356,28 @@ All operations: 0 B/op, 0 allocs/op.
 
 | Wide-Block Cipher Primitive | Intel Core i7-11700K (Best HW Tier) | AWS Graviton 4 (`arm64`) | Block / Key / RAM Key State & Security |
 | :--- | :---: | :---: | :--- |
-| **`EMEncrypt256`** | **1,891 MB/s** (`16.9 ns/op`) | **841.3 MB/s** (`38.0 ns/op`) | 256b / 512b key, `0 B` RAM RK (`2^128` PRP) |
-| **`EM2Encrypt256`** | **1,022 MB/s** (`31.3 ns/op`) | **449.8 MB/s** (`71.1 ns/op`) | 256b / 512b key, `0 B` RAM RK (`2^170.7` BBB PRP) |
-| **`TEMEncrypt256`** | **1,810 MB/s** (`17.7 ns/op`) | **623.0 MB/s** (`51.4 ns/op`) | 256b / 512b + 256b tweak, `0 B` RAM RK (`2^128` TPRP) |
-| **`TEM2Encrypt256`** | **979 MB/s** (`32.7 ns/op`) | **318.6 MB/s** (`100.4 ns/op`) | 256b / 512b + 256b tweak, `0 B` RAM RK (`2^170.7` BBB TPRP) |
-| **`EMEncrypt256x4`** | **6,030 MB/s** (`5.30 ns/block`) | **2,830.0 MB/s** (`11.30 ns/block`) | 4×256b, `0 B` RAM RK (`2^128` PRP) |
-| **`EM2Encrypt256x4`** | **3,247 MB/s** (`9.85 ns/block`) | **1,565.5 MB/s** (`20.45 ns/block`) | 4×256b, `0 B` RAM RK (`2^170.7` BBB PRP) |
-| **`TEMEncrypt256x4`** | **4,783 MB/s** (`6.70 ns/block`) | **1,581.5 MB/s** (`20.23 ns/block`) | 4×256b + tweaks, `0 B` RAM RK (`2^128` TPRP) |
-| **`TEM2Encrypt256x4`** | **2,948 MB/s** (`10.88 ns/block`) | **880.8 MB/s** (`36.33 ns/block`) | 4×256b + tweaks, `0 B` RAM RK (`2^170.7` BBB TPRP) |
-| **`Rijndael-256 (14r)`** | 1,154 MB/s (`27.7 ns/op`) | 738.0 MB/s (`43.4 ns/op`) | 256b / 256b key, **`480 B` RAM RK** (`SP 800-197`) |
-| **`Rijndael-256x4 (14r)`** | 3,795 MB/s (`8.43 ns/block`) | 2,357.8 MB/s (`13.58 ns/block`) | 4×256b, **`480 B` RAM RK** (`SP 800-197`) |
-| **`Vistrutah-256 (10r / 14r)`** | 1,994 / 1,449 MB/s (`16.1` / `22.1 ns`) | 1,611.2 / 1,221.0 MB/s (`19.9` / `26.2 ns`) | 256b / 256b key, `0 B` RAM RK (`ePrint 2025/976`) |
-| **`Vistrutah-256x4 (10r / 14r)`** | 6,033 / 4,504 MB/s (`5.30` / `7.10 ns/blk`) | 4,485.7 / 3,552.6 MB/s (`7.13` / `9.00 ns/blk`) | 4×256b, `0 B` RAM RK (`ePrint 2025/976`) |
-| **`EMEncrypt512`** | **3,563 MB/s** (`18.0 ns/op`) | **1,442.8 MB/s** (`44.4 ns/op`) | 512b / 1024b key, `0 B` RAM RK (`2^256` PRP) |
-| **`EMEncrypt512x4`** | **7,343 MB/s** (`8.73 ns/block`) | **2,110.7 MB/s** (`30.33 ns/block`) | 4×512b, `0 B` RAM RK (`2^256` PRP) |
-| **`Vistrutah-512-256 (10r / 14r / 18r)`** | 3,245 / 2,334 / 1,843 MB/s | 2,783.5 / 2,069.1 / 1,648.4 MB/s | 512b / 256b key, `0 B` RAM RK (`ePrint 2025/976`) |
-| **`Vistrutah-512-512 (12r / 18r)`** | 2,677 / 1,791 MB/s | 2,369.6 / 1,645.3 MB/s | 512b / 512b key, `0 B` RAM RK (`ePrint 2025/976`) |
-| **`Vistrutah-512-256x4 (10r / 14r / 18r)`** | 7,020 / 5,484 / 4,544 MB/s | 4,442.6 / 3,447.4 / 2,809.7 MB/s | 4×512b / 256b key, `0 B` RAM RK (`ePrint 2025/976`) |
-| **`Vistrutah-512-512x4 (12r / 18r)`** | 6,394 / 4,629 MB/s | 3,802.1 / 2,835.1 MB/s | 4×512b / 512b key, `0 B` RAM RK (`ePrint 2025/976`) |
+| **`EMEncrypt256`** | **5,810.6 MB/s** (`5.51 ns/op`) | **2,335.2 MB/s** (`13.70 ns/op`) | 256b / 512b key, `0 B` RAM RK (`2^128` PRP) |
+| **`EM2Encrypt256`** | **2,348.6 MB/s** (`13.64 ns/op`) | **994.4 MB/s** (`32.18 ns/op`) | 256b / 512b key, `0 B` RAM RK (`2^170.7` BBB PRP) |
+| **`TEMEncrypt256`** | **2,341.2 MB/s** (`13.68 ns/op`) | **975.5 MB/s** (`32.81 ns/op`) | 256b / 512b + 256b tweak, `0 B` RAM RK (`2^128` TPRP) |
+| **`TEM2Encrypt256`** | **1,187.8 MB/s** (`26.95 ns/op`) | **451.1 MB/s** (`70.93 ns/op`) | 256b / 512b + 256b tweak, `0 B` RAM RK (`2^170.7` BBB TPRP) |
+| **`EMEncrypt256x4`** | **12,789.7 MB/s** (`2.51 ns/block`) | **3,743.4 MB/s** (`8.55 ns/block`) | 4×256b, `0 B` RAM RK (`2^128` PRP) |
+| **`EM2Encrypt256x4`** | **6,513.2 MB/s** (`4.92 ns/block`) | **1,990.0 MB/s** (`16.08 ns/block`) | 4×256b, `0 B` RAM RK (`2^170.7` BBB PRP) |
+| **`TEMEncrypt256x4`** | **6,282.9 MB/s** (`5.10 ns/block`) | **2,027.9 MB/s** (`15.78 ns/block`) | 4×256b + tweaks, `0 B` RAM RK (`2^128` TPRP) |
+| **`TEM2Encrypt256x4`** | **3,250.3 MB/s** (`9.86 ns/block`) | **1,078.6 MB/s** (`29.68 ns/block`) | 4×256b + tweaks, `0 B` RAM RK (`2^170.7` BBB TPRP) |
+| **`Rijndael-256 (14r)`** | 2,182.3 MB/s (`14.68 ns/op`) | 1,405.3 MB/s (`22.77 ns/op`) | 256b / 256b key, **`480 B` RAM RK** (`SP 800-197`) |
+| **`Rijndael-256x4 (14r)`** | 6,929.4 MB/s (`4.62 ns/block`) | 2,717.9 MB/s (`11.78 ns/block`) | 4×256b, **`480 B` RAM RK** (`SP 800-197`) |
+| **`Vistrutah-256 (10r / 14r)`** | 4,831.2 / 3,489.6 MB/s (`6.66` / `9.17 ns`) | 3,635.5 / 2,482.3 MB/s (`8.80` / `12.89 ns`) | 256b / 256b key, `0 B` RAM RK (`ePrint 2025/976`) |
+| **`Vistrutah-256x4 (10r / 14r)`** | 11,948.8 / 8,263.1 MB/s (`2.68` / `3.88 ns/blk`) | 6,323.2 / 4,575.8 MB/s (`5.06` / `6.99 ns/blk`) | 4×256b, `0 B` RAM RK (`ePrint 2025/976`) |
+| **`EMEncrypt512`** | **5,615.2 MB/s** (`11.40 ns/op`) | **2,291.8 MB/s** (`27.93 ns/op`) | 512b / 1024b key, `0 B` RAM RK (`2^256` PRP) |
+| **`EMEncrypt512x4`** | **12,409.3 MB/s** (`5.16 ns/block`) | **4,384.3 MB/s** (`14.60 ns/block`) | 4×512b, `0 B` RAM RK (`2^256` PRP) |
+| **`Vistrutah-512-256 (10r / 14r / 18r)`** | 4,892.2 / 3,185.5 / 2,444.7 MB/s | 3,786.7 / 2,594.4 / 1,961.1 MB/s | 512b / 256b key, `0 B` RAM RK (`ePrint 2025/976`) |
+| **`Vistrutah-512-512 (12r / 18r)`** | 4,038.6 / 2,364.7 MB/s | 3,094.8 / 1,985.3 MB/s | 512b / 512b key, `0 B` RAM RK (`ePrint 2025/976`) |
+| **`Vistrutah-512-256x4 (10r / 14r / 18r)`** | 10,641.0 / 7,111.6 / 5,564.7 MB/s | 5,449.5 / 4,147.9 / 3,235.4 MB/s | 4×512b / 256b key, `0 B` RAM RK (`ePrint 2025/976`) |
+| **`Vistrutah-512-512x4 (12r / 18r)`** | 8,820.2 / 5,729.1 MB/s | 4,849.4 / 3,262.1 MB/s | 4×512b / 512b key, `0 B` RAM RK (`ePrint 2025/976`) |
 
-> **Benchmark methodology note:** `BenchmarkPermute*`, `BenchmarkInversePermute*`, `BenchmarkEM*`, `BenchmarkTEM*`, `BenchmarkAES128Encrypt*`, `BenchmarkRijndael256*`, and `BenchmarkVistrutah*` feed their returned output back into the next iteration's input (`m = EMEncrypt*(...)`, `state = ...`), measuring serial dependency-chain latency across iterations (`AES128Encrypt*` and `Rijndael256Encrypt*` time the encryption core with pre-expanded round keys in RAM, whereas `Areion-EM*` and `Vistrutah*` take raw keys and expand/apply round keys on-the-fly in registers). `BenchmarkSoEM*` and `BenchmarkDM*` evaluate fixed input and key buffers across iterations, allowing out-of-order execution to overlap independent calls. See [`analysis/README.md` (Section L)](analysis/README.md#l-register-and-stack-clearing-cost) for interleaved single-core cycle-per-byte measurements including epilogue register and stack clearing.
+On Intel Core i7-11700K, `EMEncrypt256` (`5,810.6 MB/s`, `5.51 ns/op`, `0.62 c/B`) and `EMEncrypt256x4` (`12,789.7 MB/s`, `10.04 ns/op`, `0.28 c/B`) outperform both 14-round `Rijndael-256` (`2,182.3 MB/s` single-block, `6,929.4 MB/s` 4-block — `2.7×` and `1.8×` faster) and 10r/14r `Vistrutah-256` (`4,831.2` / `3,489.6 MB/s` single-block, `11,948.8` / `8,263.1 MB/s` 4-block — `1.2×`/`1.7×` and `1.1×`/`1.5×` faster), while `EMEncrypt512` (`5,615.2 MB/s`, `11.40 ns/op`, `0.64 c/B`) and `EMEncrypt512x4` (`12,409.3 MB/s`, `20.64 ns/op`, `0.29 c/B`) outperform all `Vistrutah-512` variants (`10r`, `12r`, `14r`, `18r` — `1.1×` to `2.4×` faster). On AWS Graviton 4 (`arm64`), `EMEncrypt256` (`2,335.2 MB/s`, `13.70 ns/op`, `1.20 c/B`) and `EMEncrypt256x4` (`3,743.4 MB/s`, `34.19 ns/op`, `0.75 c/B`) outperform 14-round `Rijndael-256` (`1,405.3 MB/s` single-block, `2,717.9 MB/s` 4-block — `1.7×` and `1.4×` faster), while `EMEncrypt512x4` (`4,384.3 MB/s`, `58.39 ns/op`, `0.64 c/B`) outperforms 14r/18r `Vistrutah-512-256x4` (`4,147.9` / `3,235.4 MB/s`) and 18r `Vistrutah-512-512x4` (`3,262.1 MB/s`).
+
+> **Benchmark methodology note:** `BenchmarkPermute*`, `BenchmarkInversePermute*`, `BenchmarkAES128Round*`, and `BenchmarkAES128Encrypt*` modify their state buffer in-place (`dst == src`), measuring serial dependency-chain latency across iterations (`AES128Encrypt*` and `Rijndael256Encrypt*` time the encryption core with pre-expanded round keys in RAM, whereas `Areion-{EM,EM2,TEM,TEM2}*` and `Vistrutah*` take raw keys and expand/apply round keys on-the-fly in registers). `BenchmarkSoEM*`, `BenchmarkDM*`, `BenchmarkEM*`, `BenchmarkEM2*`, `BenchmarkTEM*`, `BenchmarkTEM2*`, `BenchmarkRijndael256*`, and `BenchmarkVistrutah*` evaluate fixed input, tweak, and key buffers across iterations (`out != in`), allowing out-of-order execution to overlap independent calls and measuring pipelined throughput. See [`analysis/README.md` (Section L)](analysis/README.md#l-register-and-stack-clearing-cost) for interleaved single-core cycle-per-byte measurements including epilogue register and stack clearing.
 
 ---
 

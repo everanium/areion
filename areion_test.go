@@ -2478,12 +2478,14 @@ func BenchmarkInversePermute512P2(b *testing.B) {
 	}
 }
 
+var sink256 [32]byte
+
 func BenchmarkDM256(b *testing.B) {
 	var m [32]byte
 	b.SetBytes(32)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = DM256(&m)
+		sink256 = DM256(&m)
 	}
 }
 
@@ -2492,7 +2494,7 @@ func BenchmarkDM512(b *testing.B) {
 	b.SetBytes(64)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = DM512(&m)
+		sink256 = DM512(&m)
 	}
 }
 
@@ -2663,7 +2665,7 @@ func BenchmarkEMEncrypt256(b *testing.B) {
 	b.SetBytes(32)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		m = EMEncrypt256(&key, &m)
+		_ = EMEncrypt256(&key, &m)
 	}
 }
 
@@ -2673,7 +2675,7 @@ func BenchmarkEMDecrypt256(b *testing.B) {
 	b.SetBytes(32)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		c = EMDecrypt256(&key, &c)
+		_ = EMDecrypt256(&key, &c)
 	}
 }
 
@@ -2683,7 +2685,7 @@ func BenchmarkEMEncrypt512(b *testing.B) {
 	b.SetBytes(64)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		m = EMEncrypt512(&key, &m)
+		_ = EMEncrypt512(&key, &m)
 	}
 }
 
@@ -2693,7 +2695,7 @@ func BenchmarkEMDecrypt512(b *testing.B) {
 	b.SetBytes(64)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		c = EMDecrypt512(&key, &c)
+		_ = EMDecrypt512(&key, &c)
 	}
 }
 
@@ -2703,7 +2705,7 @@ func BenchmarkEM2Encrypt256(b *testing.B) {
 	b.SetBytes(32)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		m = EM2Encrypt256(&key, &m)
+		_ = EM2Encrypt256(&key, &m)
 	}
 }
 
@@ -2713,7 +2715,7 @@ func BenchmarkEM2Decrypt256(b *testing.B) {
 	b.SetBytes(32)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		c = EM2Decrypt256(&key, &c)
+		_ = EM2Decrypt256(&key, &c)
 	}
 }
 
@@ -2723,7 +2725,7 @@ func BenchmarkEM2Encrypt512(b *testing.B) {
 	b.SetBytes(64)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		m = EM2Encrypt512(&key, &m)
+		_ = EM2Encrypt512(&key, &m)
 	}
 }
 
@@ -2733,7 +2735,7 @@ func BenchmarkEM2Decrypt512(b *testing.B) {
 	b.SetBytes(64)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		c = EM2Decrypt512(&key, &c)
+		_ = EM2Decrypt512(&key, &c)
 	}
 }
 
@@ -2743,7 +2745,7 @@ func BenchmarkTEMEncrypt256(b *testing.B) {
 	b.SetBytes(32)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		m = TEMEncrypt256(&key, &tweak, &m)
+		_ = TEMEncrypt256(&key, &tweak, &m)
 	}
 }
 
@@ -2753,7 +2755,7 @@ func BenchmarkTEMDecrypt256(b *testing.B) {
 	b.SetBytes(32)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		c = TEMDecrypt256(&key, &tweak, &c)
+		_ = TEMDecrypt256(&key, &tweak, &c)
 	}
 }
 
@@ -2763,7 +2765,7 @@ func BenchmarkTEMEncrypt512(b *testing.B) {
 	b.SetBytes(64)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		m = TEMEncrypt512(&key, &tweak, &m)
+		_ = TEMEncrypt512(&key, &tweak, &m)
 	}
 }
 
@@ -2773,7 +2775,7 @@ func BenchmarkTEMDecrypt512(b *testing.B) {
 	b.SetBytes(64)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		c = TEMDecrypt512(&key, &tweak, &c)
+		_ = TEMDecrypt512(&key, &tweak, &c)
 	}
 }
 
@@ -2783,7 +2785,7 @@ func BenchmarkTEM2Encrypt256(b *testing.B) {
 	b.SetBytes(32)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		m = TEM2Encrypt256(&key, &tweak, &m)
+		_ = TEM2Encrypt256(&key, &tweak, &m)
 	}
 }
 
@@ -2793,7 +2795,7 @@ func BenchmarkTEM2Decrypt256(b *testing.B) {
 	b.SetBytes(32)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		c = TEM2Decrypt256(&key, &tweak, &c)
+		_ = TEM2Decrypt256(&key, &tweak, &c)
 	}
 }
 
@@ -2803,7 +2805,7 @@ func BenchmarkTEM2Encrypt512(b *testing.B) {
 	b.SetBytes(64)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		m = TEM2Encrypt512(&key, &tweak, &m)
+		_ = TEM2Encrypt512(&key, &tweak, &m)
 	}
 }
 
@@ -2813,7 +2815,7 @@ func BenchmarkTEM2Decrypt512(b *testing.B) {
 	b.SetBytes(64)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		c = TEM2Decrypt512(&key, &tweak, &c)
+		_ = TEM2Decrypt512(&key, &tweak, &c)
 	}
 }
 
@@ -2823,7 +2825,7 @@ func BenchmarkEMEncrypt256x4(b *testing.B) {
 	b.SetBytes(128)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		msgs = EMEncrypt256x4(&keys, &msgs)
+		_ = EMEncrypt256x4(&keys, &msgs)
 	}
 }
 
@@ -2833,7 +2835,7 @@ func BenchmarkEMDecrypt256x4(b *testing.B) {
 	b.SetBytes(128)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		ct = EMDecrypt256x4(&keys, &ct)
+		_ = EMDecrypt256x4(&keys, &ct)
 	}
 }
 
@@ -2843,7 +2845,7 @@ func BenchmarkEMEncrypt512x4(b *testing.B) {
 	b.SetBytes(256)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		msgs = EMEncrypt512x4(&keys, &msgs)
+		_ = EMEncrypt512x4(&keys, &msgs)
 	}
 }
 
@@ -2853,7 +2855,7 @@ func BenchmarkEMDecrypt512x4(b *testing.B) {
 	b.SetBytes(256)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		ct = EMDecrypt512x4(&keys, &ct)
+		_ = EMDecrypt512x4(&keys, &ct)
 	}
 }
 
@@ -2863,7 +2865,7 @@ func BenchmarkEM2Encrypt256x4(b *testing.B) {
 	b.SetBytes(128)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		msgs = EM2Encrypt256x4(&keys, &msgs)
+		_ = EM2Encrypt256x4(&keys, &msgs)
 	}
 }
 
@@ -2873,7 +2875,7 @@ func BenchmarkEM2Decrypt256x4(b *testing.B) {
 	b.SetBytes(128)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		ct = EM2Decrypt256x4(&keys, &ct)
+		_ = EM2Decrypt256x4(&keys, &ct)
 	}
 }
 
@@ -2883,7 +2885,7 @@ func BenchmarkEM2Encrypt512x4(b *testing.B) {
 	b.SetBytes(256)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		msgs = EM2Encrypt512x4(&keys, &msgs)
+		_ = EM2Encrypt512x4(&keys, &msgs)
 	}
 }
 
@@ -2893,7 +2895,7 @@ func BenchmarkEM2Decrypt512x4(b *testing.B) {
 	b.SetBytes(256)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		ct = EM2Decrypt512x4(&keys, &ct)
+		_ = EM2Decrypt512x4(&keys, &ct)
 	}
 }
 
@@ -2903,7 +2905,7 @@ func BenchmarkTEMEncrypt256x4(b *testing.B) {
 	b.SetBytes(128)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		msgs = TEMEncrypt256x4(&keys, &tweaks, &msgs)
+		_ = TEMEncrypt256x4(&keys, &tweaks, &msgs)
 	}
 }
 
@@ -2913,7 +2915,7 @@ func BenchmarkTEMDecrypt256x4(b *testing.B) {
 	b.SetBytes(128)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		ct = TEMDecrypt256x4(&keys, &tweaks, &ct)
+		_ = TEMDecrypt256x4(&keys, &tweaks, &ct)
 	}
 }
 
@@ -2923,7 +2925,7 @@ func BenchmarkTEMEncrypt512x4(b *testing.B) {
 	b.SetBytes(256)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		msgs = TEMEncrypt512x4(&keys, &tweaks, &msgs)
+		_ = TEMEncrypt512x4(&keys, &tweaks, &msgs)
 	}
 }
 
@@ -2933,7 +2935,7 @@ func BenchmarkTEMDecrypt512x4(b *testing.B) {
 	b.SetBytes(256)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		ct = TEMDecrypt512x4(&keys, &tweaks, &ct)
+		_ = TEMDecrypt512x4(&keys, &tweaks, &ct)
 	}
 }
 
@@ -2943,7 +2945,7 @@ func BenchmarkTEM2Encrypt256x4(b *testing.B) {
 	b.SetBytes(128)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		msgs = TEM2Encrypt256x4(&keys, &tweaks, &msgs)
+		_ = TEM2Encrypt256x4(&keys, &tweaks, &msgs)
 	}
 }
 
@@ -2953,7 +2955,7 @@ func BenchmarkTEM2Decrypt256x4(b *testing.B) {
 	b.SetBytes(128)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		ct = TEM2Decrypt256x4(&keys, &tweaks, &ct)
+		_ = TEM2Decrypt256x4(&keys, &tweaks, &ct)
 	}
 }
 
@@ -2963,7 +2965,7 @@ func BenchmarkTEM2Encrypt512x4(b *testing.B) {
 	b.SetBytes(256)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		msgs = TEM2Encrypt512x4(&keys, &tweaks, &msgs)
+		_ = TEM2Encrypt512x4(&keys, &tweaks, &msgs)
 	}
 }
 
@@ -2973,40 +2975,30 @@ func BenchmarkTEM2Decrypt512x4(b *testing.B) {
 	b.SetBytes(256)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		ct = TEM2Decrypt512x4(&keys, &tweaks, &ct)
+		_ = TEM2Decrypt512x4(&keys, &tweaks, &ct)
 	}
 }
 
-func rijndael256EncryptBlock(rk *[15][32]byte, src *[32]byte) (dst [32]byte) {
-	rijndael256EncryptBlockHW(rk, &dst, src)
-	return dst
-}
-
-func rijndael256Encrypt4Blocks(rk *[15][32]byte, src *[4][32]byte) (dst [4][32]byte) {
-	rijndael256Encrypt4BlocksHW(rk, &dst, src)
-	return dst
-}
-
 func BenchmarkRijndael256EncryptBlockHW(b *testing.B) {
-	var key, state [32]byte
+	var key, state, out [32]byte
 	var rk [15][32]byte
 	rijndael256ExpandKey(&key, &rk)
 	b.SetBytes(32)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		state = rijndael256EncryptBlock(&rk, &state)
+		rijndael256EncryptBlockHW(&rk, &out, &state)
 	}
 }
 
 func BenchmarkRijndael256Encrypt4BlocksHW(b *testing.B) {
 	var key [32]byte
-	var states [4][32]byte
+	var states, out [4][32]byte
 	var rk [15][32]byte
 	rijndael256ExpandKey(&key, &rk)
 	b.SetBytes(128)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		states = rijndael256Encrypt4Blocks(&rk, &states)
+		rijndael256Encrypt4BlocksHW(&rk, &out, &states)
 	}
 }
 
@@ -5222,168 +5214,138 @@ func TestVistrutahKAT(t *testing.T) {
 	})
 }
 
-func vistrutah256EncryptBlock(src, key *[32]byte, rounds int) (dst [32]byte) {
-	vistrutah256EncryptBlockHW(&dst, src, key, rounds)
-	return dst
-}
-
-func vistrutah256Encrypt4Blocks(src *[4][32]byte, key *[32]byte, rounds int) (dst [4][32]byte) {
-	vistrutah256Encrypt4BlocksHW(&dst, src, key, rounds)
-	return dst
-}
-
-func vistrutah512EncryptBlock256(src *[64]byte, key *[32]byte, rounds int) (dst [64]byte) {
-	vistrutah512EncryptBlock256HW(&dst, src, key, rounds)
-	return dst
-}
-
-func vistrutah512Encrypt4Blocks256(src *[4][64]byte, key *[32]byte, rounds int) (dst [4][64]byte) {
-	vistrutah512Encrypt4Blocks256HW(&dst, src, key, rounds)
-	return dst
-}
-
-func vistrutah512EncryptBlock512(src, key *[64]byte, rounds int) (dst [64]byte) {
-	vistrutah512EncryptBlock512HW(&dst, src, key, rounds)
-	return dst
-}
-
-func vistrutah512Encrypt4Blocks512(src *[4][64]byte, key *[64]byte, rounds int) (dst [4][64]byte) {
-	vistrutah512Encrypt4Blocks512HW(&dst, src, key, rounds)
-	return dst
-}
-
 func BenchmarkVistrutah256_10r_EncryptBlockHW(b *testing.B) {
-	var key, state [32]byte
+	var key, state, out [32]byte
 	b.SetBytes(32)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		state = vistrutah256EncryptBlock(&state, &key, 10)
+		vistrutah256EncryptBlockHW(&out, &state, &key, 10)
 	}
 }
 
 func BenchmarkVistrutah256_14r_EncryptBlockHW(b *testing.B) {
-	var key, state [32]byte
+	var key, state, out [32]byte
 	b.SetBytes(32)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		state = vistrutah256EncryptBlock(&state, &key, 14)
+		vistrutah256EncryptBlockHW(&out, &state, &key, 14)
 	}
 }
 
 func BenchmarkVistrutah256_10r_Encrypt4BlocksHW(b *testing.B) {
 	var key [32]byte
-	var states [4][32]byte
+	var states, out [4][32]byte
 	b.SetBytes(128)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		states = vistrutah256Encrypt4Blocks(&states, &key, 10)
+		vistrutah256Encrypt4BlocksHW(&out, &states, &key, 10)
 	}
 }
 
 func BenchmarkVistrutah256_14r_Encrypt4BlocksHW(b *testing.B) {
 	var key [32]byte
-	var states [4][32]byte
+	var states, out [4][32]byte
 	b.SetBytes(128)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		states = vistrutah256Encrypt4Blocks(&states, &key, 14)
+		vistrutah256Encrypt4BlocksHW(&out, &states, &key, 14)
 	}
 }
 
 func BenchmarkVistrutah512_256k_10r_EncryptBlockHW(b *testing.B) {
 	var key [32]byte
-	var state [64]byte
+	var state, out [64]byte
 	b.SetBytes(64)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		state = vistrutah512EncryptBlock256(&state, &key, 10)
+		vistrutah512EncryptBlock256HW(&out, &state, &key, 10)
 	}
 }
 
 func BenchmarkVistrutah512_256k_14r_EncryptBlockHW(b *testing.B) {
 	var key [32]byte
-	var state [64]byte
+	var state, out [64]byte
 	b.SetBytes(64)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		state = vistrutah512EncryptBlock256(&state, &key, 14)
+		vistrutah512EncryptBlock256HW(&out, &state, &key, 14)
 	}
 }
 
 func BenchmarkVistrutah512_256k_18r_EncryptBlockHW(b *testing.B) {
 	var key [32]byte
-	var state [64]byte
+	var state, out [64]byte
 	b.SetBytes(64)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		state = vistrutah512EncryptBlock256(&state, &key, 18)
+		vistrutah512EncryptBlock256HW(&out, &state, &key, 18)
 	}
 }
 
 func BenchmarkVistrutah512_512k_12r_EncryptBlockHW(b *testing.B) {
-	var key, state [64]byte
+	var key, state, out [64]byte
 	b.SetBytes(64)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		state = vistrutah512EncryptBlock512(&state, &key, 12)
+		vistrutah512EncryptBlock512HW(&out, &state, &key, 12)
 	}
 }
 
 func BenchmarkVistrutah512_512k_18r_EncryptBlockHW(b *testing.B) {
-	var key, state [64]byte
+	var key, state, out [64]byte
 	b.SetBytes(64)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		state = vistrutah512EncryptBlock512(&state, &key, 18)
+		vistrutah512EncryptBlock512HW(&out, &state, &key, 18)
 	}
 }
 
 func BenchmarkVistrutah512_256k_10r_Encrypt4BlocksHW(b *testing.B) {
 	var key [32]byte
-	var states [4][64]byte
+	var states, out [4][64]byte
 	b.SetBytes(256)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		states = vistrutah512Encrypt4Blocks256(&states, &key, 10)
+		vistrutah512Encrypt4Blocks256HW(&out, &states, &key, 10)
 	}
 }
 
 func BenchmarkVistrutah512_256k_14r_Encrypt4BlocksHW(b *testing.B) {
 	var key [32]byte
-	var states [4][64]byte
+	var states, out [4][64]byte
 	b.SetBytes(256)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		states = vistrutah512Encrypt4Blocks256(&states, &key, 14)
+		vistrutah512Encrypt4Blocks256HW(&out, &states, &key, 14)
 	}
 }
 
 func BenchmarkVistrutah512_256k_18r_Encrypt4BlocksHW(b *testing.B) {
 	var key [32]byte
-	var states [4][64]byte
+	var states, out [4][64]byte
 	b.SetBytes(256)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		states = vistrutah512Encrypt4Blocks256(&states, &key, 18)
+		vistrutah512Encrypt4Blocks256HW(&out, &states, &key, 18)
 	}
 }
 
 func BenchmarkVistrutah512_512k_12r_Encrypt4BlocksHW(b *testing.B) {
 	var key [64]byte
-	var states [4][64]byte
+	var states, out [4][64]byte
 	b.SetBytes(256)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		states = vistrutah512Encrypt4Blocks512(&states, &key, 12)
+		vistrutah512Encrypt4Blocks512HW(&out, &states, &key, 12)
 	}
 }
 
 func BenchmarkVistrutah512_512k_18r_Encrypt4BlocksHW(b *testing.B) {
 	var key [64]byte
-	var states [4][64]byte
+	var states, out [4][64]byte
 	b.SetBytes(256)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		states = vistrutah512Encrypt4Blocks512(&states, &key, 18)
+		vistrutah512Encrypt4Blocks512HW(&out, &states, &key, 18)
 	}
 }

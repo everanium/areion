@@ -21,6 +21,9 @@ func aes128EncryptBlockAsm(rk *[11][16]byte, dst, src *[16]byte)
 func aes128Encrypt4BlocksAsm(rk *[11][16]byte, dst, src *[64]byte)
 
 //go:noescape
+func aes128ExpandKeyAsm(rk *[11][16]byte, key *[16]byte)
+
+//go:noescape
 func rijndael256EncryptBlockAsm(rk *[15][32]byte, dst, src *[32]byte)
 
 //go:noescape
@@ -61,6 +64,12 @@ func areionSoEM256Asm(out *[32]byte, key *[64]byte, m *[32]byte)
 
 //go:noescape
 func areionSoEM512Asm(out *[64]byte, key *[128]byte, m *[64]byte)
+
+//go:noescape
+func areion256DMAsm(out, m *[32]byte)
+
+//go:noescape
+func areion512DMAsm(out *[32]byte, m *[64]byte)
 
 //go:noescape
 func areion256Permutex4RC(b0, b1, b2, b3 *[32]byte, rc *[15][16]byte)
@@ -224,10 +233,17 @@ func aes128Encrypt4Blocks(rk *[11][16]byte, dst, src *[64]byte) {
 	aes128Encrypt4BlocksSoftware(rk, dst, src)
 }
 
+func expandKey128(key *[16]byte, rk *[11][16]byte) {
+	if hasARMCrypto && TierCode() != TierPureGo {
+		aes128ExpandKeyAsm(rk, key)
+		return
+	}
+	expandKey128Software(key, rk)
+}
+
 func rijndael256EncryptBlockHW(rk *[15][32]byte, dst, src *[32]byte) {
 	if hasARMCrypto && TierCode() != TierPureGo {
 		rijndael256EncryptBlockAsm(rk, dst, src)
-		clobberScratchGPRs()
 		return
 	}
 	rijndael256EncryptBlockSoftware(rk, dst, src)
@@ -236,7 +252,6 @@ func rijndael256EncryptBlockHW(rk *[15][32]byte, dst, src *[32]byte) {
 func rijndael256Encrypt4BlocksHW(rk *[15][32]byte, dst, src *[4][32]byte) {
 	if hasARMCrypto && TierCode() != TierPureGo {
 		rijndael256Encrypt4BlocksAsm(rk, dst, src)
-		clobberScratchGPRs()
 		return
 	}
 	rijndael256Encrypt4BlocksSoftware(rk, dst, src)
@@ -245,7 +260,6 @@ func rijndael256Encrypt4BlocksHW(rk *[15][32]byte, dst, src *[4][32]byte) {
 func vistrutah256EncryptBlockHW(dst, src, key *[32]byte, rounds int) {
 	if (rounds == 10 || rounds == 14) && hasARMCrypto && TierCode() != TierPureGo {
 		vistrutah256EncryptBlockAsm(dst, src, key, rounds)
-		clobberScratchGPRs()
 		return
 	}
 	vistrutah256EncryptBlockSoft(dst, src, key, rounds)
@@ -254,7 +268,6 @@ func vistrutah256EncryptBlockHW(dst, src, key *[32]byte, rounds int) {
 func vistrutah256Encrypt4BlocksHW(dst, src *[4][32]byte, key *[32]byte, rounds int) {
 	if (rounds == 10 || rounds == 14) && hasARMCrypto && TierCode() != TierPureGo {
 		vistrutah256Encrypt4BlocksAsm(dst, src, key, rounds)
-		clobberScratchGPRs()
 		return
 	}
 	vistrutah256Encrypt4BlocksSoft(dst, src, key, rounds)
@@ -263,7 +276,6 @@ func vistrutah256Encrypt4BlocksHW(dst, src *[4][32]byte, key *[32]byte, rounds i
 func vistrutah512EncryptBlock256HW(dst, src *[64]byte, key *[32]byte, rounds int) {
 	if (rounds == 10 || rounds == 12 || rounds == 14 || rounds == 18) && hasARMCrypto && TierCode() != TierPureGo {
 		vistrutah512EncryptBlock256Asm(dst, src, key, rounds)
-		clobberScratchGPRs()
 		return
 	}
 	vistrutah512EncryptBlock256Soft(dst, src, key, rounds)
@@ -272,7 +284,6 @@ func vistrutah512EncryptBlock256HW(dst, src *[64]byte, key *[32]byte, rounds int
 func vistrutah512EncryptBlock512HW(dst, src, key *[64]byte, rounds int) {
 	if (rounds == 10 || rounds == 12 || rounds == 14 || rounds == 18) && hasARMCrypto && TierCode() != TierPureGo {
 		vistrutah512EncryptBlock512Asm(dst, src, key, rounds)
-		clobberScratchGPRs()
 		return
 	}
 	vistrutah512EncryptBlock512Soft(dst, src, key, rounds)
@@ -281,7 +292,6 @@ func vistrutah512EncryptBlock512HW(dst, src, key *[64]byte, rounds int) {
 func vistrutah512Encrypt4Blocks256HW(dst, src *[4][64]byte, key *[32]byte, rounds int) {
 	if (rounds == 10 || rounds == 12 || rounds == 14 || rounds == 18) && hasARMCrypto && TierCode() != TierPureGo {
 		vistrutah512Encrypt4Blocks256Asm(dst, src, key, rounds)
-		clobberScratchGPRs()
 		return
 	}
 	vistrutah512Encrypt4Blocks256Soft(dst, src, key, rounds)
@@ -290,7 +300,6 @@ func vistrutah512Encrypt4Blocks256HW(dst, src *[4][64]byte, key *[32]byte, round
 func vistrutah512Encrypt4Blocks512HW(dst, src *[4][64]byte, key *[64]byte, rounds int) {
 	if (rounds == 10 || rounds == 12 || rounds == 14 || rounds == 18) && hasARMCrypto && TierCode() != TierPureGo {
 		vistrutah512Encrypt4Blocks512Asm(dst, src, key, rounds)
-		clobberScratchGPRs()
 		return
 	}
 	vistrutah512Encrypt4Blocks512Soft(dst, src, key, rounds)
@@ -368,7 +377,6 @@ func areionSoEM256(key *[64]byte, m *[32]byte) (out [32]byte) {
 		return soem256Software(key, m)
 	}
 	areionSoEM256Asm(&out, key, m)
-	clobberScratchGPRs()
 	return out
 }
 
@@ -377,8 +385,23 @@ func areionSoEM512(key *[128]byte, m *[64]byte) (out [64]byte) {
 		return soem512Software(key, m)
 	}
 	areionSoEM512Asm(&out, key, m)
-	clobberScratchGPRs()
 	return out
+}
+
+func areionDM256(out, m *[32]byte) {
+	if hasARMCrypto && TierCode() != TierPureGo {
+		areion256DMAsm(out, m)
+		return
+	}
+	dm256Software(out, m)
+}
+
+func areionDM512(out *[32]byte, m *[64]byte) {
+	if hasARMCrypto && TierCode() != TierPureGo {
+		areion512DMAsm(out, m)
+		return
+	}
+	dm512Software(out, m)
 }
 
 func areion256Permutex4(states *[4][32]byte) {
@@ -396,7 +419,6 @@ func areion256Permutex4Table(states *[4][32]byte, rc *[15][16]byte) {
 		return
 	}
 	areion256Permutex4RC(&states[0], &states[1], &states[2], &states[3], rc)
-	clobberScratchGPRs()
 }
 
 func areion256InversePermutex4(states *[4][32]byte) {
@@ -414,7 +436,6 @@ func areion256InversePermutex4Table(states *[4][32]byte, rc *[15][16]byte) {
 		return
 	}
 	areion256InversePermutex4RC(&states[0], &states[1], &states[2], &states[3], rc)
-	clobberScratchGPRs()
 }
 
 func areion512Permutex4(states *[4][64]byte) {
@@ -432,7 +453,6 @@ func areion512Permutex4Table(states *[4][64]byte, rc *[15][16]byte) {
 		return
 	}
 	areion512Permutex4RC(&states[0], &states[1], &states[2], &states[3], rc)
-	clobberScratchGPRs()
 }
 
 func areion512InversePermutex4(states *[4][64]byte) {
@@ -450,7 +470,6 @@ func areion512InversePermutex4Table(states *[4][64]byte, rc *[15][16]byte) {
 		return
 	}
 	areion512InversePermutex4RC(&states[0], &states[1], &states[2], &states[3], rc)
-	clobberScratchGPRs()
 }
 
 func areionSoEM256x4(keys *[4][64]byte, inputs *[4][32]byte) (out [4][32]byte) {
@@ -458,7 +477,6 @@ func areionSoEM256x4(keys *[4][64]byte, inputs *[4][32]byte) (out [4][32]byte) {
 		return soem256x4Software(keys, inputs)
 	}
 	areion256SoEMPermutex4NEON(&out, inputs, keys)
-	clobberScratchGPRs()
 	return out
 }
 
@@ -467,7 +485,6 @@ func areionSoEM512x4(keys *[4][128]byte, inputs *[4][64]byte) (out [4][64]byte) 
 		return soem512x4Software(keys, inputs)
 	}
 	areion512SoEMPermutex4NEON(&out, inputs, keys)
-	clobberScratchGPRs()
 	return out
 }
 
@@ -477,7 +494,6 @@ func areionEMEncrypt256(out *[32]byte, m *[32]byte, k *[64]byte) {
 		return
 	}
 	areion256EMEncryptAsm(out, m, k)
-	clobberScratchGPRs()
 }
 
 func areionEMDecrypt256(out *[32]byte, c *[32]byte, k *[64]byte) {
@@ -486,7 +502,6 @@ func areionEMDecrypt256(out *[32]byte, c *[32]byte, k *[64]byte) {
 		return
 	}
 	areion256EMDecryptAsm(out, c, k)
-	clobberScratchGPRs()
 }
 
 func areionEMEncrypt512(out *[64]byte, m *[64]byte, k *[128]byte) {
@@ -495,7 +510,6 @@ func areionEMEncrypt512(out *[64]byte, m *[64]byte, k *[128]byte) {
 		return
 	}
 	areion512EMEncryptAsm(out, m, k)
-	clobberScratchGPRs()
 }
 
 func areionEMDecrypt512(out *[64]byte, c *[64]byte, k *[128]byte) {
@@ -504,7 +518,6 @@ func areionEMDecrypt512(out *[64]byte, c *[64]byte, k *[128]byte) {
 		return
 	}
 	areion512EMDecryptAsm(out, c, k)
-	clobberScratchGPRs()
 }
 
 func areionEM2Encrypt256(out *[32]byte, m *[32]byte, k *[64]byte) {
@@ -513,7 +526,6 @@ func areionEM2Encrypt256(out *[32]byte, m *[32]byte, k *[64]byte) {
 		return
 	}
 	areion256EM2EncryptAsm(out, m, k)
-	clobberScratchGPRs()
 }
 
 func areionEM2Decrypt256(out *[32]byte, c *[32]byte, k *[64]byte) {
@@ -522,7 +534,6 @@ func areionEM2Decrypt256(out *[32]byte, c *[32]byte, k *[64]byte) {
 		return
 	}
 	areion256EM2DecryptAsm(out, c, k)
-	clobberScratchGPRs()
 }
 
 func areionEM2Encrypt512(out *[64]byte, m *[64]byte, k *[128]byte) {
@@ -531,7 +542,6 @@ func areionEM2Encrypt512(out *[64]byte, m *[64]byte, k *[128]byte) {
 		return
 	}
 	areion512EM2EncryptAsm(out, m, k)
-	clobberScratchGPRs()
 }
 
 func areionEM2Decrypt512(out *[64]byte, c *[64]byte, k *[128]byte) {
@@ -540,7 +550,6 @@ func areionEM2Decrypt512(out *[64]byte, c *[64]byte, k *[128]byte) {
 		return
 	}
 	areion512EM2DecryptAsm(out, c, k)
-	clobberScratchGPRs()
 }
 
 func areionTEMEncrypt256(out *[32]byte, m *[32]byte, k *[64]byte, t *[32]byte) {
@@ -549,7 +558,6 @@ func areionTEMEncrypt256(out *[32]byte, m *[32]byte, k *[64]byte, t *[32]byte) {
 		return
 	}
 	areion256TEMEncryptAsm(out, m, k, t)
-	clobberScratchGPRs()
 }
 
 func areionTEMDecrypt256(out *[32]byte, c *[32]byte, k *[64]byte, t *[32]byte) {
@@ -558,7 +566,6 @@ func areionTEMDecrypt256(out *[32]byte, c *[32]byte, k *[64]byte, t *[32]byte) {
 		return
 	}
 	areion256TEMDecryptAsm(out, c, k, t)
-	clobberScratchGPRs()
 }
 
 func areionTEMEncrypt512(out *[64]byte, m *[64]byte, k *[128]byte, t *[64]byte) {
@@ -567,7 +574,6 @@ func areionTEMEncrypt512(out *[64]byte, m *[64]byte, k *[128]byte, t *[64]byte) 
 		return
 	}
 	areion512TEMEncryptAsm(out, m, k, t)
-	clobberScratchGPRs()
 }
 
 func areionTEMDecrypt512(out *[64]byte, c *[64]byte, k *[128]byte, t *[64]byte) {
@@ -576,7 +582,6 @@ func areionTEMDecrypt512(out *[64]byte, c *[64]byte, k *[128]byte, t *[64]byte) 
 		return
 	}
 	areion512TEMDecryptAsm(out, c, k, t)
-	clobberScratchGPRs()
 }
 
 func areionTEM2Encrypt256(out *[32]byte, m *[32]byte, k *[64]byte, t *[32]byte) {
@@ -585,7 +590,6 @@ func areionTEM2Encrypt256(out *[32]byte, m *[32]byte, k *[64]byte, t *[32]byte) 
 		return
 	}
 	areion256TEM2EncryptAsm(out, m, k, t)
-	clobberScratchGPRs()
 }
 
 func areionTEM2Decrypt256(out *[32]byte, c *[32]byte, k *[64]byte, t *[32]byte) {
@@ -594,7 +598,6 @@ func areionTEM2Decrypt256(out *[32]byte, c *[32]byte, k *[64]byte, t *[32]byte) 
 		return
 	}
 	areion256TEM2DecryptAsm(out, c, k, t)
-	clobberScratchGPRs()
 }
 
 func areionTEM2Encrypt512(out *[64]byte, m *[64]byte, k *[128]byte, t *[64]byte) {
@@ -603,7 +606,6 @@ func areionTEM2Encrypt512(out *[64]byte, m *[64]byte, k *[128]byte, t *[64]byte)
 		return
 	}
 	areion512TEM2EncryptAsm(out, m, k, t)
-	clobberScratchGPRs()
 }
 
 func areionTEM2Decrypt512(out *[64]byte, c *[64]byte, k *[128]byte, t *[64]byte) {
@@ -612,7 +614,6 @@ func areionTEM2Decrypt512(out *[64]byte, c *[64]byte, k *[128]byte, t *[64]byte)
 		return
 	}
 	areion512TEM2DecryptAsm(out, c, k, t)
-	clobberScratchGPRs()
 }
 
 func areionEMEncrypt256x4(out *[4][32]byte, msgs *[4][32]byte, keys *[4][64]byte) {
@@ -621,7 +622,6 @@ func areionEMEncrypt256x4(out *[4][32]byte, msgs *[4][32]byte, keys *[4][64]byte
 		return
 	}
 	areion256EMEncryptx4Asm(out, msgs, keys)
-	clobberScratchGPRs()
 }
 
 func areionEMDecrypt256x4(out *[4][32]byte, ct *[4][32]byte, keys *[4][64]byte) {
@@ -630,7 +630,6 @@ func areionEMDecrypt256x4(out *[4][32]byte, ct *[4][32]byte, keys *[4][64]byte) 
 		return
 	}
 	areion256EMDecryptx4Asm(out, ct, keys)
-	clobberScratchGPRs()
 }
 
 func areionEMEncrypt512x4(out *[4][64]byte, msgs *[4][64]byte, keys *[4][128]byte) {
@@ -639,7 +638,6 @@ func areionEMEncrypt512x4(out *[4][64]byte, msgs *[4][64]byte, keys *[4][128]byt
 		return
 	}
 	areion512EMEncryptx4Asm(out, msgs, keys)
-	clobberScratchGPRs()
 }
 
 func areionEMDecrypt512x4(out *[4][64]byte, ct *[4][64]byte, keys *[4][128]byte) {
@@ -648,7 +646,6 @@ func areionEMDecrypt512x4(out *[4][64]byte, ct *[4][64]byte, keys *[4][128]byte)
 		return
 	}
 	areion512EMDecryptx4Asm(out, ct, keys)
-	clobberScratchGPRs()
 }
 
 func areionEM2Encrypt256x4(out *[4][32]byte, msgs *[4][32]byte, keys *[4][64]byte) {
@@ -657,7 +654,6 @@ func areionEM2Encrypt256x4(out *[4][32]byte, msgs *[4][32]byte, keys *[4][64]byt
 		return
 	}
 	areion256EM2Encryptx4Asm(out, msgs, keys)
-	clobberScratchGPRs()
 }
 
 func areionEM2Decrypt256x4(out *[4][32]byte, ct *[4][32]byte, keys *[4][64]byte) {
@@ -666,7 +662,6 @@ func areionEM2Decrypt256x4(out *[4][32]byte, ct *[4][32]byte, keys *[4][64]byte)
 		return
 	}
 	areion256EM2Decryptx4Asm(out, ct, keys)
-	clobberScratchGPRs()
 }
 
 func areionEM2Encrypt512x4(out *[4][64]byte, msgs *[4][64]byte, keys *[4][128]byte) {
@@ -675,7 +670,6 @@ func areionEM2Encrypt512x4(out *[4][64]byte, msgs *[4][64]byte, keys *[4][128]by
 		return
 	}
 	areion512EM2Encryptx4Asm(out, msgs, keys)
-	clobberScratchGPRs()
 }
 
 func areionEM2Decrypt512x4(out *[4][64]byte, ct *[4][64]byte, keys *[4][128]byte) {
@@ -684,7 +678,6 @@ func areionEM2Decrypt512x4(out *[4][64]byte, ct *[4][64]byte, keys *[4][128]byte
 		return
 	}
 	areion512EM2Decryptx4Asm(out, ct, keys)
-	clobberScratchGPRs()
 }
 
 func areionTEMEncrypt256x4(out *[4][32]byte, msgs *[4][32]byte, keys *[4][64]byte, tweaks *[4][32]byte) {
@@ -693,7 +686,6 @@ func areionTEMEncrypt256x4(out *[4][32]byte, msgs *[4][32]byte, keys *[4][64]byt
 		return
 	}
 	areion256TEMEncryptx4Asm(out, msgs, keys, tweaks)
-	clobberScratchGPRs()
 }
 
 func areionTEMDecrypt256x4(out *[4][32]byte, ct *[4][32]byte, keys *[4][64]byte, tweaks *[4][32]byte) {
@@ -702,7 +694,6 @@ func areionTEMDecrypt256x4(out *[4][32]byte, ct *[4][32]byte, keys *[4][64]byte,
 		return
 	}
 	areion256TEMDecryptx4Asm(out, ct, keys, tweaks)
-	clobberScratchGPRs()
 }
 
 func areionTEMEncrypt512x4(out *[4][64]byte, msgs *[4][64]byte, keys *[4][128]byte, tweaks *[4][64]byte) {
@@ -711,7 +702,6 @@ func areionTEMEncrypt512x4(out *[4][64]byte, msgs *[4][64]byte, keys *[4][128]by
 		return
 	}
 	areion512TEMEncryptx4Asm(out, msgs, keys, tweaks)
-	clobberScratchGPRs()
 }
 
 func areionTEMDecrypt512x4(out *[4][64]byte, ct *[4][64]byte, keys *[4][128]byte, tweaks *[4][64]byte) {
@@ -720,7 +710,6 @@ func areionTEMDecrypt512x4(out *[4][64]byte, ct *[4][64]byte, keys *[4][128]byte
 		return
 	}
 	areion512TEMDecryptx4Asm(out, ct, keys, tweaks)
-	clobberScratchGPRs()
 }
 
 func areionTEM2Encrypt256x4(out *[4][32]byte, msgs *[4][32]byte, keys *[4][64]byte, tweaks *[4][32]byte) {
@@ -729,7 +718,6 @@ func areionTEM2Encrypt256x4(out *[4][32]byte, msgs *[4][32]byte, keys *[4][64]by
 		return
 	}
 	areion256TEM2Encryptx4Asm(out, msgs, keys, tweaks)
-	clobberScratchGPRs()
 }
 
 func areionTEM2Decrypt256x4(out *[4][32]byte, ct *[4][32]byte, keys *[4][64]byte, tweaks *[4][32]byte) {
@@ -738,7 +726,6 @@ func areionTEM2Decrypt256x4(out *[4][32]byte, ct *[4][32]byte, keys *[4][64]byte
 		return
 	}
 	areion256TEM2Decryptx4Asm(out, ct, keys, tweaks)
-	clobberScratchGPRs()
 }
 
 func areionTEM2Encrypt512x4(out *[4][64]byte, msgs *[4][64]byte, keys *[4][128]byte, tweaks *[4][64]byte) {
@@ -747,7 +734,6 @@ func areionTEM2Encrypt512x4(out *[4][64]byte, msgs *[4][64]byte, keys *[4][128]b
 		return
 	}
 	areion512TEM2Encryptx4Asm(out, msgs, keys, tweaks)
-	clobberScratchGPRs()
 }
 
 func areionTEM2Decrypt512x4(out *[4][64]byte, ct *[4][64]byte, keys *[4][128]byte, tweaks *[4][64]byte) {
@@ -756,5 +742,4 @@ func areionTEM2Decrypt512x4(out *[4][64]byte, ct *[4][64]byte, keys *[4][128]byt
 		return
 	}
 	areion512TEM2Decryptx4Asm(out, ct, keys, tweaks)
-	clobberScratchGPRs()
 }
