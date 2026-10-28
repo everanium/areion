@@ -170,9 +170,9 @@ The package automatically detects host CPU features:
 
 3-run averaged throughput comparison across execution tiers on the same physical CPU (with reference cycles per byte `c = f · t / B` at `f = 3.60 GHz` reaching `0.32` / `0.33 c/B` on `Permute512x4` / `Permute512P2x4`, `0.58 c/B` on `InversePermute512x4` / `InversePermute512P2x4`, `0.43` / `0.58 c/B` on `SoEM256x4` / `SoEM512x4`, and `0.28` / `0.29 c/B` on `EMEncrypt256x4` / `EMEncrypt512x4`):
 
-#### Core Permutations, Davies-Meyer, SoEM22 & AES-128 Primitives
+#### Core Permutations, Davies-Meyer, SoEM22 & AES-128 Primitives (`MB/s`, `ns/op`)
 
-| Operation | `purego` MB/s | `aesni` MB/s | `vex` MB/s | `vaesavx2` MB/s | `avx512` MB/s | `c/B` (best) |
+| Operation | `purego` | `aesni` | `vex` | `vaesavx2` | `avx512` | `c/B` (best) |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
 | **`Permute256`** | 35.6 (905.33 ns) | 2,062.3 (15.52 ns) | 2,125.3 (15.06 ns) | 2,116.8 (15.12 ns) | 2,125.5 (15.06 ns) | 1.69 c/B |
 | **`Permute512`** | 39.4 (1,627.33 ns) | 4,029.9 (15.90 ns) | 4,043.4 (15.83 ns) | 4,039.1 (15.85 ns) | 4,039.2 (15.85 ns) | 0.89 c/B |
@@ -202,9 +202,9 @@ The package automatically detects host CPU features:
 | **`AES128EncryptBlock`** | 30.8 (523.27 ns) | 1,889.3 (8.47 ns) | 1,899.6 (8.42 ns) | 1,902.4 (8.41 ns) | 1,903.3 (8.41 ns) | 1.89 c/B |
 | **`AES128Encrypt4Blocks`** | 118.2 (541.53 ns) | 7,272.8 (8.80 ns) | 7,390.9 (8.66 ns) | 7,381.9 (8.67 ns) | 7,386.2 (8.67 ns) | 0.49 c/B |
 
-#### Wide-Block Ciphers (`EM`, `EM2`, `TEM`, `TEM2`) vs. `Rijndael-256` & `Vistrutah-256/512`
+#### Wide-Block Ciphers (`EM`, `EM2`, `TEM`, `TEM2`) vs. `Rijndael-256` & `Vistrutah-256/512` (`MB/s`, `ns/op`)
 
-| Operation | `purego` MB/s | `aesni` MB/s | `vex` MB/s | `vaesavx2` MB/s | `avx512` MB/s | `c/B` (best) |
+| Operation | `purego` | `aesni` | `vex` | `vaesavx2` | `avx512` | `c/B` (best) |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
 | **`EMEncrypt256`** | 37.8 (847.17 ns) | 4,561.2 (7.03 ns) | 5,810.6 (5.51 ns) | 5,378.3 (5.95 ns) | 5,667.7 (5.65 ns) | 0.62 c/B |
 | **`EMDecrypt256`** | 34.9 (918.73 ns) | 3,554.7 (9.03 ns) | 4,101.7 (7.80 ns) | 4,400.4 (7.28 ns) | 4,306.1 (7.43 ns) | 0.82 c/B |
@@ -261,9 +261,9 @@ All operations: 0 B/op, 0 allocs/op. On Intel® Core™ i7-11700K, `EMEncrypt256
 
 3-run averaged throughput measured on AWS Graviton 4 (`purego` bitsliced fallback vs `arm64` ARMv8 Cryptographic Extension; reference cycles per byte `c = f · t / B` at `f = 2.80 GHz` reach `0.55 c/B` on `Permute512x4` / `Permute512P2x4`, `0.57` / `0.63 c/B` on `InversePermute256x4` / `InversePermute512x4`, `1.05` / `1.63 c/B` on `SoEM256x4` / `SoEM512x4`, and `0.75` / `0.64 c/B` on `EMEncrypt256x4` / `EMEncrypt512x4`):
 
-#### Core Permutations, Davies-Meyer, SoEM22 & AES-128 Primitives
+#### Core Permutations, Davies-Meyer, SoEM22 & AES-128 Primitives (`MB/s`, `ns/op`)
 
-| Operation | `purego` MB/s | `arm64` MB/s | `c/B` (`arm64`) |
+| Operation | `purego` | `arm64` | `c/B` (`arm64`) |
 | :--- | :---: | :---: | :---: |
 | **`Permute256`** | 35.6 (898.00 ns) | 1,034.3 (30.94 ns) | 2.71 c/B |
 | **`Permute512`** | 39.8 (1,606.33 ns) | 1,853.8 (34.52 ns) | 1.51 c/B |
@@ -293,9 +293,9 @@ All operations: 0 B/op, 0 allocs/op. On Intel® Core™ i7-11700K, `EMEncrypt256
 | **`AES128EncryptBlock`** | 31.3 (511.17 ns) | 1,594.2 (10.04 ns) | 1.76 c/B |
 | **`AES128Encrypt4Blocks`** | 113.8 (562.37 ns) | 6,053.8 (10.57 ns) | 0.46 c/B |
 
-#### Wide-Block Ciphers (`EM`, `EM2`, `TEM`, `TEM2`) vs. `Rijndael-256` & `Vistrutah-256/512`
+#### Wide-Block Ciphers (`EM`, `EM2`, `TEM`, `TEM2`) vs. `Rijndael-256` & `Vistrutah-256/512` (`MB/s`, `ns/op`)
 
-| Operation | `purego` MB/s | `arm64` MB/s | `c/B` (`arm64`) |
+| Operation | `purego` | `arm64` | `c/B` (`arm64`) |
 | :--- | :---: | :---: | :---: |
 | **`EMEncrypt256`** | 35.5 (900.30 ns) | 2,335.2 (13.70 ns) | 1.20 c/B |
 | **`EMDecrypt256`** | 34.2 (934.30 ns) | 2,566.0 (12.47 ns) | 1.09 c/B |
@@ -348,7 +348,7 @@ All operations: 0 B/op, 0 allocs/op. On Intel® Core™ i7-11700K, `EMEncrypt256
 
 All operations: 0 B/op, 0 allocs/op.
 
-### 3. Comparison with `Rijndael-256` (`NIST SP 800-197`) and `Vistrutah-256/512` ([ePrint 2025/976](https://eprint.iacr.org/2025/976))
+### 3. Comparison with `Rijndael-256` (`NIST SP 800-197`) and `Vistrutah-256/512` ([ePrint 2025/976](https://eprint.iacr.org/2025/976)) (`MB/s`, `ns/op`)
 
 - **`Rijndael-256`** (14 rounds, 256-bit block, 256-bit key, `ShiftRows` offsets `(0, 1, 3, 4)` across an `8 × 4` byte matrix) requires a cross-128-bit-half byte permutation `InvShiftRows_AES128` ∘ `ShiftRows_R256(0,1,3,4)` (`PSHUFB`/`VPSHUFB` + `PBLENDVB`/`VPBLENDVB` on x86-64, `VTBL2` on ARM64) before every round and 480 bytes (`15 × 32 B`) of pre-expanded round keys in RAM.
 - **`Vistrutah-256`** (`10` or `14` rounds, 256-bit block, 256-bit key) and **`Vistrutah-512`** (`10`, `14`, or `18` rounds with 256-bit key; `12` or `18` rounds with 512-bit key) alternate pairs of parallel 128-bit AES rounds with a cross-slice `mixSlice` byte shuffle (`PUNPCK*` + `PALIGNR`/`PSHUFB` on x86-64, `VZIP1`/`VZIP2` + `VTBL` on ARM64) every two rounds and an on-the-fly key permutation `ρ`.
@@ -356,30 +356,30 @@ All operations: 0 B/op, 0 allocs/op.
 
 | Wide-Block Cipher Primitive | Intel Core i7-11700K (Best HW Tier) | AWS Graviton 4 (`arm64`) | Block / Key / RAM Key State & Security |
 | :--- | :---: | :---: | :--- |
-| **`EMEncrypt256`** | **5,810.6 MB/s** (`5.51 ns/op`) | **2,335.2 MB/s** (`13.70 ns/op`) | 256b / 512b key, `0 B` RAM RK (`2^128` PRP) |
-| **`EMEncrypt512`** | **5,615.2 MB/s** (`11.40 ns/op`) | **2,291.8 MB/s** (`27.93 ns/op`) | 512b / 1024b key, `0 B` RAM RK (`2^256` PRP) |
-| **`EM2Encrypt256`** | **2,348.6 MB/s** (`13.64 ns/op`) | **994.4 MB/s** (`32.18 ns/op`) | 256b / 512b key, `0 B` RAM RK (`2^170.7` BBB PRP) |
-| **`EM2Encrypt512`** | **2,419.0 MB/s** (`26.46 ns/op`) | **1,049.9 MB/s** (`60.96 ns/op`) | 512b / 1024b key, `0 B` RAM RK (`2^341.3` BBB PRP) |
-| **`TEMEncrypt256`** | **2,341.2 MB/s** (`13.68 ns/op`) | **975.5 MB/s** (`32.81 ns/op`) | 256b / 512b + 256b tweak, `0 B` RAM RK (`2^128` TPRP) |
-| **`TEMEncrypt512`** | **2,317.4 MB/s** (`27.63 ns/op`) | **1,033.5 MB/s** (`61.93 ns/op`) | 512b / 1024b + 512b tweak, `0 B` RAM RK (`2^256` TPRP) |
-| **`TEM2Encrypt256`** | **1,187.8 MB/s** (`26.95 ns/op`) | **451.1 MB/s** (`70.93 ns/op`) | 256b / 512b + 256b tweak, `0 B` RAM RK (`2^170.7` BBB TPRP) |
-| **`TEM2Encrypt512`** | **1,341.3 MB/s** (`47.72 ns/op`) | **644.1 MB/s** (`99.36 ns/op`) | 512b / 1024b + 512b tweak, `0 B` RAM RK (`2^341.3` BBB TPRP) |
-| **`EMEncrypt256x4`** | **12,789.7 MB/s** (`2.51 ns/block`) | **3,743.4 MB/s** (`8.55 ns/block`) | 4×256b, `0 B` RAM RK (`2^128` PRP) |
-| **`EMEncrypt512x4`** | **12,409.3 MB/s** (`5.16 ns/block`) | **4,384.3 MB/s** (`14.60 ns/block`) | 4×512b, `0 B` RAM RK (`2^256` PRP) |
-| **`EM2Encrypt256x4`** | **6,513.2 MB/s** (`4.92 ns/block`) | **1,990.0 MB/s** (`16.08 ns/block`) | 4×256b, `0 B` RAM RK (`2^170.7` BBB PRP) |
-| **`EM2Encrypt512x4`** | **5,838.2 MB/s** (`10.97 ns/block`) | **2,381.6 MB/s** (`26.88 ns/block`) | 4×512b, `0 B` RAM RK (`2^341.3` BBB PRP) |
-| **`TEMEncrypt256x4`** | **6,282.9 MB/s** (`5.10 ns/block`) | **2,027.9 MB/s** (`15.78 ns/block`) | 4×256b + tweaks, `0 B` RAM RK (`2^128` TPRP) |
-| **`TEMEncrypt512x4`** | **5,788.9 MB/s** (`11.06 ns/block`) | **1,709.3 MB/s** (`37.45 ns/block`) | 4×512b + tweaks, `0 B` RAM RK (`2^256` TPRP) |
-| **`TEM2Encrypt256x4`** | **3,250.3 MB/s** (`9.86 ns/block`) | **1,078.6 MB/s** (`29.68 ns/block`) | 4×256b + tweaks, `0 B` RAM RK (`2^170.7` BBB TPRP) |
-| **`TEM2Encrypt512x4`** | **3,219.3 MB/s** (`19.88 ns/block`) | **885.2 MB/s** (`72.30 ns/block`) | 4×512b + tweaks, `0 B` RAM RK (`2^341.3` BBB TPRP) |
-| **`Rijndael-256 (14r)`** | 2,182.3 MB/s (`14.68 ns/op`) | 1,405.3 MB/s (`22.77 ns/op`) | 256b / 256b key, **`480 B` RAM RK** (`SP 800-197`) |
-| **`Rijndael-256x4 (14r)`** | 6,929.4 MB/s (`4.62 ns/block`) | 2,717.9 MB/s (`11.78 ns/block`) | 4×256b, **`480 B` RAM RK** (`SP 800-197`) |
-| **`Vistrutah-256 (10r / 14r)`** | 4,831.2 / 3,489.6 MB/s (`6.66` / `9.17 ns`) | 3,635.5 / 2,482.3 MB/s (`8.80` / `12.89 ns`) | 256b / 256b key, `0 B` RAM RK (`ePrint 2025/976`) |
-| **`Vistrutah-256x4 (10r / 14r)`** | 11,948.8 / 8,263.1 MB/s (`2.68` / `3.88 ns/blk`) | 6,323.2 / 4,575.8 MB/s (`5.06` / `6.99 ns/blk`) | 4×256b, `0 B` RAM RK (`ePrint 2025/976`) |
-| **`Vistrutah-512-256 (10r / 14r / 18r)`** | 4,892.2 / 3,185.5 / 2,444.7 MB/s | 3,786.7 / 2,594.4 / 1,961.1 MB/s | 512b / 256b key, `0 B` RAM RK (`ePrint 2025/976`) |
-| **`Vistrutah-512-512 (12r / 18r)`** | 4,038.6 / 2,364.7 MB/s | 3,094.8 / 1,985.3 MB/s | 512b / 512b key, `0 B` RAM RK (`ePrint 2025/976`) |
-| **`Vistrutah-512-256x4 (10r / 14r / 18r)`** | 10,641.0 / 7,111.6 / 5,564.7 MB/s | 5,449.5 / 4,147.9 / 3,235.4 MB/s | 4×512b / 256b key, `0 B` RAM RK (`ePrint 2025/976`) |
-| **`Vistrutah-512-512x4 (12r / 18r)`** | 8,820.2 / 5,729.1 MB/s | 4,849.4 / 3,262.1 MB/s | 4×512b / 512b key, `0 B` RAM RK (`ePrint 2025/976`) |
+| **`EMEncrypt256`** | **5,810.6** (`5.51 ns/op`) | **2,335.2** (`13.70 ns/op`) | 256b / 512b key, `0 B` RAM RK (`2^128` PRP) |
+| **`EMEncrypt512`** | **5,615.2** (`11.40 ns/op`) | **2,291.8** (`27.93 ns/op`) | 512b / 1024b key, `0 B` RAM RK (`2^256` PRP) |
+| **`EM2Encrypt256`** | **2,348.6** (`13.64 ns/op`) | **994.4** (`32.18 ns/op`) | 256b / 512b key, `0 B` RAM RK (`2^170.7` BBB PRP) |
+| **`EM2Encrypt512`** | **2,419.0** (`26.46 ns/op`) | **1,049.9** (`60.96 ns/op`) | 512b / 1024b key, `0 B` RAM RK (`2^341.3` BBB PRP) |
+| **`TEMEncrypt256`** | **2,341.2** (`13.68 ns/op`) | **975.5** (`32.81 ns/op`) | 256b / 512b + 256b tweak, `0 B` RAM RK (`2^128` TPRP) |
+| **`TEMEncrypt512`** | **2,317.4** (`27.63 ns/op`) | **1,033.5** (`61.93 ns/op`) | 512b / 1024b + 512b tweak, `0 B` RAM RK (`2^256` TPRP) |
+| **`TEM2Encrypt256`** | **1,187.8** (`26.95 ns/op`) | **451.1** (`70.93 ns/op`) | 256b / 512b + 256b tweak, `0 B` RAM RK (`2^170.7` BBB TPRP) |
+| **`TEM2Encrypt512`** | **1,341.3** (`47.72 ns/op`) | **644.1** (`99.36 ns/op`) | 512b / 1024b + 512b tweak, `0 B` RAM RK (`2^341.3` BBB TPRP) |
+| **`EMEncrypt256x4`** | **12,789.7** (`2.51 ns/block`) | **3,743.4** (`8.55 ns/block`) | 4×256b, `0 B` RAM RK (`2^128` PRP) |
+| **`EMEncrypt512x4`** | **12,409.3** (`5.16 ns/block`) | **4,384.3** (`14.60 ns/block`) | 4×512b, `0 B` RAM RK (`2^256` PRP) |
+| **`EM2Encrypt256x4`** | **6,513.2** (`4.92 ns/block`) | **1,990.0** (`16.08 ns/block`) | 4×256b, `0 B` RAM RK (`2^170.7` BBB PRP) |
+| **`EM2Encrypt512x4`** | **5,838.2** (`10.97 ns/block`) | **2,381.6** (`26.88 ns/block`) | 4×512b, `0 B` RAM RK (`2^341.3` BBB PRP) |
+| **`TEMEncrypt256x4`** | **6,282.9** (`5.10 ns/block`) | **2,027.9** (`15.78 ns/block`) | 4×256b + tweaks, `0 B` RAM RK (`2^128` TPRP) |
+| **`TEMEncrypt512x4`** | **5,788.9** (`11.06 ns/block`) | **1,709.3** (`37.45 ns/block`) | 4×512b + tweaks, `0 B` RAM RK (`2^256` TPRP) |
+| **`TEM2Encrypt256x4`** | **3,250.3** (`9.86 ns/block`) | **1,078.6** (`29.68 ns/block`) | 4×256b + tweaks, `0 B` RAM RK (`2^170.7` BBB TPRP) |
+| **`TEM2Encrypt512x4`** | **3,219.3** (`19.88 ns/block`) | **885.2** (`72.30 ns/block`) | 4×512b + tweaks, `0 B` RAM RK (`2^341.3` BBB TPRP) |
+| **`Rijndael-256 (14r)`** | 2,182.3 (`14.68 ns/op`) | 1,405.3 (`22.77 ns/op`) | 256b / 256b key, **`480 B` RAM RK** (`SP 800-197`) |
+| **`Rijndael-256x4 (14r)`** | 6,929.4 (`4.62 ns/block`) | 2,717.9 (`11.78 ns/block`) | 4×256b, **`480 B` RAM RK** (`SP 800-197`) |
+| **`Vistrutah-256 (10r / 14r)`** | 4,831.2 / 3,489.6 (`6.66` / `9.17 ns`) | 3,635.5 / 2,482.3 (`8.80` / `12.89 ns`) | 256b / 256b key, `0 B` RAM RK (`ePrint 2025/976`) |
+| **`Vistrutah-256x4 (10r / 14r)`** | 11,948.8 / 8,263.1 (`2.68` / `3.88 ns/blk`) | 6,323.2 / 4,575.8 (`5.06` / `6.99 ns/blk`) | 4×256b, `0 B` RAM RK (`ePrint 2025/976`) |
+| **`Vistrutah-512-256 (10r / 14r / 18r)`** | 4,892.2 / 3,185.5 / 2,444.7 | 3,786.7 / 2,594.4 / 1,961.1 | 512b / 256b key, `0 B` RAM RK (`ePrint 2025/976`) |
+| **`Vistrutah-512-512 (12r / 18r)`** | 4,038.6 / 2,364.7 | 3,094.8 / 1,985.3 | 512b / 512b key, `0 B` RAM RK (`ePrint 2025/976`) |
+| **`Vistrutah-512-256x4 (10r / 14r / 18r)`** | 10,641.0 / 7,111.6 / 5,564.7 | 5,449.5 / 4,147.9 / 3,235.4 | 4×512b / 256b key, `0 B` RAM RK (`ePrint 2025/976`) |
+| **`Vistrutah-512-512x4 (12r / 18r)`** | 8,820.2 / 5,729.1 | 4,849.4 / 3,262.1 | 4×512b / 512b key, `0 B` RAM RK (`ePrint 2025/976`) |
 
 On Intel Core i7-11700K, `EMEncrypt256` (`5,810.6 MB/s`, `5.51 ns/op`, `0.62 c/B`) and `EMEncrypt256x4` (`12,789.7 MB/s`, `10.04 ns/op`, `0.28 c/B`) outperform both 14-round `Rijndael-256` (`2,182.3 MB/s` single-block, `6,929.4 MB/s` 4-block — `2.7×` and `1.8×` faster) and 10r/14r `Vistrutah-256` (`4,831.2` / `3,489.6 MB/s` single-block, `11,948.8` / `8,263.1 MB/s` 4-block — `1.2×`/`1.7×` and `1.1×`/`1.5×` faster), while `EMEncrypt512` (`5,615.2 MB/s`, `11.40 ns/op`, `0.64 c/B`) and `EMEncrypt512x4` (`12,409.3 MB/s`, `20.64 ns/op`, `0.29 c/B`) outperform all `Vistrutah-512` variants (`10r`, `12r`, `14r`, `18r` — `1.1×` to `2.4×` faster). On AWS Graviton 4 (`arm64`), `EMEncrypt256` (`2,335.2 MB/s`, `13.70 ns/op`, `1.20 c/B`) and `EMEncrypt256x4` (`3,743.4 MB/s`, `34.19 ns/op`, `0.75 c/B`) outperform 14-round `Rijndael-256` (`1,405.3 MB/s` single-block, `2,717.9 MB/s` 4-block — `1.7×` and `1.4×` faster), while `EMEncrypt512x4` (`4,384.3 MB/s`, `58.39 ns/op`, `0.64 c/B`) outperforms 14r/18r `Vistrutah-512-256x4` (`4,147.9` / `3,235.4 MB/s`) and 18r `Vistrutah-512-512x4` (`3,262.1 MB/s`).
 
