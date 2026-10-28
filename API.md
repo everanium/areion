@@ -1,6 +1,6 @@
 ## Public API Reference (`github.com/everanium/areion`)
 
-Complete reference for all exported types, constants, and functions in package `areion` ([`areion.go`](areion.go), [`cpu.go`](cpu.go)).
+Complete reference for all exported types, constants, and functions in package `areion` ([`areion.go`](areion.go), [`cpu.go`](cpu.go), [`constants.go`](constants.go)).
 For architectural details, security proofs, and benchmarks, see [`README.md`](README.md).
 Companion C99 / C11 reference library: **[`everanium/areion-c`](https://github.com/everanium/areion-c)** ([`API.md`](https://github.com/everanium/areion-c/blob/main/API.md)).
 
@@ -20,7 +20,16 @@ Companion C99 / C11 reference library: **[`everanium/areion-c`](https://github.c
 
 ### 1. Types and Constants
 
-Fixed-size byte-array type aliases for permutation states and AES blocks, together with integer tier codes returned by `TierCode()`.
+Version constants, fixed-size byte-array type aliases for permutation states and AES blocks, and integer tier codes returned by `TierCode()`.
+
+#### Version Constants
+
+| Constant | Value | Description |
+| :--- | :---: | :--- |
+| `Version` | `"0.1.5"` | Semantic version string |
+| `VersionMajor` | `0` | Major version number |
+| `VersionMinor` | `1` | Minor version number |
+| `VersionPatch` | `5` | Patch version number |
 
 #### State and Block Type Aliases
 

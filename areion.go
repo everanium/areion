@@ -162,25 +162,37 @@ func InversePermute512P2x4(states *[4][64]byte) {
 	areion512InversePermuteP2x4(states)
 }
 
-// Round performs one standard AES encryption round (SubBytes, ShiftRows, MixColumns, AddRoundKey)
-// in portable pure Go software.
-func Round(block, roundKey *Block) {
+//go:noinline
+func roundBody(block, roundKey *Block) {
 	rk := *roundKey
-	roundNoKey(block)
+	roundNoKeyBody(block)
 	xorBlock(block, block, &rk)
 	clear(rk[:])
 	runtime.KeepAlive(&rk)
+}
+
+// Round performs one standard AES encryption round (SubBytes, ShiftRows, MixColumns, AddRoundKey)
+// in portable pure Go software.
+func Round(block, roundKey *Block) {
+	roundBody(block, roundKey)
+	wipeSoftwareStack()
 	clobberScratchGPRs()
+}
+
+//go:noinline
+func finalRoundBody(block, roundKey *Block) {
+	rk := *roundKey
+	finalRoundNoKeyBody(block)
+	xorBlock(block, block, &rk)
+	clear(rk[:])
+	runtime.KeepAlive(&rk)
 }
 
 // FinalRound performs one final AES encryption round (SubBytes, ShiftRows, AddRoundKey, no MixColumns)
 // in portable pure Go software.
 func FinalRound(block, roundKey *Block) {
-	rk := *roundKey
-	finalRoundNoKey(block)
-	xorBlock(block, block, &rk)
-	clear(rk[:])
-	runtime.KeepAlive(&rk)
+	finalRoundBody(block, roundKey)
+	wipeSoftwareStack()
 	clobberScratchGPRs()
 }
 
@@ -230,14 +242,28 @@ func FinalRound4HW(blocks, roundKeys *Block4) {
 	aesFinalRound4HW(blocks, roundKeys)
 }
 
+//go:noinline
+func xorBlockBody(dst, a, b *Block) {
+	xorBlock(dst, a, b)
+}
+
 // XorBlock sets dst = a ⊕ b on 16-byte blocks.
 func XorBlock(dst, a, b *Block) {
-	xorBlock(dst, a, b)
+	xorBlockBody(dst, a, b)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
+//go:noinline
+func xorBlock4Body(dst, a, b *Block4) {
+	xorBlock4(dst, a, b)
 }
 
 // XorBlock4 sets dst = a ⊕ b on 64-byte (4-block) vectors.
 func XorBlock4(dst, a, b *Block4) {
-	xorBlock4(dst, a, b)
+	xorBlock4Body(dst, a, b)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
 }
 
 // ExpandKey128 expands a 16-byte AES-128 key into 11 16-byte round keys (FIPS 197 §5.2).

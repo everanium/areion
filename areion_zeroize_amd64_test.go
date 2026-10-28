@@ -15,6 +15,7 @@ func dumpSIMDRegs(dst *[96]uint64, hasAVX512 bool)
 func dirtySIMDRegForTest(masked uint64)
 
 const (
+	hasSIMDRegProbe       = true
 	areionResidueGap      = 1 << 10
 	areionResiduePad      = 2 << 10
 	areionResidueWindow   = 16 << 10

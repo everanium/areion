@@ -1,5 +1,13 @@
 package areion
 
+// Library version constants.
+const (
+	Version      = "0.1.5"
+	VersionMajor = 0
+	VersionMinor = 1
+	VersionPatch = 5
+)
+
 // roundConstantsP1 holds the 15 128-bit round constants for permutation P1, as published by
 // Isobe et al. (TCHES 2023; Table 1 and Appendix A.1 of the extended version, ePrint 2023/794):
 // 128-bit words of the fractional part of pi, stored in little-endian byte order. RC7 is the
