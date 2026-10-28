@@ -40,7 +40,7 @@ Fixed-size byte-array type aliases for permutation states and AES blocks, togeth
 | `TierAESNI` | `1` | `"aesni"` | `x86-64` legacy 2-operand SSE `AES-NI` (128-bit XMM) |
 | `TierVEX` | `2` | `"vex"` | `x86-64` `AVX + AES-NI` 3-operand VEX-encoded XMM |
 | `TierVAESAVX2` | `3` | `"vaesavx2"` | `x86-64` `AVX2 + VAES` (256-bit YMM Vector AES) |
-| `TierAVX512` | `4` | `"avx512"` | `x86-64` `AVX-512F + AVX-512VL + VAES` (512-bit ZMM Vector AES) |
+| `TierAVX512` | `4` | `"avx512"` | `x86-64` `AVX-512F + AVX-512DQ + AVX-512BW + AVX-512VL + VAES` (512-bit ZMM Vector AES) |
 | `TierARMCrypto` | `5` | `"arm64"` | `ARM64` `NEON + ARMv8 Cryptographic Extension` (`AESE` / `AESMC` / `AESD` / `AESIMC`) |
 
 ---
@@ -193,7 +193,7 @@ Runtime CPU tier introspection/override, FIPS 140-3 Known-Answer Self-Test (CAST
 | :--- | :---: | :--- |
 | `Tier() string` | `string` | Active dispatch tier name: `"avx512"`, `"vaesavx2"`, `"vex"`, `"aesni"`, `"arm64"`, or `"purego"` |
 | `TierCode() int32` | `int32` | Active dispatch tier constant (`TierPureGo`..`TierARMCrypto`) |
-| `SetTier(tier string) error` | `error` | Overrides the active tier (`"auto"`, `"avx512"`, `"vaesavx2"`, `"vex"`, `"aesni"`, `"arm64"`, `"purego"`); also configurable at startup via `AREION_FORCE_TIER` |
+| `SetTier(tier string) error` | `error` | Overrides the active tier (`"auto"`, `"avx512"`, `"vaesavx2"`, `"vex"`, `"aesni"`, `"arm64"`, `"purego"`, plus aliases `"neon"`/`"sve"`/`"sve2"` and `"purec"`/`"scalar"`/`"gpr"`); also configurable at startup via `AREION_FORCE_TIER` |
 | `UseHardwareAcceleration() bool` | `bool` | Reports whether hardware AES acceleration is available and currently enabled (`TierCode() != TierPureGo`) |
 | `SelfTest() error` | `error` | FIPS 140-3 Power-On Known-Answer Self-Test (CAST) across all primitives on the active tier |
 | `Zeroize(b []byte)` | — | Overwrites `b` with zeros and prevents dead-store elimination via `clear(b); runtime.KeepAlive(b)` |

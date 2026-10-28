@@ -149,7 +149,7 @@ The package automatically detects host CPU features:
 
 | Tier | Architectures | Instructions Used | Register Width (x4 functions) |
 | :--- | :--- | :--- | :--- |
-| **`avx512`** | Intel Ice Lake, Tiger Lake, Rocket Lake, Xeon Ice Lake-SP+; AMD Zen 4+ (`AVX-512F + AVX-512VL + VAES`) | `VAESENC`, `VAESENCLAST`, `VAESDEC`, `VAESDECLAST`, `VPXOR`, `VPXORQ`, `VSHUFI64X2`, `VINSERTI64X4` (2-instruction `VAESENCLAST` + `VAESDEC` 512-bit `InvMixColumns`) | 512-bit ZMM (4 AES blocks) |
+| **`avx512`** | Intel Ice Lake, Tiger Lake, Rocket Lake, Xeon Ice Lake-SP+; AMD Zen 4+ (`AVX-512F + AVX-512DQ + AVX-512BW + AVX-512VL + VAES`) | `VAESENC`, `VAESENCLAST`, `VAESDEC`, `VAESDECLAST`, `VPXOR`, `VPXORQ`, `VSHUFI64X2`, `VINSERTI64X4` (2-instruction `VAESENCLAST` + `VAESDEC` 512-bit `InvMixColumns`) | 512-bit ZMM (4 AES blocks) |
 | **`vaesavx2`** | Intel Alder Lake+ (no AVX-512); AMD Zen 3 (`AVX2 + VAES`) | `VAESENC`, `VAESENCLAST`, `VAESDEC`, `VAESDECLAST`, `VPXOR`, `VPERM2I128` (2-instruction `VAESENCLAST` + `VAESDEC` 256-bit `InvMixColumns`) | 256-bit YMM (2 AES blocks / reg, up to 4 lanes in `Y0..Y7`) |
 | **`vex`** | Intel Sandy Bridge+, AMD Bulldozer+ (`AVX + AES-NI`) | 3-operand VEX XMM `VAESENC`, `VAESENCLAST`, `VAESDECLAST`, `VAESIMC`, `VAESKEYGENASSIST`, `VPXOR`, `VPUNPCKLQDQ`, `VPUNPCKHQDQ`, `VPSRLDQ` | 128-bit XMM (3-operand VEX) |
 | **`aesni`** | Intel Westmere+ (`AES-NI` without `AVX`) | Legacy SSE `AESENC`, `AESENCLAST`, `AESDECLAST`, `AESIMC`, `AESKEYGENASSIST`, `PXOR`, `PUNPCKLQDQ`, `PUNPCKHQDQ`, `PSRLDQ` | 128-bit XMM (2-operand SSE) |
