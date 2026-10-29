@@ -1,6 +1,6 @@
 ## Areion Auxiliary Scripts
 
-This directory contains standalone cryptanalytic and verification tooling for the Areion permutation family and the SoEM22 construction.
+This directory contains standalone cryptanalytic and verification tooling for the Areion permutation family, the SoEM22 construction, and the ASURA tweakable block cipher.
 
 ## Tools
 
@@ -35,4 +35,24 @@ The SoEM22 security bound is proven for two independent random permutations. The
 
 ```bash
 python3 scripts/verify_p2_table.py
+```
+
+### `verify_asura_kat.py`
+
+Python 3 standalone reference specification, algebraic identity verifier, and Known-Answer Test (KAT) verification script for the ASURA 256-bit tweakable block cipher (Tanaka et al., INDOCRYPT 2024 / IACR ePrint 2024/1394). Standard library only.
+
+#### Purpose
+
+`verify_asura_kat.py` implements the mathematical specification of ASURA from Section 3 (Algorithms 1-2, Equations 1-10) of the paper and verifies:
+1. **Round constant alignment**: Confirms that `asuraRoundConstants` in `constants.go` matches the first 13 Haraka v2 / Pholkos-256 round constants byte-for-byte.
+2. **Key-schedule permutations and invertibility**: Validates that `pi_256` and `pi o tau` are bijections (`pi_256` is an involution) and verifies `kappa^-1(kappa(K)) == K` over `GF(2^8)` modulo `x^8 + x^4 + x^3 + x + 1` (`0x11b`).
+3. **Byte-shuffle invertibility**: Verifies `inv_perm256(perm256(X)) == X` for the 256-bit byte-unzipping shuffle (`vuzpq_u8` / `vzipq_u8`).
+4. **Round function equivalence and algebraic optimization**: Confirms that the ARM64 NEON formulation (`AESE`/`AESMC`/`AESD`/`AESIMC`), the x86-64 AES-NI formulation (`AESENC`/`AESENCLAST`/`AESDEC`/`AESDECLAST`), and the Equivalent Inverse Cipher optimization (`MC(K1)`) produce identical outputs and exact inverses for `F_gamma` and `F_delta`.
+5. **Pre-expanded vs. on-the-fly (OTF) equivalence**: Confirms that pre-expanded and on-the-fly encryption and decryption produce identical results and satisfy `decrypt(encrypt(P, K, T), K, T) == P`.
+6. **KAT derivation and library cross-check**: Derives KAT 0 (all-zero plaintext, key, tweak) and KAT 1 (sequential bytes `P = 00..1f`, `K = 20..3f`, `T = 40..4f`, including `RTK[0]`, `RTK[1]`, `RTK[2]`, `RTK[12]`, and ciphertext `C`) and verifies that `TestAsuraKAT` in `areion_test.go` matches byte-for-byte.
+
+#### Usage
+
+```bash
+python3 scripts/verify_asura_kat.py
 ```

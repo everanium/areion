@@ -24,30 +24,6 @@ func aes128Encrypt4BlocksAsm(rk *[11][16]byte, dst, src *[64]byte)
 func aes128ExpandKeyAsm(rk *[11][16]byte, key *[16]byte)
 
 //go:noescape
-func rijndael256EncryptBlockAsm(rk *[15][32]byte, dst, src *[32]byte)
-
-//go:noescape
-func rijndael256Encrypt4BlocksAsm(rk *[15][32]byte, dst, src *[4][32]byte)
-
-//go:noescape
-func vistrutah256EncryptBlockAsm(dst, src, key *[32]byte, rounds int)
-
-//go:noescape
-func vistrutah256Encrypt4BlocksAsm(dst, src *[4][32]byte, key *[32]byte, rounds int)
-
-//go:noescape
-func vistrutah512EncryptBlock256Asm(dst, src *[64]byte, key *[32]byte, rounds int)
-
-//go:noescape
-func vistrutah512EncryptBlock512Asm(dst, src, key *[64]byte, rounds int)
-
-//go:noescape
-func vistrutah512Encrypt4Blocks256Asm(dst, src *[4][64]byte, key *[32]byte, rounds int)
-
-//go:noescape
-func vistrutah512Encrypt4Blocks512Asm(dst, src *[4][64]byte, key *[64]byte, rounds int)
-
-//go:noescape
 func areion256PermuteRCAsm(state *State256, rc *[15][16]byte)
 
 //go:noescape
@@ -241,70 +217,6 @@ func expandKey128(key *[16]byte, rk *[11][16]byte) {
 	expandKey128Software(key, rk)
 }
 
-func rijndael256EncryptBlockHW(rk *[15][32]byte, dst, src *[32]byte) {
-	if hasARMCrypto && TierCode() != TierPureGo {
-		rijndael256EncryptBlockAsm(rk, dst, src)
-		return
-	}
-	rijndael256EncryptBlockSoftware(rk, dst, src)
-}
-
-func rijndael256Encrypt4BlocksHW(rk *[15][32]byte, dst, src *[4][32]byte) {
-	if hasARMCrypto && TierCode() != TierPureGo {
-		rijndael256Encrypt4BlocksAsm(rk, dst, src)
-		return
-	}
-	rijndael256Encrypt4BlocksSoftware(rk, dst, src)
-}
-
-func vistrutah256EncryptBlockHW(dst, src, key *[32]byte, rounds int) {
-	if (rounds == 10 || rounds == 14) && hasARMCrypto && TierCode() != TierPureGo {
-		vistrutah256EncryptBlockAsm(dst, src, key, rounds)
-		return
-	}
-	vistrutah256EncryptBlockSoft(dst, src, key, rounds)
-}
-
-func vistrutah256Encrypt4BlocksHW(dst, src *[4][32]byte, key *[32]byte, rounds int) {
-	if (rounds == 10 || rounds == 14) && hasARMCrypto && TierCode() != TierPureGo {
-		vistrutah256Encrypt4BlocksAsm(dst, src, key, rounds)
-		return
-	}
-	vistrutah256Encrypt4BlocksSoft(dst, src, key, rounds)
-}
-
-func vistrutah512EncryptBlock256HW(dst, src *[64]byte, key *[32]byte, rounds int) {
-	if (rounds == 10 || rounds == 12 || rounds == 14 || rounds == 18) && hasARMCrypto && TierCode() != TierPureGo {
-		vistrutah512EncryptBlock256Asm(dst, src, key, rounds)
-		return
-	}
-	vistrutah512EncryptBlock256Soft(dst, src, key, rounds)
-}
-
-func vistrutah512EncryptBlock512HW(dst, src, key *[64]byte, rounds int) {
-	if (rounds == 10 || rounds == 12 || rounds == 14 || rounds == 18) && hasARMCrypto && TierCode() != TierPureGo {
-		vistrutah512EncryptBlock512Asm(dst, src, key, rounds)
-		return
-	}
-	vistrutah512EncryptBlock512Soft(dst, src, key, rounds)
-}
-
-func vistrutah512Encrypt4Blocks256HW(dst, src *[4][64]byte, key *[32]byte, rounds int) {
-	if (rounds == 10 || rounds == 12 || rounds == 14 || rounds == 18) && hasARMCrypto && TierCode() != TierPureGo {
-		vistrutah512Encrypt4Blocks256Asm(dst, src, key, rounds)
-		return
-	}
-	vistrutah512Encrypt4Blocks256Soft(dst, src, key, rounds)
-}
-
-func vistrutah512Encrypt4Blocks512HW(dst, src *[4][64]byte, key *[64]byte, rounds int) {
-	if (rounds == 10 || rounds == 12 || rounds == 14 || rounds == 18) && hasARMCrypto && TierCode() != TierPureGo {
-		vistrutah512Encrypt4Blocks512Asm(dst, src, key, rounds)
-		return
-	}
-	vistrutah512Encrypt4Blocks512Soft(dst, src, key, rounds)
-}
-
 func areion256Permute(state *State256) {
 	if hasARMCrypto && TierCode() != TierPureGo {
 		areion256PermuteRCAsm(state, &roundConstantsP1)
@@ -415,7 +327,6 @@ func areion256PermuteP2x4(states *[4][32]byte) {
 func areion256Permutex4Table(states *[4][32]byte, rc *[15][16]byte) {
 	if !hasARMCrypto || TierCode() == TierPureGo {
 		areion256Permutex4SoftwareRC(states, rc)
-		clobberScratchGPRs()
 		return
 	}
 	areion256Permutex4RC(&states[0], &states[1], &states[2], &states[3], rc)
@@ -432,7 +343,6 @@ func areion256InversePermuteP2x4(states *[4][32]byte) {
 func areion256InversePermutex4Table(states *[4][32]byte, rc *[15][16]byte) {
 	if !hasARMCrypto || TierCode() == TierPureGo {
 		areion256InversePermutex4SoftwareRC(states, rc)
-		clobberScratchGPRs()
 		return
 	}
 	areion256InversePermutex4RC(&states[0], &states[1], &states[2], &states[3], rc)
@@ -449,7 +359,6 @@ func areion512PermuteP2x4(states *[4][64]byte) {
 func areion512Permutex4Table(states *[4][64]byte, rc *[15][16]byte) {
 	if !hasARMCrypto || TierCode() == TierPureGo {
 		areion512Permutex4SoftwareRC(states, rc)
-		clobberScratchGPRs()
 		return
 	}
 	areion512Permutex4RC(&states[0], &states[1], &states[2], &states[3], rc)
@@ -466,7 +375,6 @@ func areion512InversePermuteP2x4(states *[4][64]byte) {
 func areion512InversePermutex4Table(states *[4][64]byte, rc *[15][16]byte) {
 	if !hasARMCrypto || TierCode() == TierPureGo {
 		areion512InversePermutex4SoftwareRC(states, rc)
-		clobberScratchGPRs()
 		return
 	}
 	areion512InversePermutex4RC(&states[0], &states[1], &states[2], &states[3], rc)

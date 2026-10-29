@@ -26,10 +26,10 @@ Version constants, fixed-size byte-array type aliases for permutation states and
 
 | Constant | Value | Description |
 | :--- | :---: | :--- |
-| `Version` | `"0.1.5"` | Semantic version string |
+| `Version` | `"0.1.6"` | Semantic version string |
 | `VersionMajor` | `0` | Major version number |
 | `VersionMinor` | `1` | Minor version number |
-| `VersionPatch` | `5` | Patch version number |
+| `VersionPatch` | `6` | Patch version number |
 
 #### State and Block Type Aliases
 

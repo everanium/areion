@@ -63,93 +63,6 @@ func aes128ExpandKeyAsm(rk *[11][16]byte, key *[16]byte)
 func aes128ExpandKeyVexAsm(rk *[11][16]byte, key *[16]byte)
 
 //go:noescape
-func rijndael256EncryptBlockAsm(rk *[15][32]byte, dst, src *[32]byte)
-
-//go:noescape
-func rijndael256EncryptBlockVexAsm(rk *[15][32]byte, dst, src *[32]byte)
-
-//go:noescape
-func rijndael256Encrypt4BlocksZmmAsm(rk *[15][32]byte, dst, src *[4][32]byte)
-
-//go:noescape
-func rijndael256Encrypt4BlocksYmmAsm(rk *[15][32]byte, dst, src *[4][32]byte)
-
-//go:noescape
-func rijndael256Encrypt4BlocksVexAsm(rk *[15][32]byte, dst, src *[4][32]byte)
-
-//go:noescape
-func rijndael256Encrypt4BlocksAesNiAsm(rk *[15][32]byte, dst, src *[4][32]byte)
-
-//go:noescape
-func vistrutah256EncryptBlockAsm(dst, src, key *[32]byte, rounds int)
-
-//go:noescape
-func vistrutah256EncryptBlockVexAsm(dst, src, key *[32]byte, rounds int)
-
-//go:noescape
-func vistrutah256EncryptBlockYmmAsm(dst, src, key *[32]byte, rounds int)
-
-//go:noescape
-func vistrutah256Encrypt4BlocksAesNiAsm(dst, src *[4][32]byte, key *[32]byte, rounds int)
-
-//go:noescape
-func vistrutah256Encrypt4BlocksVexAsm(dst, src *[4][32]byte, key *[32]byte, rounds int)
-
-//go:noescape
-func vistrutah256Encrypt4BlocksYmmAsm(dst, src *[4][32]byte, key *[32]byte, rounds int)
-
-//go:noescape
-func vistrutah256Encrypt4BlocksZmmAsm(dst, src *[4][32]byte, key *[32]byte, rounds int)
-
-//go:noescape
-func vistrutah512EncryptBlock256Asm(dst, src *[64]byte, key *[32]byte, rounds int)
-
-//go:noescape
-func vistrutah512EncryptBlock256VexAsm(dst, src *[64]byte, key *[32]byte, rounds int)
-
-//go:noescape
-func vistrutah512EncryptBlock256YmmAsm(dst, src *[64]byte, key *[32]byte, rounds int)
-
-//go:noescape
-func vistrutah512EncryptBlock256ZmmAsm(dst, src *[64]byte, key *[32]byte, rounds int)
-
-//go:noescape
-func vistrutah512EncryptBlock512Asm(dst, src, key *[64]byte, rounds int)
-
-//go:noescape
-func vistrutah512EncryptBlock512VexAsm(dst, src, key *[64]byte, rounds int)
-
-//go:noescape
-func vistrutah512EncryptBlock512YmmAsm(dst, src, key *[64]byte, rounds int)
-
-//go:noescape
-func vistrutah512EncryptBlock512ZmmAsm(dst, src, key *[64]byte, rounds int)
-
-//go:noescape
-func vistrutah512Encrypt4Blocks256AesNiAsm(dst, src *[4][64]byte, key *[32]byte, rounds int)
-
-//go:noescape
-func vistrutah512Encrypt4Blocks256VexAsm(dst, src *[4][64]byte, key *[32]byte, rounds int)
-
-//go:noescape
-func vistrutah512Encrypt4Blocks256YmmAsm(dst, src *[4][64]byte, key *[32]byte, rounds int)
-
-//go:noescape
-func vistrutah512Encrypt4Blocks256ZmmAsm(dst, src *[4][64]byte, key *[32]byte, rounds int)
-
-//go:noescape
-func vistrutah512Encrypt4Blocks512AesNiAsm(dst, src *[4][64]byte, key *[64]byte, rounds int)
-
-//go:noescape
-func vistrutah512Encrypt4Blocks512VexAsm(dst, src *[4][64]byte, key *[64]byte, rounds int)
-
-//go:noescape
-func vistrutah512Encrypt4Blocks512YmmAsm(dst, src *[4][64]byte, key *[64]byte, rounds int)
-
-//go:noescape
-func vistrutah512Encrypt4Blocks512ZmmAsm(dst, src *[4][64]byte, key *[64]byte, rounds int)
-
-//go:noescape
 func areion256PermuteRCAsm(state *State256, rc *[15][16]byte)
 
 //go:noescape
@@ -657,153 +570,6 @@ func expandKey128(key *[16]byte, rk *[11][16]byte) {
 	expandKey128Software(key, rk)
 }
 
-func rijndael256EncryptBlockHW(rk *[15][32]byte, dst, src *[32]byte) {
-	tier := TierCode()
-	if hasVEX && tier >= TierVEX {
-		rijndael256EncryptBlockVexAsm(rk, dst, src)
-		return
-	}
-	if hasAESNI && tier >= TierAESNI {
-		rijndael256EncryptBlockAsm(rk, dst, src)
-		return
-	}
-	rijndael256EncryptBlockSoftware(rk, dst, src)
-}
-
-func rijndael256Encrypt4BlocksHW(rk *[15][32]byte, dst, src *[4][32]byte) {
-	tier := TierCode()
-	switch {
-	case hasAVX512 && hasVAESAVX2 && tier >= TierAVX512:
-		rijndael256Encrypt4BlocksZmmAsm(rk, dst, src)
-	case hasVAESAVX2 && tier >= TierVAESAVX2:
-		rijndael256Encrypt4BlocksYmmAsm(rk, dst, src)
-	case hasVEX && tier >= TierVEX:
-		rijndael256Encrypt4BlocksVexAsm(rk, dst, src)
-	case hasAESNI && tier >= TierAESNI:
-		rijndael256Encrypt4BlocksAesNiAsm(rk, dst, src)
-	default:
-		rijndael256Encrypt4BlocksSoftware(rk, dst, src)
-	}
-}
-
-func vistrutah256EncryptBlockHW(dst, src, key *[32]byte, rounds int) {
-	if rounds != 10 && rounds != 14 {
-		vistrutah256EncryptBlockSoft(dst, src, key, rounds)
-		return
-	}
-	tier := TierCode()
-	switch {
-	case hasVAESAVX2 && tier >= TierVAESAVX2:
-		vistrutah256EncryptBlockYmmAsm(dst, src, key, rounds)
-	case hasVEX && tier >= TierVEX:
-		vistrutah256EncryptBlockVexAsm(dst, src, key, rounds)
-	case hasAESNI && tier >= TierAESNI:
-		vistrutah256EncryptBlockAsm(dst, src, key, rounds)
-	default:
-		vistrutah256EncryptBlockSoft(dst, src, key, rounds)
-	}
-}
-
-func vistrutah256Encrypt4BlocksHW(dst, src *[4][32]byte, key *[32]byte, rounds int) {
-	if rounds != 10 && rounds != 14 {
-		vistrutah256Encrypt4BlocksSoft(dst, src, key, rounds)
-		return
-	}
-	tier := TierCode()
-	switch {
-	case hasAVX512 && hasVAESAVX2 && tier >= TierAVX512:
-		vistrutah256Encrypt4BlocksZmmAsm(dst, src, key, rounds)
-	case hasVAESAVX2 && tier >= TierVAESAVX2:
-		vistrutah256Encrypt4BlocksYmmAsm(dst, src, key, rounds)
-	case hasVEX && tier >= TierVEX:
-		vistrutah256Encrypt4BlocksVexAsm(dst, src, key, rounds)
-	case hasAESNI && tier >= TierAESNI:
-		vistrutah256Encrypt4BlocksAesNiAsm(dst, src, key, rounds)
-	default:
-		vistrutah256Encrypt4BlocksSoft(dst, src, key, rounds)
-	}
-}
-
-func vistrutah512EncryptBlock256HW(dst, src *[64]byte, key *[32]byte, rounds int) {
-	if rounds != 10 && rounds != 12 && rounds != 14 && rounds != 18 {
-		vistrutah512EncryptBlock256Soft(dst, src, key, rounds)
-		return
-	}
-	tier := TierCode()
-	switch {
-	case hasAVX512 && hasVAESAVX2 && tier >= TierAVX512:
-		vistrutah512EncryptBlock256ZmmAsm(dst, src, key, rounds)
-	case hasVAESAVX2 && tier >= TierVAESAVX2:
-		vistrutah512EncryptBlock256YmmAsm(dst, src, key, rounds)
-	case hasVEX && tier >= TierVEX:
-		vistrutah512EncryptBlock256VexAsm(dst, src, key, rounds)
-	case hasAESNI && tier >= TierAESNI:
-		vistrutah512EncryptBlock256Asm(dst, src, key, rounds)
-	default:
-		vistrutah512EncryptBlock256Soft(dst, src, key, rounds)
-	}
-}
-
-func vistrutah512EncryptBlock512HW(dst, src, key *[64]byte, rounds int) {
-	if rounds != 10 && rounds != 12 && rounds != 14 && rounds != 18 {
-		vistrutah512EncryptBlock512Soft(dst, src, key, rounds)
-		return
-	}
-	tier := TierCode()
-	switch {
-	case hasAVX512 && hasVAESAVX2 && tier >= TierAVX512:
-		vistrutah512EncryptBlock512ZmmAsm(dst, src, key, rounds)
-	case hasVAESAVX2 && tier >= TierVAESAVX2:
-		vistrutah512EncryptBlock512YmmAsm(dst, src, key, rounds)
-	case hasVEX && tier >= TierVEX:
-		vistrutah512EncryptBlock512VexAsm(dst, src, key, rounds)
-	case hasAESNI && tier >= TierAESNI:
-		vistrutah512EncryptBlock512Asm(dst, src, key, rounds)
-	default:
-		vistrutah512EncryptBlock512Soft(dst, src, key, rounds)
-	}
-}
-
-func vistrutah512Encrypt4Blocks256HW(dst, src *[4][64]byte, key *[32]byte, rounds int) {
-	if rounds != 10 && rounds != 12 && rounds != 14 && rounds != 18 {
-		vistrutah512Encrypt4Blocks256Soft(dst, src, key, rounds)
-		return
-	}
-	tier := TierCode()
-	switch {
-	case hasAVX512 && hasVAESAVX2 && tier >= TierAVX512:
-		vistrutah512Encrypt4Blocks256ZmmAsm(dst, src, key, rounds)
-	case hasVAESAVX2 && tier >= TierVAESAVX2:
-		vistrutah512Encrypt4Blocks256YmmAsm(dst, src, key, rounds)
-	case hasVEX && tier >= TierVEX:
-		vistrutah512Encrypt4Blocks256VexAsm(dst, src, key, rounds)
-	case hasAESNI && tier >= TierAESNI:
-		vistrutah512Encrypt4Blocks256AesNiAsm(dst, src, key, rounds)
-	default:
-		vistrutah512Encrypt4Blocks256Soft(dst, src, key, rounds)
-	}
-}
-
-func vistrutah512Encrypt4Blocks512HW(dst, src *[4][64]byte, key *[64]byte, rounds int) {
-	if rounds != 10 && rounds != 12 && rounds != 14 && rounds != 18 {
-		vistrutah512Encrypt4Blocks512Soft(dst, src, key, rounds)
-		return
-	}
-	tier := TierCode()
-	switch {
-	case hasAVX512 && hasVAESAVX2 && tier >= TierAVX512:
-		vistrutah512Encrypt4Blocks512ZmmAsm(dst, src, key, rounds)
-	case hasVAESAVX2 && tier >= TierVAESAVX2:
-		vistrutah512Encrypt4Blocks512YmmAsm(dst, src, key, rounds)
-	case hasVEX && tier >= TierVEX:
-		vistrutah512Encrypt4Blocks512VexAsm(dst, src, key, rounds)
-	case hasAESNI && tier >= TierAESNI:
-		vistrutah512Encrypt4Blocks512AesNiAsm(dst, src, key, rounds)
-	default:
-		vistrutah512Encrypt4Blocks512Soft(dst, src, key, rounds)
-	}
-}
-
 func areion256Permute(state *State256) {
 	areion256PermuteRC(state, &roundConstantsP1)
 }
@@ -955,7 +721,6 @@ func areion256Permutex4Tables(states *[4][32]byte, rc *[15][16]byte, rc4 *[15 * 
 	tier := TierCode()
 	if tier == TierPureGo || !hasAESNI {
 		areion256Permutex4SoftwareRC(states, rc)
-		clobberScratchGPRs()
 		return
 	}
 	b0, b1, b2, b3 := &states[0], &states[1], &states[2], &states[3]
@@ -982,7 +747,6 @@ func areion256InversePermutex4Tables(states *[4][32]byte, rc *[15][16]byte, rc4 
 	tier := TierCode()
 	if tier == TierPureGo || !hasAESNI {
 		areion256InversePermutex4SoftwareRC(states, rc)
-		clobberScratchGPRs()
 		return
 	}
 	b0, b1, b2, b3 := &states[0], &states[1], &states[2], &states[3]
@@ -1009,7 +773,6 @@ func areion512Permutex4Tables(states *[4][64]byte, rc *[15][16]byte, rc4 *[15 * 
 	tier := TierCode()
 	if tier == TierPureGo || !hasAESNI {
 		areion512Permutex4SoftwareRC(states, rc)
-		clobberScratchGPRs()
 		return
 	}
 	b0, b1, b2, b3 := &states[0], &states[1], &states[2], &states[3]
@@ -1036,7 +799,6 @@ func areion512InversePermutex4Tables(states *[4][64]byte, rc *[15][16]byte, rc4 
 	tier := TierCode()
 	if tier == TierPureGo || !hasAESNI {
 		areion512InversePermutex4SoftwareRC(states, rc)
-		clobberScratchGPRs()
 		return
 	}
 	b0, b1, b2, b3 := &states[0], &states[1], &states[2], &states[3]

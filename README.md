@@ -202,7 +202,7 @@ The package automatically detects host CPU features:
 | **`AES128EncryptBlock`** | 30.9 (519.67 ns) | 1,889.3 (8.47 ns) | 1,899.6 (8.42 ns) | 1,902.4 (8.41 ns) | 1,903.3 (8.41 ns) | 1.89 c/B |
 | **`AES128Encrypt4Blocks`** | 115.8 (553.07 ns) | 7,272.8 (8.80 ns) | 7,390.9 (8.66 ns) | 7,381.9 (8.67 ns) | 7,386.2 (8.67 ns) | 0.49 c/B |
 
-#### Wide-Block Ciphers (`EM`, `EM2`, `TEM`, `TEM2`) vs. `Rijndael-256` & `Vistrutah-256/512` (MB/s, ns/op)
+#### Wide-Block Ciphers (`EM`, `EM2`, `TEM`, `TEM2`) vs. `Rijndael-256`, `Vistrutah-256/512` & `ASURA` (MB/s, ns/op)
 
 | Operation | `purego` | `aesni` | `vex` | `vaesavx2` | `avx512` | `c/B` (best) |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -254,8 +254,17 @@ The package automatically detects host CPU features:
 | **`Vistrutah-512-256x4 (18r)`** | 38.9 (6,632.00 ns) | 2,377.0 (107.70 ns) | 2,399.0 (106.83 ns) | 5,115.6 (50.06 ns) | 5,564.7 (46.02 ns) | 0.65 c/B |
 | **`Vistrutah-512-512x4 (12r)`** | 59.2 (4,326.67 ns) | 4,074.7 (62.83 ns) | 4,091.8 (62.58 ns) | 7,663.2 (33.43 ns) | 8,820.2 (29.05 ns) | 0.41 c/B |
 | **`Vistrutah-512-512x4 (18r)`** | 38.8 (6,609.33 ns) | 2,391.3 (107.07 ns) | 2,433.8 (105.20 ns) | 5,169.4 (49.53 ns) | 5,729.1 (44.71 ns) | 0.63 c/B |
+| **`Asura-ExpandTweakey`** | 34.1 (946.13 ns) | 1,451.6 (22.05 ns) | 1,433.9 (22.33 ns) | 1,462.8 (21.88 ns) | 1,412.6 (22.67 ns) | 2.46 c/B |
+| **`Asura-Encrypt (12r, rtk)`** | 24.3 (1,319.67 ns) | 3,685.4 (8.69 ns) | 3,771.8 (8.50 ns) | 3,864.1 (8.28 ns) | 3,601.1 (8.89 ns) | 0.93 c/B |
+| **`Asura-Decrypt (12r, rtk)`** | 25.3 (1,266.67 ns) | 2,148.8 (14.90 ns) | 2,265.0 (14.13 ns) | 2,257.0 (14.18 ns) | 2,023.2 (15.92 ns) | 1.59 c/B |
+| **`Asura-Encryptx4 (12r, rtk)`** | 50.5 (2,535.00 ns) | 4,984.4 (25.77 ns) | 5,319.0 (24.06 ns) | 7,334.4 (17.45 ns) | 11,091.8 (11.54 ns) | 0.32 c/B |
+| **`Asura-Decryptx4 (12r, rtk)`** | 55.2 (2,319.33 ns) | 3,654.2 (35.03 ns) | 3,675.0 (34.83 ns) | 4,842.4 (26.43 ns) | 7,203.7 (17.77 ns) | 0.50 c/B |
+| **`Asura-Encrypt-OTF (12r)`** | 14.6 (2,195.33 ns) | 1,086.3 (29.49 ns) | 1,110.9 (28.83 ns) | 1,121.2 (28.55 ns) | 1,113.4 (28.74 ns) | 3.21 c/B |
+| **`Asura-Decrypt-OTF (12r)`** | 9.8 (3,260.00 ns) | 544.4 (58.85 ns) | 574.8 (55.68 ns) | 568.2 (56.34 ns) | 574.3 (55.72 ns) | 6.26 c/B |
+| **`Asura-Encryptx4-OTF (12r)`** | 37.9 (3,374.00 ns) | 2,701.6 (47.38 ns) | 2,758.0 (46.41 ns) | 3,338.3 (38.38 ns) | 2,929.5 (43.69 ns) | 1.08 c/B |
+| **`Asura-Decryptx4-OTF (12r)`** | 28.5 (4,512.33 ns) | 1,562.8 (81.93 ns) | 1,580.8 (81.00 ns) | 1,823.5 (70.20 ns) | 1,501.0 (85.28 ns) | 1.97 c/B |
 
-All operations: 0 B/op, 0 allocs/op. On Intel® Core™ i7-11700K, `EMEncrypt256` (`5,810.6 MB/s`, `5.51 ns`, `0.62 c/B`) and `EMEncrypt256x4` (`12,789.7 MB/s`, `10.04 ns`, `0.28 c/B`) outperform both 14-round `Rijndael-256` (`2,182.3 MB/s` single-block, `6,929.4 MB/s` 4-block) and 10r/14r `Vistrutah-256` (`4,831.2` / `3,489.6 MB/s` single-block, `11,948.8` / `8,263.1 MB/s` 4-block), while `EMEncrypt512` (`5,615.2 MB/s`, `11.40 ns`, `0.64 c/B`) and `EMEncrypt512x4` (`12,409.3 MB/s`, `20.64 ns`, `0.29 c/B`) outperform all `Vistrutah-512` variants (`10r`, `12r`, `14r`, `18r`).
+All operations: 0 B/op, 0 allocs/op. On Intel® Core™ i7-11700K, `EMEncrypt256` (`5,810.6 MB/s`, `5.51 ns`, `0.62 c/B`) and `EMEncrypt256x4` (`12,789.7 MB/s`, `10.04 ns`, `0.28 c/B`) outperform 14-round `Rijndael-256` (`2,182.3 MB/s` single-block, `6,929.4 MB/s` 4-block), 10r/14r `Vistrutah-256` (`4,831.2` / `3,489.6 MB/s` single-block, `11,948.8` / `8,263.1 MB/s` 4-block), and 12-round `ASURA` (`3,864.1 MB/s` pre-expanded `rtk` / `1,121.2 MB/s` `OTF` single-block, `11,091.8 MB/s` `rtk` / `3,338.3 MB/s` `OTF` 4-block), while `TEMEncrypt256` (`2,341.2 MB/s`) and `TEMDecrypt256` (`2,213.9 MB/s`) outperform `Asura-Encrypt-OTF` (`1,121.2 MB/s`, `2.1×`) and `Asura-Decrypt-OTF` (`574.8 MB/s`, `3.9×`), and `EMEncrypt512` (`5,615.2 MB/s`, `11.40 ns`, `0.64 c/B`) and `EMEncrypt512x4` (`12,409.3 MB/s`, `20.64 ns`, `0.29 c/B`) outperform all `Vistrutah-512` variants (`10r`, `12r`, `14r`, `18r`).
 
 ### 2. AWS Graviton 4 (`c8g.4xlarge`, Neoverse-V2, 16 vCPUs, ARM64)
 
@@ -293,7 +302,7 @@ All operations: 0 B/op, 0 allocs/op. On Intel® Core™ i7-11700K, `EMEncrypt256
 | **`AES128EncryptBlock`** | 31.5 (507.70 ns) | 1,594.2 (10.04 ns) | 1.76 c/B |
 | **`AES128Encrypt4Blocks`** | 115.0 (556.47 ns) | 6,053.8 (10.57 ns) | 0.46 c/B |
 
-#### Wide-Block Ciphers (`EM`, `EM2`, `TEM`, `TEM2`) vs. `Rijndael-256` & `Vistrutah-256/512` (MB/s, ns/op)
+#### Wide-Block Ciphers (`EM`, `EM2`, `TEM`, `TEM2`) vs. `Rijndael-256`, `Vistrutah-256/512` & `ASURA` (MB/s, ns/op)
 
 | Operation | `purego` | `arm64` | `c/B` (`arm64`) |
 | :--- | :---: | :---: | :---: |
@@ -345,30 +354,44 @@ All operations: 0 B/op, 0 allocs/op. On Intel® Core™ i7-11700K, `EMEncrypt256
 | **`Vistrutah-512-256x4 (18r)`** | 37.7 (6,783.33 ns) | 3,235.4 (79.13 ns) | 0.87 c/B |
 | **`Vistrutah-512-512x4 (12r)`** | 56.7 (4,514.33 ns) | 4,849.4 (52.79 ns) | 0.58 c/B |
 | **`Vistrutah-512-512x4 (18r)`** | 37.8 (6,765.67 ns) | 3,262.1 (78.48 ns) | 0.86 c/B |
+| **`Asura-ExpandTweakey`** | 32.2 (992.77 ns) | 844.6 (37.88 ns) | 3.31 c/B |
+| **`Asura-Encrypt (12r, rtk)`** | 22.7 (1,410.67 ns) | 3,058.8 (10.46 ns) | 0.92 c/B |
+| **`Asura-Decrypt (12r, rtk)`** | 25.0 (1,281.33 ns) | 1,668.2 (19.18 ns) | 1.68 c/B |
+| **`Asura-Encryptx4 (12r, rtk)`** | 50.3 (2,543.00 ns) | 5,847.9 (21.89 ns) | 0.48 c/B |
+| **`Asura-Decryptx4 (12r, rtk)`** | 55.3 (2,316.33 ns) | 3,508.4 (36.48 ns) | 0.80 c/B |
+| **`Asura-Encrypt-OTF (12r)`** | 13.4 (2,382.00 ns) | 793.8 (40.31 ns) | 3.53 c/B |
+| **`Asura-Decrypt-OTF (12r)`** | 9.7 (3,296.00 ns) | 337.9 (94.71 ns) | 8.29 c/B |
+| **`Asura-Encryptx4-OTF (12r)`** | 35.9 (3,570.33 ns) | 2,420.0 (52.89 ns) | 1.16 c/B |
+| **`Asura-Decryptx4-OTF (12r)`** | 28.9 (4,436.33 ns) | 1,136.2 (112.67 ns) | 2.46 c/B |
 
 All operations: 0 B/op, 0 allocs/op.
 
-### 3. Comparison with `Rijndael-256` (`NIST SP 800-197`) and `Vistrutah-256/512` ([ePrint 2025/976](https://eprint.iacr.org/2025/976)) (MB/s, ns/op)
+### 3. Comparison with `Rijndael-256` (`NIST SP 800-197`), `Vistrutah-256/512` ([ePrint 2025/976](https://eprint.iacr.org/2025/976)) & `ASURA` (`INDOCRYPT 2024`) (MB/s, ns/op)
 
 - **`Rijndael-256`** (14 rounds, 256-bit block, 256-bit key, `ShiftRows` offsets `(0, 1, 3, 4)` across an `8 × 4` byte matrix) requires a cross-128-bit-half byte permutation `InvShiftRows_AES128` ∘ `ShiftRows_R256(0,1,3,4)` (`PSHUFB`/`VPSHUFB` + `PBLENDVB`/`VPBLENDVB` on x86-64, `VTBL2` on ARM64) before every round and 480 bytes (`15 × 32 B`) of pre-expanded round keys in RAM.
 - **`Vistrutah-256`** (`10` or `14` rounds, 256-bit block, 256-bit key) and **`Vistrutah-512`** (`10`, `14`, or `18` rounds with 256-bit key; `12` or `18` rounds with 512-bit key) alternate pairs of parallel 128-bit AES rounds with a cross-slice `mixSlice` byte shuffle (`PUNPCK*` + `PALIGNR`/`PSHUFB` on x86-64, `VZIP1`/`VZIP2` + `VTBL` on ARM64) every two rounds and an on-the-fly key permutation `ρ`.
-- **`Areion-256` / `Areion-512`** use a 2-branch / 4-branch Feistel/SPN structure built natively from 128-bit AES rounds with **zero byte shuffles (`PSHUFB`/`VTBL`)** on the data path and **zero persistent round-key state in RAM** (`EM`, `EM2`, `TEM`, `TEM2` hold keys strictly in volatile registers and wipe them before returning):
+- **`ASURA`** (`12` rounds = `6` double-rounds + final half-round, 256-bit block, 256-bit key, 128-bit tweak, INDOCRYPT 2024) couples two 128-bit AES lanes via a 32-byte permutation `perm256` mapped natively to `VUZP1` / `VUZP2` (encryption) and `VZIP1` / `VZIP2` (decryption) on ARM64 (or `VPSHUFB` + `VPUNPCKLQDQ`/`VPUNPCKHQDQ` on x86-64). Because `ASURA` applies `MixColumns` in its final half-round and uses forward `AESENC` inside `R_core` during decryption, decryption requires additional AES instructions per sub-round (`AESMC` + `AESE` on ARM64, `VAESDECLAST` + `VAESENC` on x86-64, even after collapsing the `F_delta` inverse branch via the Equivalent Inverse Cipher identity) — making `ASURA` decryption ~1.5–1.8× slower than encryption (`1,668.2` vs `3,058.8 MB/s` on Graviton 4; `2,265.0` vs `3,864.1 MB/s` on Intel i7-11700K). Furthermore, `ASURA` requires either **416 bytes (`13 × 32 B`) of pre-expanded round tweakeys in RAM** (invalidated whenever the 128-bit tweak changes) or an **on-the-fly (`OTF`) tweakey schedule** that executes 12 additional AES rounds on the tweak plus 12 `κ` byte-shuffle + `GF(2^8)` xtime updates per block (24 steps for `OTF` decryption: 12 forward to derive `rtk[12]` followed by 12 inverse steps), reducing single-block `OTF` throughput to `793.8` / `337.9 MB/s` (`Enc`/`Dec`) on Graviton 4 and `1,121.2` / `574.8 MB/s` on Intel i7-11700K.
+- **`Areion-256` / `Areion-512`** use a 2-branch / 4-branch Feistel/SPN structure built natively from 128-bit AES rounds with **zero byte shuffles (`PSHUFB`/`VTBL`)** on the data path, symmetric encryption/decryption cost, and **zero persistent round-key state in RAM** (`EM`, `EM2`, `TEM`, `TEM2` hold keys and tweaks strictly in volatile registers and wipe them before returning):
 
 | Wide-Block Cipher Primitive | Intel Core i7-11700K (Best HW Tier) | AWS Graviton 4 (`arm64`) | Block / Key / RAM Key State & Security |
 | :--- | :---: | :---: | :--- |
 | **`EMEncrypt256`** | **5,810.6** (5.51 ns) | **2,335.2** (13.70 ns) | 256b / 512b key, 0 B RAM RK (2^128 PRP) |
+| **`EMDecrypt256`** | **4,400.4** (7.28 ns) | **2,566.0** (12.47 ns) | 256b / 512b key, 0 B RAM RK (2^128 PRP) |
 | **`EMEncrypt512`** | **5,615.2** (11.40 ns) | **2,291.8** (27.93 ns) | 512b / 1024b key, 0 B RAM RK (2^256 PRP) |
 | **`EM2Encrypt256`** | **2,348.6** (13.64 ns) | **994.4** (32.18 ns) | 256b / 512b key, 0 B RAM RK (2^170.7 BBB PRP) |
 | **`EM2Encrypt512`** | **2,419.0** (26.46 ns) | **1,049.9** (60.96 ns) | 512b / 1024b key, 0 B RAM RK (2^341.3 BBB PRP) |
 | **`TEMEncrypt256`** | **2,341.2** (13.68 ns) | **975.5** (32.81 ns) | 256b / 512b + 256b tweak, 0 B RAM RK (2^128 TPRP) |
+| **`TEMDecrypt256`** | **2,213.9** (14.46 ns) | **936.2** (34.18 ns) | 256b / 512b + 256b tweak, 0 B RAM RK (2^128 TPRP) |
 | **`TEMEncrypt512`** | **2,317.4** (27.63 ns) | **1,033.5** (61.93 ns) | 512b / 1024b + 512b tweak, 0 B RAM RK (2^256 TPRP) |
 | **`TEM2Encrypt256`** | **1,187.8** (26.95 ns) | **451.1** (70.93 ns) | 256b / 512b + 256b tweak, 0 B RAM RK (2^170.7 BBB TPRP) |
 | **`TEM2Encrypt512`** | **1,341.3** (47.72 ns) | **644.1** (99.36 ns) | 512b / 1024b + 512b tweak, 0 B RAM RK (2^341.3 BBB TPRP) |
 | **`EMEncrypt256x4`** | **12,789.7** (2.51 ns/blk) | **3,743.4** (8.55 ns/blk) | 4×256b, 0 B RAM RK (2^128 PRP) |
+| **`EMDecrypt256x4`** | **10,932.6** (2.93 ns/blk) | **4,397.9** (7.28 ns/blk) | 4×256b, 0 B RAM RK (2^128 PRP) |
 | **`EMEncrypt512x4`** | **12,409.3** (5.16 ns/blk) | **4,384.3** (14.60 ns/blk) | 4×512b, 0 B RAM RK (2^256 PRP) |
 | **`EM2Encrypt256x4`** | **6,513.2** (4.92 ns/blk) | **1,990.0** (16.08 ns/blk) | 4×256b, 0 B RAM RK (2^170.7 BBB PRP) |
 | **`EM2Encrypt512x4`** | **5,838.2** (10.97 ns/blk) | **2,381.6** (26.88 ns/blk) | 4×512b, 0 B RAM RK (2^341.3 BBB PRP) |
 | **`TEMEncrypt256x4`** | **6,282.9** (5.10 ns/blk) | **2,027.9** (15.78 ns/blk) | 4×256b + tweaks, 0 B RAM RK (2^128 TPRP) |
+| **`TEMDecrypt256x4`** | **5,944.5** (5.39 ns/blk) | **2,189.1** (14.62 ns/blk) | 4×256b + tweaks, 0 B RAM RK (2^128 TPRP) |
 | **`TEMEncrypt512x4`** | **5,788.9** (11.06 ns/blk) | **1,709.3** (37.45 ns/blk) | 4×512b + tweaks, 0 B RAM RK (2^256 TPRP) |
 | **`TEM2Encrypt256x4`** | **3,250.3** (9.86 ns/blk) | **1,078.6** (29.68 ns/blk) | 4×256b + tweaks, 0 B RAM RK (2^170.7 BBB TPRP) |
 | **`TEM2Encrypt512x4`** | **3,219.3** (19.88 ns/blk) | **885.2** (72.30 ns/blk) | 4×512b + tweaks, 0 B RAM RK (2^341.3 BBB TPRP) |
@@ -380,10 +403,14 @@ All operations: 0 B/op, 0 allocs/op.
 | **`Vistrutah-512-512 (12r / 18r)`** | 4,038.6 / 2,364.7 | 3,094.8 / 1,985.3 | 512b / 512b key, 0 B RAM RK (ePrint 2025/976) |
 | **`Vistrutah-512-256x4 (10r / 14r / 18r)`** | 10,641.0 / 7,111.6 / 5,564.7 | 5,449.5 / 4,147.9 / 3,235.4 | 4×512b / 256b key, 0 B RAM RK (ePrint 2025/976) |
 | **`Vistrutah-512-512x4 (12r / 18r)`** | 8,820.2 / 5,729.1 | 4,849.4 / 3,262.1 | 4×512b / 512b key, 0 B RAM RK (ePrint 2025/976) |
+| **`Asura-Encrypt / Decrypt (12r, rtk)`** | 3,864.1 / 2,265.0 (8.28 / 14.13 ns) | 3,058.8 / 1,668.2 (10.46 / 19.18 ns) | 256b / 256b + 128b tweak, **416 B RAM RK** (INDOCRYPT 2024) |
+| **`Asura-Encryptx4 / Decryptx4 (12r, rtk)`** | 11,091.8 / 7,203.7 (2.89 / 4.44 ns/blk) | 5,847.9 / 3,508.4 (5.47 / 9.12 ns/blk) | 4×256b + tweak, **416 B RAM RK** (INDOCRYPT 2024) |
+| **`Asura-Encrypt / Decrypt-OTF (12r)`** | 1,121.2 / 574.8 (28.55 / 55.68 ns) | 793.8 / 337.9 (40.31 / 94.71 ns) | 256b / 256b + 128b tweak, 0 B RAM RK (INDOCRYPT 2024) |
+| **`Asura-Encryptx4 / Decryptx4-OTF (12r)`** | 3,338.3 / 1,823.5 (9.60 / 17.55 ns/blk) | 2,420.0 / 1,136.2 (13.22 / 28.17 ns/blk) | 4×256b + shared tweak, 0 B RAM RK (INDOCRYPT 2024) |
 
-On Intel Core i7-11700K, `EMEncrypt256` (`5,810.6 MB/s`, `5.51 ns/op`, `0.62 c/B`) and `EMEncrypt256x4` (`12,789.7 MB/s`, `10.04 ns/op`, `0.28 c/B`) outperform both 14-round `Rijndael-256` (`2,182.3 MB/s` single-block, `6,929.4 MB/s` 4-block — `2.7×` and `1.8×` faster) and 10r/14r `Vistrutah-256` (`4,831.2` / `3,489.6 MB/s` single-block, `11,948.8` / `8,263.1 MB/s` 4-block — `1.2×`/`1.7×` and `1.1×`/`1.5×` faster), while `EMEncrypt512` (`5,615.2 MB/s`, `11.40 ns/op`, `0.64 c/B`) and `EMEncrypt512x4` (`12,409.3 MB/s`, `20.64 ns/op`, `0.29 c/B`) outperform all `Vistrutah-512` variants (`10r`, `12r`, `14r`, `18r` — `1.1×` to `2.4×` faster). On AWS Graviton 4 (`arm64`), `EMEncrypt256` (`2,335.2 MB/s`, `13.70 ns/op`, `1.20 c/B`) and `EMEncrypt256x4` (`3,743.4 MB/s`, `34.19 ns/op`, `0.75 c/B`) outperform 14-round `Rijndael-256` (`1,405.3 MB/s` single-block, `2,717.9 MB/s` 4-block — `1.7×` and `1.4×` faster), while `EMEncrypt512x4` (`4,384.3 MB/s`, `58.39 ns/op`, `0.64 c/B`) outperforms 14r/18r `Vistrutah-512-256x4` (`4,147.9` / `3,235.4 MB/s`) and 18r `Vistrutah-512-512x4` (`3,262.1 MB/s`).
+On Intel Core i7-11700K, `EMEncrypt256` (`5,810.6 MB/s`, `5.51 ns/op`, `0.62 c/B`) and `EMEncrypt256x4` (`12,789.7 MB/s`, `10.04 ns/op`, `0.28 c/B`) outperform 14-round `Rijndael-256` (`2,182.3 MB/s` single-block, `6,929.4 MB/s` 4-block — `2.7×` and `1.8×` faster), 10r/14r `Vistrutah-256` (`4,831.2` / `3,489.6 MB/s` single-block, `11,948.8` / `8,263.1 MB/s` 4-block — `1.2×`/`1.7×` and `1.1×`/`1.5×` faster), and 12-round `ASURA` with pre-expanded tweakeys (`3,864.1 MB/s` single-block, `11,091.8 MB/s` 4-block — `1.5×` and `1.2×` faster), while `EMDecrypt256` (`4,400.4 MB/s`) and `EMDecrypt256x4` (`10,932.6 MB/s`) are `1.9×` and `1.5×` faster than `Asura-Decrypt` (`2,265.0 MB/s`) and `Asura-Decryptx4` (`7,203.7 MB/s`). In zero-RAM-state tweakable operation (where the tweak changes per block), `TEMEncrypt256` (`2,341.2 MB/s`) and `TEMDecrypt256` (`2,213.9 MB/s`) outperform `Asura-Encrypt-OTF` (`1,121.2 MB/s`, `2.1×`) and `Asura-Decrypt-OTF` (`574.8 MB/s`, `3.9×`) on Intel Core i7-11700K, and `TEMEncrypt256` (`975.5 MB/s`) and `TEMDecrypt256` (`936.2 MB/s`) outperform `Asura-Encrypt-OTF` (`793.8 MB/s`, `1.2×`) and `Asura-Decrypt-OTF` (`337.9 MB/s`, `2.8×`) on AWS Graviton 4 (`arm64`), where `EMDecrypt256` (`2,566.0 MB/s`) and `EMDecrypt256x4` (`4,397.9 MB/s`) also outperform pre-expanded `Asura-Decrypt` (`1,668.2 MB/s`, `1.5×`) and `Asura-Decryptx4` (`3,508.4 MB/s`, `1.3×`).
 
-> **Benchmark methodology note:** `BenchmarkPermute*`, `BenchmarkInversePermute*`, `BenchmarkAES128Round*`, and `BenchmarkAES128Encrypt*` modify their state buffer in-place (`dst == src`), measuring serial dependency-chain latency across iterations (`AES128Encrypt*` and `Rijndael256Encrypt*` time the encryption core with pre-expanded round keys in RAM, whereas `Areion-{EM,EM2,TEM,TEM2}*` and `Vistrutah*` take raw keys and expand/apply round keys on-the-fly in registers). `BenchmarkSoEM*`, `BenchmarkDM*`, `BenchmarkEM*`, `BenchmarkEM2*`, `BenchmarkTEM*`, `BenchmarkTEM2*`, `BenchmarkRijndael256*`, and `BenchmarkVistrutah*` evaluate fixed input, tweak, and key buffers across iterations (`out != in`), allowing out-of-order execution to overlap independent calls and measuring pipelined throughput. See [`analysis/README.md` (Section L)](analysis/README.md#l-register-and-stack-clearing-cost) for interleaved single-core cycle-per-byte measurements including epilogue register and stack clearing.
+> **Benchmark methodology note:** `BenchmarkPermute*`, `BenchmarkInversePermute*`, `BenchmarkAES128Round*`, and `BenchmarkAES128Encrypt*` modify their state buffer in-place (`dst == src`), measuring serial dependency-chain latency across iterations (`AES128Encrypt*`, `Rijndael256Encrypt*`, and `Asura{Encrypt,Decrypt}*` time the cipher core with pre-expanded round keys/tweakeys in RAM, whereas `Areion-{EM,EM2,TEM,TEM2}*`, `Vistrutah*`, and `Asura*OTF*` take raw keys/tweaks and expand/apply round keys on-the-fly in registers). `BenchmarkSoEM*`, `BenchmarkDM*`, `BenchmarkEM*`, `BenchmarkEM2*`, `BenchmarkTEM*`, `BenchmarkTEM2*`, `BenchmarkRijndael256*`, `BenchmarkVistrutah*`, and `BenchmarkAsura*` evaluate fixed input, tweak, and key buffers across iterations (`out != in`), allowing out-of-order execution to overlap independent calls and measuring pipelined throughput. See [`analysis/README.md` (Section L)](analysis/README.md#l-register-and-stack-clearing-cost) for interleaved single-core cycle-per-byte measurements including epilogue register and stack clearing.
 
 ---
 
@@ -437,9 +464,10 @@ AREION_FORCE_TIER=avx512 go test -run=^none -bench=. -benchmem -benchtime=500ms 
 AREION_FORCE_TIER=arm64 go test -run=^none -bench=. -benchmem -benchtime=500ms -count=1 ./...
 ```
 
-### 4. Verify Round Constant Derivation
+### 4. Verify Round Constant Derivation & ASURA KATs
 ```bash
 python3 scripts/verify_p2_table.py
+python3 scripts/verify_asura_kat.py
 ```
 
 ### 5. P1 / P2 Analysis
@@ -530,6 +558,14 @@ func main() {
 
 8. **Recommendation for Existing Application-Specific Key Derivation Functions / Wide-Block Rijndael-256**
    Joan Daemen, Vincent Rijmen, *The Design of Rijndael: AES — The Advanced Encryption Standard*, Springer (2002); NIST Special Publication 800-197 (Draft / Reference specification for 256-bit block Rijndael with ShiftRows offsets `(0, 1, 3, 4)`).
+
+9. **Vistrutah: Extremely Fast 256 and 512-bit Block Ciphers Strategy for Modern CPUs**
+   Roberto Avanzi, Subhadeep Banik, Orr Dunkelman, Shibam Ghosh, Marcel Nageler.
+   *IACR Cryptology ePrint Archive*, Paper 2025/976 (2025), [IACR ePrint 2025/976](https://eprint.iacr.org/2025/976).
+
+10. **ASURA: An Efficient Large-State Tweakable Block Cipher for ARM Environment**
+    Atsushi Tanaka, Rentaro Shiba, Kosei Sakamoto, Mostafizar Rahman, Takuro Shiraya, Takanori Isobe.
+    *Progress in Cryptology — INDOCRYPT 2024*, Lecture Notes in Computer Science, vol. 15495, pp. 143–164, Springer (2025), [doi:10.1007/978-3-031-80308-6_7](https://doi.org/10.1007/978-3-031-80308-6_7).
 
 ---
 
