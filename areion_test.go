@@ -1140,6 +1140,97 @@ func TestSetTierErrorHandlingAndAliases(t *testing.T) {
 	if Tier() == "" {
 		t.Errorf("Tier() is empty after auto restore")
 	}
+
+	origAESNI, origVEX, origARM, origVAES, origAVX512 := hasAESNI, hasVEX, hasARMCrypto, hasVAESAVX2, hasAVX512
+	defer func() {
+		hasAESNI, hasVEX, hasARMCrypto, hasVAESAVX2, hasAVX512 = origAESNI, origVEX, origARM, origVAES, origAVX512
+		_ = SetTier(origTier)
+	}()
+
+	hasAVX512, hasVAESAVX2, hasVEX, hasAESNI, hasARMCrypto = true, true, true, true, false
+	if err := SetTier("auto"); err != nil || Tier() != "avx512" {
+		t.Errorf("auto with avx512 got (%s, %v)", Tier(), err)
+	}
+	if err := SetTier("avx512"); err != nil || Tier() != "avx512" {
+		t.Errorf("SetTier(avx512) got (%s, %v)", Tier(), err)
+	}
+
+	hasAVX512 = false
+	if err := SetTier("avx512"); err == nil {
+		t.Errorf("SetTier(avx512) without hasAVX512 succeeded")
+	}
+	if err := SetTier("auto"); err != nil || Tier() != "vaesavx2" {
+		t.Errorf("auto with vaesavx2 got (%s, %v)", Tier(), err)
+	}
+	if err := SetTier("vaesavx2"); err != nil || Tier() != "vaesavx2" {
+		t.Errorf("SetTier(vaesavx2) got (%s, %v)", Tier(), err)
+	}
+
+	hasVAESAVX2 = false
+	if err := SetTier("vaesavx2"); err == nil {
+		t.Errorf("SetTier(vaesavx2) without hasVAESAVX2 succeeded")
+	}
+	if err := SetTier("auto"); err != nil || Tier() != "vex" {
+		t.Errorf("auto with vex got (%s, %v)", Tier(), err)
+	}
+	if err := SetTier("vex"); err != nil || Tier() != "vex" {
+		t.Errorf("SetTier(vex) got (%s, %v)", Tier(), err)
+	}
+
+	hasVEX = false
+	if err := SetTier("vex"); err == nil {
+		t.Errorf("SetTier(vex) without hasVEX succeeded")
+	}
+	if err := SetTier("auto"); err != nil || Tier() != "aesni" {
+		t.Errorf("auto with aesni got (%s, %v)", Tier(), err)
+	}
+	if err := SetTier("aesni"); err != nil || Tier() != "aesni" {
+		t.Errorf("SetTier(aesni) got (%s, %v)", Tier(), err)
+	}
+
+	hasAESNI = false
+	if err := SetTier("aesni"); err == nil {
+		t.Errorf("SetTier(aesni) without hasAESNI succeeded")
+	}
+	if err := SetTier("arm64"); err == nil {
+		t.Errorf("SetTier(arm64) without hasARMCrypto succeeded")
+	}
+
+	hasARMCrypto = true
+	if err := SetTier("auto"); err != nil || Tier() != "arm64" {
+		t.Errorf("auto with arm64 got (%s, %v)", Tier(), err)
+	}
+	if err := SetTier("arm64"); err != nil || Tier() != "arm64" {
+		t.Errorf("SetTier(arm64) got (%s, %v)", Tier(), err)
+	}
+
+	hasARMCrypto = false
+	if err := SetTier("auto"); err != nil || Tier() != "purego" {
+		t.Errorf("auto with no hw got (%s, %v)", Tier(), err)
+	}
+
+	hasAESNI, hasVEX, hasARMCrypto, hasVAESAVX2, hasAVX512 = origAESNI, origVEX, origARM, origVAES, origAVX512
+	t.Setenv("AREION_FORCE_TIER", "purego")
+	applyEnvTier()
+	if Tier() != "purego" {
+		t.Errorf("applyEnvTier(purego) got %s", Tier())
+	}
+	t.Setenv("AREION_FORCE_TIER", "auto")
+	applyEnvTier()
+	t.Setenv("AREION_FORCE_TIER", "invalid_tier_value")
+	applyEnvTier()
+
+	customRC := roundConstantsP1
+	var sCustom, sRef State256
+	areion256PermuteSoftwareRC(&sCustom, &customRC)
+	areion256PermuteSoftwareRC(&sRef, &roundConstantsP1)
+	if sCustom != sRef {
+		t.Errorf("customRC permute mismatch")
+	}
+	areion256InversePermuteSoftwareRC(&sCustom, &customRC)
+	if sCustom != (State256{}) {
+		t.Errorf("customRC inverse permute mismatch")
+	}
 }
 
 // TestPaperVectorsAllTiers checks, on every tier the host supports, the published vectors of
@@ -5210,6 +5301,60 @@ func TestVistrutahKAT(t *testing.T) {
 		const buggyGoAes18r = "ecccf2d69de352e402b1daee24e23620205a6a42a0794bbe6c96c1a85513460504e8252d03d847d152c0df6a146792f54519d15c23173dbc5248fcfa202f71b7"
 		if got := hex.EncodeToString(cMut[:]); got != buggyGoAes18r {
 			t.Fatalf("[%s] Vistrutah-512 Psi-mutation regression check mismatch:\ngot:  %s\nwant: %s", tier, got, buggyGoAes18r)
+		}
+
+		// Non-standard round counts (software fallback path in HW dispatchers) and out-of-range round guards
+		for _, r := range []int{12, 16} {
+			var c1Soft, c1HW, d1Soft [32]byte
+			vistrutah256EncryptBlockSoft(&c1Soft, &p256, &k256, r)
+			vistrutah256EncryptBlockHW(&c1HW, &p256, &k256, r)
+			vistrutah256DecryptBlockSoft(&d1Soft, &c1HW, &k256, r)
+			if c1HW != c1Soft || d1Soft != p256 {
+				t.Fatalf("[%s] Vistrutah-256 (%dr) fallback mismatch", tier, r)
+			}
+			var p4, c4Soft, c4HW, d4Soft [4][32]byte
+			p4[0] = p256
+			vistrutah256Encrypt4BlocksSoft(&c4Soft, &p4, &k256, r)
+			vistrutah256Encrypt4BlocksHW(&c4HW, &p4, &k256, r)
+			vistrutah256Decrypt4BlocksSoft(&d4Soft, &c4HW, &k256, r)
+			if c4HW != c4Soft || d4Soft != p4 {
+				t.Fatalf("[%s] Vistrutah-256 (%dr) 4Blocks fallback mismatch", tier, r)
+			}
+		}
+		{
+			const r = 16
+			var c256Soft, c256HW, d256Soft, c512Soft, c512HW, d512Soft [64]byte
+			vistrutah512EncryptBlock256Soft(&c256Soft, &p512, &k256, r)
+			vistrutah512EncryptBlock256HW(&c256HW, &p512, &k256, r)
+			vistrutah512DecryptBlock256Soft(&d256Soft, &c256HW, &k256, r)
+			vistrutah512EncryptBlock512Soft(&c512Soft, &p512, &k512, r)
+			vistrutah512EncryptBlock512HW(&c512HW, &p512, &k512, r)
+			vistrutah512DecryptBlock512Soft(&d512Soft, &c512HW, &k512, r)
+			if c256HW != c256Soft || d256Soft != p512 || c512HW != c512Soft || d512Soft != p512 {
+				t.Fatalf("[%s] Vistrutah-512 (%dr) fallback mismatch", tier, r)
+			}
+			var p4, c4_256Soft, c4_256HW, d4_256Soft, c4_512Soft, c4_512HW, d4_512Soft [4][64]byte
+			p4[0] = p512
+			vistrutah512Encrypt4Blocks256Soft(&c4_256Soft, &p4, &k256, r)
+			vistrutah512Encrypt4Blocks256HW(&c4_256HW, &p4, &k256, r)
+			vistrutah512Decrypt4Blocks256Soft(&d4_256Soft, &c4_256HW, &k256, r)
+			vistrutah512Encrypt4Blocks512Soft(&c4_512Soft, &p4, &k512, r)
+			vistrutah512Encrypt4Blocks512HW(&c4_512HW, &p4, &k512, r)
+			vistrutah512Decrypt4Blocks512Soft(&d4_512Soft, &c4_512HW, &k512, r)
+			if c4_256HW != c4_256Soft || d4_256Soft != p4 || c4_512HW != c4_512Soft || d4_512Soft != p4 {
+				t.Fatalf("[%s] Vistrutah-512 (%dr) 4Blocks fallback mismatch", tier, r)
+			}
+		}
+		for _, badRounds := range []int{0, 34} {
+			var b32 [32]byte
+			var b32x4 [4][32]byte
+			var b64 [64]byte
+			vistrutah256EncryptBlockSoft(&b32, &p256, &k256, badRounds)
+			vistrutah256DecryptBlockSoft(&b32, &p256, &k256, badRounds)
+			vistrutah256Encrypt4BlocksSoft(&b32x4, &b32x4, &k256, badRounds)
+			vistrutah256Decrypt4BlocksSoft(&b32x4, &b32x4, &k256, badRounds)
+			vistrutah512EncryptBlock256Soft(&b64, &p512, &k256, badRounds)
+			vistrutah512DecryptBlock256Soft(&b64, &p512, &k256, badRounds)
 		}
 	})
 }

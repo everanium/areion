@@ -360,10 +360,6 @@ func asuraEncryptBlockOTFSoft(dst, src, key *[32]byte, tweak *[16]byte) {
 	clobberScratchGPRs()
 }
 
-func asuraTBCEncryptBlockSoft(dst, src, key *[32]byte, tweak *[16]byte) {
-	asuraEncryptBlockOTFSoft(dst, src, key, tweak)
-}
-
 func asuraDecryptBlockOTFCore(dst, src, key *[32]byte, tweak *[16]byte) {
 	var k [32]byte
 	var t, x0, x1 Block
@@ -426,10 +422,6 @@ func asuraDecryptBlockOTFSoft(dst, src, key *[32]byte, tweak *[16]byte) {
 	asuraDecryptBlockOTFSoftBody(dst, src, key, tweak)
 	wipeSoftwareStack()
 	clobberScratchGPRs()
-}
-
-func asuraTBCDecryptBlockSoft(dst, src, key *[32]byte, tweak *[16]byte) {
-	asuraDecryptBlockOTFSoft(dst, src, key, tweak)
 }
 
 func asuraEncrypt4BlocksOTFCore(dst, src *[4][32]byte, key *[32]byte, tweak *[16]byte) {
@@ -506,10 +498,6 @@ func asuraEncrypt4BlocksOTFSoft(dst, src *[4][32]byte, key *[32]byte, tweak *[16
 	asuraEncrypt4BlocksOTFSoftBody(dst, src, key, tweak)
 	wipeSoftwareStack()
 	clobberScratchGPRs()
-}
-
-func asuraTBCEncrypt4BlocksSoft(dst, src *[4][32]byte, key *[32]byte, tweak *[16]byte) {
-	asuraEncrypt4BlocksOTFSoft(dst, src, key, tweak)
 }
 
 func asuraDecrypt4BlocksOTFCore(dst, src *[4][32]byte, key *[32]byte, tweak *[16]byte) {
@@ -596,8 +584,4 @@ func asuraDecrypt4BlocksOTFSoft(dst, src *[4][32]byte, key *[32]byte, tweak *[16
 	asuraDecrypt4BlocksOTFSoftBody(dst, src, key, tweak)
 	wipeSoftwareStack()
 	clobberScratchGPRs()
-}
-
-func asuraTBCDecrypt4BlocksSoft(dst, src *[4][32]byte, key *[32]byte, tweak *[16]byte) {
-	asuraDecrypt4BlocksOTFSoft(dst, src, key, tweak)
 }
