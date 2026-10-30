@@ -686,30 +686,116 @@ func testAreionArchAsmKernels(t *testing.T, tier string, res *[areionTotalWords]
 		}
 	}
 
-	runAsuraBlock4OTF := func(name string, fn func(*[4][32]byte, *[4][32]byte, *[32]byte, *[16]byte)) {
+	runAsuraBlock4OTF := func(name string, fn func(*[4][32]byte, *[4][32]byte, *[32]byte, *[4][16]byte)) {
 		key := new([32]byte)
-		tw := new([16]byte)
+		tw4 := new([4][16]byte)
 		in4 := new([4][32]byte)
 		out4 := new([4][32]byte)
 		for i := 0; i < 32; i++ {
 			key[i] = byte(0x31 + i*7)
 		}
-		for i := 0; i < 16; i++ {
-			tw[i] = byte(0x59 + i*13)
-		}
 		for l := 0; l < 4; l++ {
+			for i := 0; i < 16; i++ {
+				tw4[l][i] = byte(0x59 + l*31 + i*13)
+			}
 			for i := 0; i < 32; i++ {
 				in4[l][i] = byte(0x47 + l*29 + i*11)
 			}
 		}
 		if w := captureAreionFrameAndRegResidue(func() {
-			fn(out4, in4, key, tw)
+			fn(out4, in4, key, tw4)
 		}, res); w == 0 {
 			t.Fatalf("[%s] %s: probe missed stack window", tier, name)
 		}
-		targets := bytesToNonZeroWords(key[:], tw[:])
+		targets := bytesToNonZeroWords(key[:])
 		for l := 0; l < 4; l++ {
-			targets = append(targets, bytesToNonZeroWords(in4[l][:], out4[l][:])...)
+			targets = append(targets, bytesToNonZeroWords(tw4[l][:], in4[l][:], out4[l][:])...)
+		}
+		if word, off, found := scanForAreionWords(res, targets); found {
+			t.Fatalf("[%s] %s leaked word %#016x at offset %d (window=%d)", tier, name, word, off, areionResidueWindow)
+		}
+	}
+
+	runAsuraExpandKey := func(name string, fn func(*[13][32]byte, *[32]byte)) {
+		rk := new([13][32]byte)
+		key := new([32]byte)
+		for i := range key {
+			key[i] = byte(0x23 + i*7)
+		}
+		if w := captureAreionFrameAndRegResidue(func() {
+			fn(rk, key)
+		}, res); w == 0 {
+			t.Fatalf("[%s] %s: probe missed stack window", tier, name)
+		}
+		targets := bytesToNonZeroWords(key[:])
+		for r := range rk {
+			targets = append(targets, bytesToNonZeroWords(rk[r][:])...)
+		}
+		if word, off, found := scanForAreionWords(res, targets); found {
+			t.Fatalf("[%s] %s leaked word %#016x at offset %d (window=%d)", tier, name, word, off, areionResidueWindow)
+		}
+	}
+
+	runAsuraBlockRK := func(name string, fn func(*[13][32]byte, *[32]byte, *[32]byte, *[16]byte)) {
+		rk := new([13][32]byte)
+		tw := new([16]byte)
+		in := new([32]byte)
+		out := new([32]byte)
+		for r := range rk {
+			for i := 0; i < 32; i++ {
+				rk[r][i] = byte(0x29 + r*17 + i*5)
+			}
+		}
+		for i := range tw {
+			tw[i] = byte(0x59 + i*13)
+		}
+		for i := range in {
+			in[i] = byte(0x71 + i*13)
+		}
+		if w := captureAreionFrameAndRegResidue(func() {
+			fn(rk, out, in, tw)
+		}, res); w == 0 {
+			t.Fatalf("[%s] %s: probe missed stack window", tier, name)
+		}
+		var targets []uint64
+		for r := range rk {
+			targets = append(targets, bytesToNonZeroWords(rk[r][:])...)
+		}
+		targets = append(targets, bytesToNonZeroWords(tw[:], in[:], out[:])...)
+		if word, off, found := scanForAreionWords(res, targets); found {
+			t.Fatalf("[%s] %s leaked word %#016x at offset %d (window=%d)", tier, name, word, off, areionResidueWindow)
+		}
+	}
+
+	runAsuraBlock4RK := func(name string, fn func(*[13][32]byte, *[4][32]byte, *[4][32]byte, *[4][16]byte)) {
+		rk := new([13][32]byte)
+		tw4 := new([4][16]byte)
+		in4 := new([4][32]byte)
+		out4 := new([4][32]byte)
+		for r := range rk {
+			for i := 0; i < 32; i++ {
+				rk[r][i] = byte(0x29 + r*17 + i*5)
+			}
+		}
+		for l := 0; l < 4; l++ {
+			for i := 0; i < 16; i++ {
+				tw4[l][i] = byte(0x59 + l*31 + i*13)
+			}
+			for i := 0; i < 32; i++ {
+				in4[l][i] = byte(0x41 + l*23 + i*7)
+			}
+		}
+		if w := captureAreionFrameAndRegResidue(func() {
+			fn(rk, out4, in4, tw4)
+		}, res); w == 0 {
+			t.Fatalf("[%s] %s: probe missed stack window", tier, name)
+		}
+		var targets []uint64
+		for r := range rk {
+			targets = append(targets, bytesToNonZeroWords(rk[r][:])...)
+		}
+		for l := 0; l < 4; l++ {
+			targets = append(targets, bytesToNonZeroWords(tw4[l][:], in4[l][:], out4[l][:])...)
 		}
 		if word, off, found := scanForAreionWords(res, targets); found {
 			t.Fatalf("[%s] %s leaked word %#016x at offset %d (window=%d)", tier, name, word, off, areionResidueWindow)
@@ -730,14 +816,19 @@ func testAreionArchAsmKernels(t *testing.T, tier string, res *[areionTotalWords]
 		runV512Block4_256("vistrutah512Encrypt4Blocks256AesNiAsm", vistrutah512Encrypt4Blocks256AesNiAsm)
 		runV512Block4_512("vistrutah512Encrypt4Blocks512AesNiAsm", vistrutah512Encrypt4Blocks512AesNiAsm)
 		runAsuraExpand("asuraExpandTweakeyAsm", asuraExpandTweakeyAsm)
+		runAsuraExpandKey("asuraExpandKeyAESNIAsm", asuraExpandKeyAESNIAsm)
 		runAsuraBlock("asuraEncryptBlockAsm", asuraEncryptBlockAsm)
 		runAsuraBlock("asuraDecryptBlockAsm", asuraDecryptBlockAsm)
 		runAsuraBlockOTF("asuraEncryptBlockOTFAsm", asuraEncryptBlockOTFAsm)
 		runAsuraBlockOTF("asuraDecryptBlockOTFAsm", asuraDecryptBlockOTFAsm)
+		runAsuraBlockRK("asuraEncryptBlockRKAESNIAsm", asuraEncryptBlockRKAESNIAsm)
+		runAsuraBlockRK("asuraDecryptBlockRKAESNIAsm", asuraDecryptBlockRKAESNIAsm)
 		runAsuraBlock4("asuraEncrypt4BlocksAsm", asuraEncrypt4BlocksAsm)
 		runAsuraBlock4("asuraDecrypt4BlocksAsm", asuraDecrypt4BlocksAsm)
 		runAsuraBlock4OTF("asuraEncrypt4BlocksOTFAsm", asuraEncrypt4BlocksOTFAsm)
 		runAsuraBlock4OTF("asuraDecrypt4BlocksOTFAsm", asuraDecrypt4BlocksOTFAsm)
+		runAsuraBlock4RK("asuraEncrypt4BlocksRKAESNIAsm", asuraEncrypt4BlocksRKAESNIAsm)
+		runAsuraBlock4RK("asuraDecrypt4BlocksRKAESNIAsm", asuraDecrypt4BlocksRKAESNIAsm)
 		run256x4("areion256Permutex4AesNiRC", areion256Permutex4AesNiRC)
 		run256x4("areion256InversePermutex4AesNiRC", areion256InversePermutex4AesNiRC)
 		run512x4("areion512Permutex4AesNiRC", areion512Permutex4AesNiRC)
@@ -789,14 +880,19 @@ func testAreionArchAsmKernels(t *testing.T, tier string, res *[areionTotalWords]
 		runV512Block4_256("vistrutah512Encrypt4Blocks256VexAsm", vistrutah512Encrypt4Blocks256VexAsm)
 		runV512Block4_512("vistrutah512Encrypt4Blocks512VexAsm", vistrutah512Encrypt4Blocks512VexAsm)
 		runAsuraExpand("asuraExpandTweakeyVexAsm", asuraExpandTweakeyVexAsm)
+		runAsuraExpandKey("asuraExpandKeyVexAsm", asuraExpandKeyVexAsm)
 		runAsuraBlock("asuraEncryptBlockVexAsm", asuraEncryptBlockVexAsm)
 		runAsuraBlock("asuraDecryptBlockVexAsm", asuraDecryptBlockVexAsm)
 		runAsuraBlockOTF("asuraEncryptBlockOTFVexAsm", asuraEncryptBlockOTFVexAsm)
 		runAsuraBlockOTF("asuraDecryptBlockOTFVexAsm", asuraDecryptBlockOTFVexAsm)
+		runAsuraBlockRK("asuraEncryptBlockRKVexAsm", asuraEncryptBlockRKVexAsm)
+		runAsuraBlockRK("asuraDecryptBlockRKVexAsm", asuraDecryptBlockRKVexAsm)
 		runAsuraBlock4("asuraEncrypt4BlocksVexAsm", asuraEncrypt4BlocksVexAsm)
 		runAsuraBlock4("asuraDecrypt4BlocksVexAsm", asuraDecrypt4BlocksVexAsm)
 		runAsuraBlock4OTF("asuraEncrypt4BlocksOTFVexAsm", asuraEncrypt4BlocksOTFVexAsm)
 		runAsuraBlock4OTF("asuraDecrypt4BlocksOTFVexAsm", asuraDecrypt4BlocksOTFVexAsm)
+		runAsuraBlock4RK("asuraEncrypt4BlocksRKVexAsm", asuraEncrypt4BlocksRKVexAsm)
+		runAsuraBlock4RK("asuraDecrypt4BlocksRKVexAsm", asuraDecrypt4BlocksRKVexAsm)
 		run256x4("areion256Permutex4VexRC", areion256Permutex4VexRC)
 		run256x4("areion256InversePermutex4VexRC", areion256InversePermutex4VexRC)
 		run512x4("areion512Permutex4VexRC", areion512Permutex4VexRC)
@@ -848,14 +944,19 @@ func testAreionArchAsmKernels(t *testing.T, tier string, res *[areionTotalWords]
 		runV512Block4_256("vistrutah512Encrypt4Blocks256YmmAsm", vistrutah512Encrypt4Blocks256YmmAsm)
 		runV512Block4_512("vistrutah512Encrypt4Blocks512YmmAsm", vistrutah512Encrypt4Blocks512YmmAsm)
 		runAsuraExpand("asuraExpandTweakeyVexAsm", asuraExpandTweakeyVexAsm)
+		runAsuraExpandKey("asuraExpandKeyVexAsm", asuraExpandKeyVexAsm)
 		runAsuraBlock("asuraEncryptBlockVexAsm", asuraEncryptBlockVexAsm)
 		runAsuraBlock("asuraDecryptBlockVexAsm", asuraDecryptBlockVexAsm)
 		runAsuraBlockOTF("asuraEncryptBlockOTFVexAsm", asuraEncryptBlockOTFVexAsm)
 		runAsuraBlockOTF("asuraDecryptBlockOTFVexAsm", asuraDecryptBlockOTFVexAsm)
+		runAsuraBlockRK("asuraEncryptBlockRKVexAsm", asuraEncryptBlockRKVexAsm)
+		runAsuraBlockRK("asuraDecryptBlockRKVexAsm", asuraDecryptBlockRKVexAsm)
 		runAsuraBlock4("asuraEncrypt4BlocksVAES256Asm", asuraEncrypt4BlocksVAES256Asm)
 		runAsuraBlock4("asuraDecrypt4BlocksVAES256Asm", asuraDecrypt4BlocksVAES256Asm)
 		runAsuraBlock4OTF("asuraEncrypt4BlocksOTFVAES256Asm", asuraEncrypt4BlocksOTFVAES256Asm)
 		runAsuraBlock4OTF("asuraDecrypt4BlocksOTFVAES256Asm", asuraDecrypt4BlocksOTFVAES256Asm)
+		runAsuraBlock4RK("asuraEncrypt4BlocksRKVAES256Asm", asuraEncrypt4BlocksRKVAES256Asm)
+		runAsuraBlock4RK("asuraDecrypt4BlocksRKVAES256Asm", asuraDecrypt4BlocksRKVAES256Asm)
 		run256x4("areion256Permutex4Avx2RC", areion256Permutex4Avx2RC)
 		run256x4("areion256InversePermutex4Avx2RC", areion256InversePermutex4Avx2RC)
 		run512x4("areion512Permutex4Avx2RC", areion512Permutex4Avx2RC)
@@ -907,14 +1008,19 @@ func testAreionArchAsmKernels(t *testing.T, tier string, res *[areionTotalWords]
 		runV512Block4_256("vistrutah512Encrypt4Blocks256ZmmAsm", vistrutah512Encrypt4Blocks256ZmmAsm)
 		runV512Block4_512("vistrutah512Encrypt4Blocks512ZmmAsm", vistrutah512Encrypt4Blocks512ZmmAsm)
 		runAsuraExpand("asuraExpandTweakeyVexAsm", asuraExpandTweakeyVexAsm)
+		runAsuraExpandKey("asuraExpandKeyVexAsm", asuraExpandKeyVexAsm)
 		runAsuraBlock("asuraEncryptBlockVexAsm", asuraEncryptBlockVexAsm)
 		runAsuraBlock("asuraDecryptBlockVexAsm", asuraDecryptBlockVexAsm)
 		runAsuraBlockOTF("asuraEncryptBlockOTFVexAsm", asuraEncryptBlockOTFVexAsm)
 		runAsuraBlockOTF("asuraDecryptBlockOTFVexAsm", asuraDecryptBlockOTFVexAsm)
+		runAsuraBlockRK("asuraEncryptBlockRKVexAsm", asuraEncryptBlockRKVexAsm)
+		runAsuraBlockRK("asuraDecryptBlockRKVexAsm", asuraDecryptBlockRKVexAsm)
 		runAsuraBlock4("asuraEncrypt4BlocksVAES512Asm", asuraEncrypt4BlocksVAES512Asm)
 		runAsuraBlock4("asuraDecrypt4BlocksVAES512Asm", asuraDecrypt4BlocksVAES512Asm)
 		runAsuraBlock4OTF("asuraEncrypt4BlocksOTFVAES512Asm", asuraEncrypt4BlocksOTFVAES512Asm)
 		runAsuraBlock4OTF("asuraDecrypt4BlocksOTFVAES512Asm", asuraDecrypt4BlocksOTFVAES512Asm)
+		runAsuraBlock4RK("asuraEncrypt4BlocksRKVAES512Asm", asuraEncrypt4BlocksRKVAES512Asm)
+		runAsuraBlock4RK("asuraDecrypt4BlocksRKVAES512Asm", asuraDecrypt4BlocksRKVAES512Asm)
 		run256x4("areion256Permutex4RC", areion256Permutex4RC)
 		run256x4("areion256InversePermutex4RC", areion256InversePermutex4RC)
 		run512x4("areion512Permutex4RC", areion512Permutex4RC)

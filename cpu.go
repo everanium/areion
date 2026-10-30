@@ -90,9 +90,15 @@ func setTierLocked(tier string) error {
 }
 
 func applyEnvTier() {
-	if val := os.Getenv("AREION_FORCE_TIER"); val != "" {
-		if err := SetTier(val); err != nil {
-			fmt.Fprintf(os.Stderr, "areion: invalid AREION_FORCE_TIER=%q: %v\n", val, err)
+	env := os.Getenv("AREION_FORCE_TIER")
+	envName := "AREION_FORCE_TIER"
+	if env == "" {
+		env = os.Getenv("ASURA_FORCE_TIER")
+		envName = "ASURA_FORCE_TIER"
+	}
+	if env != "" {
+		if err := SetTier(env); err != nil {
+			fmt.Fprintf(os.Stderr, "areion: invalid %s=%q: %v\n", envName, env, err)
 		}
 	}
 }
@@ -130,6 +136,9 @@ func TierCode() int32 {
 //   - "arm64", "neon", "sve", "sve2": requires ARMv8 Cryptographic Extension
 //   - "purego", "purec", "scalar", "gpr": portable Go software fallback
 //   - "auto": restores natural hardware detection
+//
+// The active tier can also be overridden at process startup via the
+// AREION_FORCE_TIER or ASURA_FORCE_TIER environment variables.
 func SetTier(tier string) error {
 	tierMu.Lock()
 	defer tierMu.Unlock()

@@ -1079,10 +1079,12 @@ func TestFusedKernelsLeaveNoSecretInFrame(t *testing.T) {
 				}
 			}
 
-			// 9. ASURA 256-bit tweakable block cipher primitives (*HW and *Soft)
+			// 9. ASURA 256-bit tweakable block cipher primitives (*HW, *Soft, and exported APIs)
 			aRTK := new([13][32]byte)
+			aRK := new([13][32]byte)
 			aKey := new([32]byte)
 			aTweak := new([16]byte)
+			aTweaks4 := new([4][16]byte)
 			aIn := new([32]byte)
 			aOut := new([32]byte)
 			aDec := new([32]byte)
@@ -1097,6 +1099,9 @@ func TestFusedKernelsLeaveNoSecretInFrame(t *testing.T) {
 				aTweak[i] = byte(0x9b + i*13)
 			}
 			for l := 0; l < 4; l++ {
+				for i := 0; i < 16; i++ {
+					aTweaks4[l][i] = byte(0x9b + l*31 + i*13)
+				}
 				for i := 0; i < 32; i++ {
 					aIn4[l][i] = byte(0x6d + l*29 + i*5)
 				}
@@ -1108,6 +1113,7 @@ func TestFusedKernelsLeaveNoSecretInFrame(t *testing.T) {
 			}{
 				{"asuraExpandTweakeyHW", asuraExpandTweakeyHW},
 				{"asuraExpandTweakeySoft", asuraExpandTweakeySoft},
+				{"AsuraExpandTweakey", AsuraExpandTweakey},
 			} {
 				if w := captureAreionFrameAndRegResidue(func() {
 					expandOp.fn(aRTK, aKey, aTweak)
@@ -1123,9 +1129,32 @@ func TestFusedKernelsLeaveNoSecretInFrame(t *testing.T) {
 				}
 			}
 
-			var aRTKTargets []uint64
+			for _, expandKeyOp := range []struct {
+				name string
+				fn   func(*[13][32]byte, *[32]byte)
+			}{
+				{"asuraExpandKeyHW", asuraExpandKeyHW},
+				{"asuraExpandKeySoft", asuraExpandKeySoft},
+				{"AsuraExpandKey", AsuraExpandKey},
+			} {
+				if w := captureAreionFrameAndRegResidue(func() {
+					expandKeyOp.fn(aRK, aKey)
+				}, res); w == 0 {
+					t.Fatalf("[%s] %s: probe missed stack window", tier, expandKeyOp.name)
+				}
+				aExpandKeyTargets := bytesToNonZeroWords(aKey[:])
+				for r := 0; r < 13; r++ {
+					aExpandKeyTargets = append(aExpandKeyTargets, bytesToNonZeroWords(aRK[r][:])...)
+				}
+				if word, off, found := scanFn(res, aExpandKeyTargets); found {
+					t.Fatalf("[%s] %s leaked word %#016x at offset %d", tier, expandKeyOp.name, word, off)
+				}
+			}
+
+			var aRTKTargets, aRKTargets []uint64
 			for r := 0; r < 13; r++ {
 				aRTKTargets = append(aRTKTargets, bytesToNonZeroWords(aRTK[r][:])...)
+				aRKTargets = append(aRKTargets, bytesToNonZeroWords(aRK[r][:])...)
 			}
 
 			for _, blockOp := range []struct {
@@ -1136,8 +1165,10 @@ func TestFusedKernelsLeaveNoSecretInFrame(t *testing.T) {
 			}{
 				{"asuraEncryptBlockHW", asuraEncryptBlockHW, aIn, aOut},
 				{"asuraEncryptBlockSoft", asuraEncryptBlockSoft, aIn, aOut},
+				{"AsuraEncrypt", AsuraEncrypt, aIn, aOut},
 				{"asuraDecryptBlockHW", asuraDecryptBlockHW, aOut, aDec},
 				{"asuraDecryptBlockSoft", asuraDecryptBlockSoft, aOut, aDec},
+				{"AsuraDecrypt", AsuraDecrypt, aOut, aDec},
 			} {
 				if w := captureAreionFrameAndRegResidue(func() {
 					blockOp.fn(aRTK, blockOp.out, blockOp.in)
@@ -1158,8 +1189,10 @@ func TestFusedKernelsLeaveNoSecretInFrame(t *testing.T) {
 			}{
 				{"asuraEncrypt4BlocksHW", asuraEncrypt4BlocksHW, aIn4, aOut4},
 				{"asuraEncrypt4BlocksSoft", asuraEncrypt4BlocksSoft, aIn4, aOut4},
+				{"AsuraEncryptx4", AsuraEncryptx4, aIn4, aOut4},
 				{"asuraDecrypt4BlocksHW", asuraDecrypt4BlocksHW, aOut4, aDec4},
 				{"asuraDecrypt4BlocksSoft", asuraDecrypt4BlocksSoft, aOut4, aDec4},
+				{"AsuraDecryptx4", AsuraDecryptx4, aOut4, aDec4},
 			} {
 				if w := captureAreionFrameAndRegResidue(func() {
 					block4Op.fn(aRTK, block4Op.out, block4Op.in)
@@ -1183,8 +1216,10 @@ func TestFusedKernelsLeaveNoSecretInFrame(t *testing.T) {
 			}{
 				{"asuraEncryptBlockOTFHW", asuraEncryptBlockOTFHW, aIn, aOut},
 				{"asuraEncryptBlockOTFSoft", asuraEncryptBlockOTFSoft, aIn, aOut},
+				{"AsuraEncryptOTF", AsuraEncryptOTF, aIn, aOut},
 				{"asuraDecryptBlockOTFHW", asuraDecryptBlockOTFHW, aOut, aDec},
 				{"asuraDecryptBlockOTFSoft", asuraDecryptBlockOTFSoft, aOut, aDec},
+				{"AsuraDecryptOTF", AsuraDecryptOTF, aOut, aDec},
 			} {
 				if w := captureAreionFrameAndRegResidue(func() {
 					otfOp.fn(otfOp.out, otfOp.in, aKey, aTweak)
@@ -1199,26 +1234,80 @@ func TestFusedKernelsLeaveNoSecretInFrame(t *testing.T) {
 
 			for _, otf4Op := range []struct {
 				name string
-				fn   func(*[4][32]byte, *[4][32]byte, *[32]byte, *[16]byte)
+				fn   func(*[4][32]byte, *[4][32]byte, *[32]byte, *[4][16]byte)
 				in   *[4][32]byte
 				out  *[4][32]byte
 			}{
 				{"asuraEncrypt4BlocksOTFHW", asuraEncrypt4BlocksOTFHW, aIn4, aOut4},
 				{"asuraEncrypt4BlocksOTFSoft", asuraEncrypt4BlocksOTFSoft, aIn4, aOut4},
+				{"AsuraEncryptx4OTF", AsuraEncryptx4OTF, aIn4, aOut4},
 				{"asuraDecrypt4BlocksOTFHW", asuraDecrypt4BlocksOTFHW, aOut4, aDec4},
 				{"asuraDecrypt4BlocksOTFSoft", asuraDecrypt4BlocksOTFSoft, aOut4, aDec4},
+				{"AsuraDecryptx4OTF", AsuraDecryptx4OTF, aOut4, aDec4},
 			} {
 				if w := captureAreionFrameAndRegResidue(func() {
-					otf4Op.fn(otf4Op.out, otf4Op.in, aKey, aTweak)
+					otf4Op.fn(otf4Op.out, otf4Op.in, aKey, aTweaks4)
 				}, res); w == 0 {
 					t.Fatalf("[%s] %s: probe missed stack window", tier, otf4Op.name)
 				}
-				targets := append(append([]uint64{}, aRTKTargets...), bytesToNonZeroWords(aKey[:], aTweak[:])...)
+				targets := append(append([]uint64{}, aRTKTargets...), bytesToNonZeroWords(aKey[:])...)
 				for l := 0; l < 4; l++ {
-					targets = append(targets, bytesToNonZeroWords(otf4Op.in[l][:], otf4Op.out[l][:])...)
+					targets = append(targets, bytesToNonZeroWords(aTweaks4[l][:], otf4Op.in[l][:], otf4Op.out[l][:])...)
 				}
 				if word, off, found := scanFn(res, targets); found {
 					t.Fatalf("[%s] %s leaked word %#016x at offset %d", tier, otf4Op.name, word, off)
+				}
+			}
+
+			for _, rkOp := range []struct {
+				name string
+				fn   func(*[13][32]byte, *[32]byte, *[32]byte, *[16]byte)
+				in   *[32]byte
+				out  *[32]byte
+			}{
+				{"asuraEncryptBlockRKHW", asuraEncryptBlockRKHW, aIn, aOut},
+				{"asuraEncryptBlockRKSoft", asuraEncryptBlockRKSoft, aIn, aOut},
+				{"AsuraEncryptRK", AsuraEncryptRK, aIn, aOut},
+				{"asuraDecryptBlockRKHW", asuraDecryptBlockRKHW, aOut, aDec},
+				{"asuraDecryptBlockRKSoft", asuraDecryptBlockRKSoft, aOut, aDec},
+				{"AsuraDecryptRK", AsuraDecryptRK, aOut, aDec},
+			} {
+				if w := captureAreionFrameAndRegResidue(func() {
+					rkOp.fn(aRK, rkOp.out, rkOp.in, aTweak)
+				}, res); w == 0 {
+					t.Fatalf("[%s] %s: probe missed stack window", tier, rkOp.name)
+				}
+				targets := append(append([]uint64{}, aRKTargets...), aRTKTargets...)
+				targets = append(targets, bytesToNonZeroWords(aTweak[:], rkOp.in[:], rkOp.out[:])...)
+				if word, off, found := scanFn(res, targets); found {
+					t.Fatalf("[%s] %s leaked word %#016x at offset %d", tier, rkOp.name, word, off)
+				}
+			}
+
+			for _, rk4Op := range []struct {
+				name string
+				fn   func(*[13][32]byte, *[4][32]byte, *[4][32]byte, *[4][16]byte)
+				in   *[4][32]byte
+				out  *[4][32]byte
+			}{
+				{"asuraEncrypt4BlocksRKHW", asuraEncrypt4BlocksRKHW, aIn4, aOut4},
+				{"asuraEncrypt4BlocksRKSoft", asuraEncrypt4BlocksRKSoft, aIn4, aOut4},
+				{"AsuraEncryptx4RK", AsuraEncryptx4RK, aIn4, aOut4},
+				{"asuraDecrypt4BlocksRKHW", asuraDecrypt4BlocksRKHW, aOut4, aDec4},
+				{"asuraDecrypt4BlocksRKSoft", asuraDecrypt4BlocksRKSoft, aOut4, aDec4},
+				{"AsuraDecryptx4RK", AsuraDecryptx4RK, aOut4, aDec4},
+			} {
+				if w := captureAreionFrameAndRegResidue(func() {
+					rk4Op.fn(aRK, rk4Op.out, rk4Op.in, aTweaks4)
+				}, res); w == 0 {
+					t.Fatalf("[%s] %s: probe missed stack window", tier, rk4Op.name)
+				}
+				targets := append(append([]uint64{}, aRKTargets...), aRTKTargets...)
+				for l := 0; l < 4; l++ {
+					targets = append(targets, bytesToNonZeroWords(aTweaks4[l][:], rk4Op.in[l][:], rk4Op.out[l][:])...)
+				}
+				if word, off, found := scanFn(res, targets); found {
+					t.Fatalf("[%s] %s leaked word %#016x at offset %d", tier, rk4Op.name, word, off)
 				}
 			}
 		})

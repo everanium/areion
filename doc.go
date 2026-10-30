@@ -1,8 +1,9 @@
 // Package areion implements the Areion-256 and Areion-512 cryptographic
 // permutations, Davies-Meyer short-input compression (DM256, DM512),
 // beyond-birthday-bound Sum of Even-Mansour pseudorandom functions (SoEM256,
-// SoEM512), and 1-round / 2-round Even-Mansour (EM, EM2) and Tweakable
-// Even-Mansour (TEM, TEM2) invertible wide-block ciphers.
+// SoEM512), 1-round / 2-round Even-Mansour (EM, EM2) and Tweakable
+// Even-Mansour (TEM, TEM2) invertible wide-block ciphers, and the ASURA
+// 256-bit tweakable block cipher (Isobe et al., INDOCRYPT 2024, LNCS vol. 15495).
 //
 // All primitives execute in constant time with respect to secret inputs and
 // scrub temporary stack buffers, SIMD vector registers, and scratch
@@ -44,6 +45,11 @@
 //	  C  = P2(P1(M ⊕ W1) ⊕ W2) ⊕ W1 ⊕ W2
 //	  M  = P1⁻¹(P2⁻¹(C ⊕ W1 ⊕ W2) ⊕ W2) ⊕ W1
 //
+//	ASURA 256-Bit Tweakable Block Cipher (AsuraExpandTweakey, AsuraEncrypt/Decrypt, *x4, *OTF):
+//	  256-bit (32-byte) block, 256-bit (32-byte) key, 128-bit (16-byte) tweak,
+//	  12 rounds + final half-round, supporting both pre-expanded round tweakeys
+//	  (rtk *[13][32]byte) and zero-RAM-state on-the-fly (OTF) tweakey evaluation.
+//
 // # Hardware Acceleration and Runtime Dispatch
 //
 // At package initialization, the highest supported instruction-set tier is
@@ -55,8 +61,9 @@
 //   - ARM64 (arm64): [TierARMCrypto] ("arm64") or [TierPureGo] ("purego").
 //   - Other architectures: constant-time 64-bit bitsliced [TierPureGo] ("purego").
 //
-// Use [Tier], [TierCode], [SetTier], or the AREION_FORCE_TIER environment
-// variable to inspect or override the active tier at runtime.
+// Use [Tier], [TierCode], [SetTier], or the AREION_FORCE_TIER /
+// ASURA_FORCE_TIER environment variables to inspect or override the active tier
+// at runtime.
 //
 // # References
 //
@@ -75,4 +82,8 @@
 //     2012, LNCS 7237, pp. 45–62.
 //   - Benoît Cogliati, Rodolphe Lampe, Yannick Seurin: "Tweaking Even-Mansour
 //     Ciphers", CRYPTO 2015, Part I, LNCS 9215, pp. 189–208.
+//   - Atsushi Tanaka, Rentaro Shiba, Kosei Sakamoto, Mostafizar Rahman,
+//     Takuro Shiraya, Takanori Isobe: "ASURA: An Efficient Large-State Tweakable
+//     Block Cipher for ARM Environment", INDOCRYPT 2024, LNCS vol. 15495,
+//     pp. 143–164, doi:10.1007/978-3-031-80308-6_7.
 package areion

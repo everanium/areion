@@ -2,10 +2,18 @@ package areion
 
 // Library version constants.
 const (
-	Version      = "0.1.6"
+	Version      = "0.2.1"
 	VersionMajor = 0
-	VersionMinor = 1
-	VersionPatch = 6
+	VersionMinor = 2
+	VersionPatch = 1
+)
+
+// ASURA 256-bit tweakable block cipher parameters (Isobe et al., INDOCRYPT 2024, LNCS vol. 15495).
+const (
+	AsuraBlockSize = 32
+	AsuraKeySize   = 32
+	AsuraTweakSize = 16
+	AsuraRounds    = 12
 )
 
 // roundConstantsP1 holds the 15 128-bit round constants for permutation P1, as published by

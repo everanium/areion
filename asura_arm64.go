@@ -24,10 +24,25 @@ func asuraEncryptBlockOTFAsm(dst, src, key *[32]byte, tweak *[16]byte)
 func asuraDecryptBlockOTFAsm(dst, src, key *[32]byte, tweak *[16]byte)
 
 //go:noescape
-func asuraEncrypt4BlocksOTFAsm(dst, src *[4][32]byte, key *[32]byte, tweak *[16]byte)
+func asuraEncrypt4BlocksOTFAsm(dst, src *[4][32]byte, key *[32]byte, tweaks *[4][16]byte)
 
 //go:noescape
-func asuraDecrypt4BlocksOTFAsm(dst, src *[4][32]byte, key *[32]byte, tweak *[16]byte)
+func asuraDecrypt4BlocksOTFAsm(dst, src *[4][32]byte, key *[32]byte, tweaks *[4][16]byte)
+
+//go:noescape
+func asuraExpandKeyAsm(rk *[13][32]byte, key *[32]byte)
+
+//go:noescape
+func asuraEncryptBlockRKAsm(rk *[13][32]byte, dst, src *[32]byte, tweak *[16]byte)
+
+//go:noescape
+func asuraDecryptBlockRKAsm(rk *[13][32]byte, dst, src *[32]byte, tweak *[16]byte)
+
+//go:noescape
+func asuraEncrypt4BlocksRKAsm(rk *[13][32]byte, dst, src *[4][32]byte, tweaks *[4][16]byte)
+
+//go:noescape
+func asuraDecrypt4BlocksRKAsm(rk *[13][32]byte, dst, src *[4][32]byte, tweaks *[4][16]byte)
 
 func asuraExpandTweakeyHW(rtk *[13][32]byte, key *[32]byte, tweak *[16]byte) {
 	if hasARMCrypto && TierCode() != TierPureGo {
@@ -85,34 +100,58 @@ func asuraDecryptBlockOTFHW(dst, src, key *[32]byte, tweak *[16]byte) {
 	asuraDecryptBlockOTFSoft(dst, src, key, tweak)
 }
 
-func asuraEncrypt4BlocksOTFHW(dst, src *[4][32]byte, key *[32]byte, tweak *[16]byte) {
+func asuraEncrypt4BlocksOTFHW(dst, src *[4][32]byte, key *[32]byte, tweaks *[4][16]byte) {
 	if hasARMCrypto && TierCode() != TierPureGo {
-		asuraEncrypt4BlocksOTFAsm(dst, src, key, tweak)
+		asuraEncrypt4BlocksOTFAsm(dst, src, key, tweaks)
 		return
 	}
-	asuraEncrypt4BlocksOTFSoft(dst, src, key, tweak)
+	asuraEncrypt4BlocksOTFSoft(dst, src, key, tweaks)
 }
 
-func asuraDecrypt4BlocksOTFHW(dst, src *[4][32]byte, key *[32]byte, tweak *[16]byte) {
+func asuraDecrypt4BlocksOTFHW(dst, src *[4][32]byte, key *[32]byte, tweaks *[4][16]byte) {
 	if hasARMCrypto && TierCode() != TierPureGo {
-		asuraDecrypt4BlocksOTFAsm(dst, src, key, tweak)
+		asuraDecrypt4BlocksOTFAsm(dst, src, key, tweaks)
 		return
 	}
-	asuraDecrypt4BlocksOTFSoft(dst, src, key, tweak)
+	asuraDecrypt4BlocksOTFSoft(dst, src, key, tweaks)
 }
 
-func asuraTBCEncryptBlockHW(dst, src, key *[32]byte, tweak *[16]byte) {
-	asuraEncryptBlockOTFHW(dst, src, key, tweak)
+func asuraExpandKeyHW(rk *[13][32]byte, key *[32]byte) {
+	if hasARMCrypto && TierCode() != TierPureGo {
+		asuraExpandKeyAsm(rk, key)
+		return
+	}
+	asuraExpandKeySoft(rk, key)
 }
 
-func asuraTBCDecryptBlockHW(dst, src, key *[32]byte, tweak *[16]byte) {
-	asuraDecryptBlockOTFHW(dst, src, key, tweak)
+func asuraEncryptBlockRKHW(rk *[13][32]byte, dst, src *[32]byte, tweak *[16]byte) {
+	if hasARMCrypto && TierCode() != TierPureGo {
+		asuraEncryptBlockRKAsm(rk, dst, src, tweak)
+		return
+	}
+	asuraEncryptBlockRKSoft(rk, dst, src, tweak)
 }
 
-func asuraTBCEncrypt4BlocksHW(dst, src *[4][32]byte, key *[32]byte, tweak *[16]byte) {
-	asuraEncrypt4BlocksOTFHW(dst, src, key, tweak)
+func asuraDecryptBlockRKHW(rk *[13][32]byte, dst, src *[32]byte, tweak *[16]byte) {
+	if hasARMCrypto && TierCode() != TierPureGo {
+		asuraDecryptBlockRKAsm(rk, dst, src, tweak)
+		return
+	}
+	asuraDecryptBlockRKSoft(rk, dst, src, tweak)
 }
 
-func asuraTBCDecrypt4BlocksHW(dst, src *[4][32]byte, key *[32]byte, tweak *[16]byte) {
-	asuraDecrypt4BlocksOTFHW(dst, src, key, tweak)
+func asuraEncrypt4BlocksRKHW(rk *[13][32]byte, dst, src *[4][32]byte, tweaks *[4][16]byte) {
+	if hasARMCrypto && TierCode() != TierPureGo {
+		asuraEncrypt4BlocksRKAsm(rk, dst, src, tweaks)
+		return
+	}
+	asuraEncrypt4BlocksRKSoft(rk, dst, src, tweaks)
+}
+
+func asuraDecrypt4BlocksRKHW(rk *[13][32]byte, dst, src *[4][32]byte, tweaks *[4][16]byte) {
+	if hasARMCrypto && TierCode() != TierPureGo {
+		asuraDecrypt4BlocksRKAsm(rk, dst, src, tweaks)
+		return
+	}
+	asuraDecrypt4BlocksRKSoft(rk, dst, src, tweaks)
 }

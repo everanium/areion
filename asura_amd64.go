@@ -57,28 +57,70 @@ func asuraDecryptBlockOTFAsm(dst, src, key *[32]byte, tweak *[16]byte)
 func asuraDecryptBlockOTFVexAsm(dst, src, key *[32]byte, tweak *[16]byte)
 
 //go:noescape
-func asuraEncrypt4BlocksOTFAsm(dst, src *[4][32]byte, key *[32]byte, tweak *[16]byte)
+func asuraEncrypt4BlocksOTFAsm(dst, src *[4][32]byte, key *[32]byte, tweaks *[4][16]byte)
 
 //go:noescape
-func asuraEncrypt4BlocksOTFVexAsm(dst, src *[4][32]byte, key *[32]byte, tweak *[16]byte)
+func asuraEncrypt4BlocksOTFVexAsm(dst, src *[4][32]byte, key *[32]byte, tweaks *[4][16]byte)
 
 //go:noescape
-func asuraEncrypt4BlocksOTFVAES256Asm(dst, src *[4][32]byte, key *[32]byte, tweak *[16]byte)
+func asuraEncrypt4BlocksOTFVAES256Asm(dst, src *[4][32]byte, key *[32]byte, tweaks *[4][16]byte)
 
 //go:noescape
-func asuraEncrypt4BlocksOTFVAES512Asm(dst, src *[4][32]byte, key *[32]byte, tweak *[16]byte)
+func asuraEncrypt4BlocksOTFVAES512Asm(dst, src *[4][32]byte, key *[32]byte, tweaks *[4][16]byte)
 
 //go:noescape
-func asuraDecrypt4BlocksOTFAsm(dst, src *[4][32]byte, key *[32]byte, tweak *[16]byte)
+func asuraDecrypt4BlocksOTFAsm(dst, src *[4][32]byte, key *[32]byte, tweaks *[4][16]byte)
 
 //go:noescape
-func asuraDecrypt4BlocksOTFVexAsm(dst, src *[4][32]byte, key *[32]byte, tweak *[16]byte)
+func asuraDecrypt4BlocksOTFVexAsm(dst, src *[4][32]byte, key *[32]byte, tweaks *[4][16]byte)
 
 //go:noescape
-func asuraDecrypt4BlocksOTFVAES256Asm(dst, src *[4][32]byte, key *[32]byte, tweak *[16]byte)
+func asuraDecrypt4BlocksOTFVAES256Asm(dst, src *[4][32]byte, key *[32]byte, tweaks *[4][16]byte)
 
 //go:noescape
-func asuraDecrypt4BlocksOTFVAES512Asm(dst, src *[4][32]byte, key *[32]byte, tweak *[16]byte)
+func asuraDecrypt4BlocksOTFVAES512Asm(dst, src *[4][32]byte, key *[32]byte, tweaks *[4][16]byte)
+
+//go:noescape
+func asuraExpandKeyAESNIAsm(rk *[13][32]byte, key *[32]byte)
+
+//go:noescape
+func asuraExpandKeyVexAsm(rk *[13][32]byte, key *[32]byte)
+
+//go:noescape
+func asuraEncryptBlockRKAESNIAsm(rk *[13][32]byte, dst, src *[32]byte, tweak *[16]byte)
+
+//go:noescape
+func asuraEncryptBlockRKVexAsm(rk *[13][32]byte, dst, src *[32]byte, tweak *[16]byte)
+
+//go:noescape
+func asuraDecryptBlockRKAESNIAsm(rk *[13][32]byte, dst, src *[32]byte, tweak *[16]byte)
+
+//go:noescape
+func asuraDecryptBlockRKVexAsm(rk *[13][32]byte, dst, src *[32]byte, tweak *[16]byte)
+
+//go:noescape
+func asuraEncrypt4BlocksRKAESNIAsm(rk *[13][32]byte, dst, src *[4][32]byte, tweaks *[4][16]byte)
+
+//go:noescape
+func asuraEncrypt4BlocksRKVexAsm(rk *[13][32]byte, dst, src *[4][32]byte, tweaks *[4][16]byte)
+
+//go:noescape
+func asuraEncrypt4BlocksRKVAES256Asm(rk *[13][32]byte, dst, src *[4][32]byte, tweaks *[4][16]byte)
+
+//go:noescape
+func asuraEncrypt4BlocksRKVAES512Asm(rk *[13][32]byte, dst, src *[4][32]byte, tweaks *[4][16]byte)
+
+//go:noescape
+func asuraDecrypt4BlocksRKAESNIAsm(rk *[13][32]byte, dst, src *[4][32]byte, tweaks *[4][16]byte)
+
+//go:noescape
+func asuraDecrypt4BlocksRKVexAsm(rk *[13][32]byte, dst, src *[4][32]byte, tweaks *[4][16]byte)
+
+//go:noescape
+func asuraDecrypt4BlocksRKVAES256Asm(rk *[13][32]byte, dst, src *[4][32]byte, tweaks *[4][16]byte)
+
+//go:noescape
+func asuraDecrypt4BlocksRKVAES512Asm(rk *[13][32]byte, dst, src *[4][32]byte, tweaks *[4][16]byte)
 
 func asuraExpandTweakeyHW(rtk *[13][32]byte, key *[32]byte, tweak *[16]byte) {
 	tier := TierCode()
@@ -172,50 +214,102 @@ func asuraDecryptBlockOTFHW(dst, src, key *[32]byte, tweak *[16]byte) {
 	}
 }
 
-func asuraEncrypt4BlocksOTFHW(dst, src *[4][32]byte, key *[32]byte, tweak *[16]byte) {
+func asuraEncrypt4BlocksOTFHW(dst, src *[4][32]byte, key *[32]byte, tweaks *[4][16]byte) {
 	tier := TierCode()
 	switch {
 	case hasAVX512 && hasVAESAVX2 && tier >= TierAVX512:
-		asuraEncrypt4BlocksOTFVAES512Asm(dst, src, key, tweak)
+		asuraEncrypt4BlocksOTFVAES512Asm(dst, src, key, tweaks)
 	case hasVAESAVX2 && tier >= TierVAESAVX2:
-		asuraEncrypt4BlocksOTFVAES256Asm(dst, src, key, tweak)
+		asuraEncrypt4BlocksOTFVAES256Asm(dst, src, key, tweaks)
 	case hasVEX && tier >= TierVEX:
-		asuraEncrypt4BlocksOTFVexAsm(dst, src, key, tweak)
+		asuraEncrypt4BlocksOTFVexAsm(dst, src, key, tweaks)
 	case hasAESNI && tier >= TierAESNI:
-		asuraEncrypt4BlocksOTFAsm(dst, src, key, tweak)
+		asuraEncrypt4BlocksOTFAsm(dst, src, key, tweaks)
 	default:
-		asuraEncrypt4BlocksOTFSoft(dst, src, key, tweak)
+		asuraEncrypt4BlocksOTFSoft(dst, src, key, tweaks)
 	}
 }
 
-func asuraDecrypt4BlocksOTFHW(dst, src *[4][32]byte, key *[32]byte, tweak *[16]byte) {
+func asuraDecrypt4BlocksOTFHW(dst, src *[4][32]byte, key *[32]byte, tweaks *[4][16]byte) {
 	tier := TierCode()
 	switch {
 	case hasAVX512 && hasVAESAVX2 && tier >= TierAVX512:
-		asuraDecrypt4BlocksOTFVAES512Asm(dst, src, key, tweak)
+		asuraDecrypt4BlocksOTFVAES512Asm(dst, src, key, tweaks)
 	case hasVAESAVX2 && tier >= TierVAESAVX2:
-		asuraDecrypt4BlocksOTFVAES256Asm(dst, src, key, tweak)
+		asuraDecrypt4BlocksOTFVAES256Asm(dst, src, key, tweaks)
 	case hasVEX && tier >= TierVEX:
-		asuraDecrypt4BlocksOTFVexAsm(dst, src, key, tweak)
+		asuraDecrypt4BlocksOTFVexAsm(dst, src, key, tweaks)
 	case hasAESNI && tier >= TierAESNI:
-		asuraDecrypt4BlocksOTFAsm(dst, src, key, tweak)
+		asuraDecrypt4BlocksOTFAsm(dst, src, key, tweaks)
 	default:
-		asuraDecrypt4BlocksOTFSoft(dst, src, key, tweak)
+		asuraDecrypt4BlocksOTFSoft(dst, src, key, tweaks)
 	}
 }
 
-func asuraTBCEncryptBlockHW(dst, src, key *[32]byte, tweak *[16]byte) {
-	asuraEncryptBlockOTFHW(dst, src, key, tweak)
+func asuraExpandKeyHW(rk *[13][32]byte, key *[32]byte) {
+	tier := TierCode()
+	switch {
+	case hasVEX && tier >= TierVEX:
+		asuraExpandKeyVexAsm(rk, key)
+	case hasAESNI && tier >= TierAESNI:
+		asuraExpandKeyAESNIAsm(rk, key)
+	default:
+		asuraExpandKeySoft(rk, key)
+	}
 }
 
-func asuraTBCDecryptBlockHW(dst, src, key *[32]byte, tweak *[16]byte) {
-	asuraDecryptBlockOTFHW(dst, src, key, tweak)
+func asuraEncryptBlockRKHW(rk *[13][32]byte, dst, src *[32]byte, tweak *[16]byte) {
+	tier := TierCode()
+	switch {
+	case hasVEX && tier >= TierVEX:
+		asuraEncryptBlockRKVexAsm(rk, dst, src, tweak)
+	case hasAESNI && tier >= TierAESNI:
+		asuraEncryptBlockRKAESNIAsm(rk, dst, src, tweak)
+	default:
+		asuraEncryptBlockRKSoft(rk, dst, src, tweak)
+	}
 }
 
-func asuraTBCEncrypt4BlocksHW(dst, src *[4][32]byte, key *[32]byte, tweak *[16]byte) {
-	asuraEncrypt4BlocksOTFHW(dst, src, key, tweak)
+func asuraDecryptBlockRKHW(rk *[13][32]byte, dst, src *[32]byte, tweak *[16]byte) {
+	tier := TierCode()
+	switch {
+	case hasVEX && tier >= TierVEX:
+		asuraDecryptBlockRKVexAsm(rk, dst, src, tweak)
+	case hasAESNI && tier >= TierAESNI:
+		asuraDecryptBlockRKAESNIAsm(rk, dst, src, tweak)
+	default:
+		asuraDecryptBlockRKSoft(rk, dst, src, tweak)
+	}
 }
 
-func asuraTBCDecrypt4BlocksHW(dst, src *[4][32]byte, key *[32]byte, tweak *[16]byte) {
-	asuraDecrypt4BlocksOTFHW(dst, src, key, tweak)
+func asuraEncrypt4BlocksRKHW(rk *[13][32]byte, dst, src *[4][32]byte, tweaks *[4][16]byte) {
+	tier := TierCode()
+	switch {
+	case hasAVX512 && hasVAESAVX2 && tier >= TierAVX512:
+		asuraEncrypt4BlocksRKVAES512Asm(rk, dst, src, tweaks)
+	case hasVAESAVX2 && tier >= TierVAESAVX2:
+		asuraEncrypt4BlocksRKVAES256Asm(rk, dst, src, tweaks)
+	case hasVEX && tier >= TierVEX:
+		asuraEncrypt4BlocksRKVexAsm(rk, dst, src, tweaks)
+	case hasAESNI && tier >= TierAESNI:
+		asuraEncrypt4BlocksRKAESNIAsm(rk, dst, src, tweaks)
+	default:
+		asuraEncrypt4BlocksRKSoft(rk, dst, src, tweaks)
+	}
+}
+
+func asuraDecrypt4BlocksRKHW(rk *[13][32]byte, dst, src *[4][32]byte, tweaks *[4][16]byte) {
+	tier := TierCode()
+	switch {
+	case hasAVX512 && hasVAESAVX2 && tier >= TierAVX512:
+		asuraDecrypt4BlocksRKVAES512Asm(rk, dst, src, tweaks)
+	case hasVAESAVX2 && tier >= TierVAESAVX2:
+		asuraDecrypt4BlocksRKVAES256Asm(rk, dst, src, tweaks)
+	case hasVEX && tier >= TierVEX:
+		asuraDecrypt4BlocksRKVexAsm(rk, dst, src, tweaks)
+	case hasAESNI && tier >= TierAESNI:
+		asuraDecrypt4BlocksRKAESNIAsm(rk, dst, src, tweaks)
+	default:
+		asuraDecrypt4BlocksRKSoft(rk, dst, src, tweaks)
+	}
 }

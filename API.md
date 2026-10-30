@@ -13,23 +13,33 @@ Companion C99 / C11 reference library: **[`everanium/areion-c`](https://github.c
 3. [Davies-Meyer Compression Functions](#3-davies-meyer-compression-functions)
 4. [Sum of Even-Mansour (SoEM22) Pseudorandom Functions (PRFs)](#4-sum-of-even-mansour-soem22-pseudorandom-functions-prfs)
 5. [Invertible Wide-Block Ciphers (EM, EM2, TEM, TEM2)](#5-invertible-wide-block-ciphers-em-em2-tem-tem2)
-6. [Low-Level AES-128 & Round Primitives](#6-low-level-aes-128--round-primitives)
-7. [Runtime Dispatch, Self-Test, and Memory Zeroization](#7-runtime-dispatch-self-test-and-memory-zeroization)
+6. [ASURA 256-Bit Tweakable Block Cipher (INDOCRYPT 2024)](#6-asura-256-bit-tweakable-block-cipher-indocrypt-2024)
+7. [Low-Level AES-128 & Round Primitives](#7-low-level-aes-128--round-primitives)
+8. [Runtime Dispatch, Self-Test, and Memory Zeroization](#8-runtime-dispatch-self-test-and-memory-zeroization)
 
 ---
 
 ### 1. Types and Constants
 
-Version constants, fixed-size byte-array type aliases for permutation states and AES blocks, and integer tier codes returned by `TierCode()`.
+Version constants, ASURA cipher size constants, fixed-size byte-array type aliases for permutation states and AES blocks, and integer tier codes returned by `TierCode()`.
 
 #### Version Constants
 
 | Constant | Value | Description |
 | :--- | :---: | :--- |
-| `Version` | `"0.1.6"` | Semantic version string |
+| `Version` | `"0.2.1"` | Semantic version string |
 | `VersionMajor` | `0` | Major version number |
-| `VersionMinor` | `1` | Minor version number |
-| `VersionPatch` | `6` | Patch version number |
+| `VersionMinor` | `2` | Minor version number |
+| `VersionPatch` | `1` | Patch version number |
+
+#### ASURA 256-Bit Tweakable Block Cipher Constants
+
+| Constant | Value | Description |
+| :--- | :---: | :--- |
+| `AsuraBlockSize` | `32` | 256-bit (32-byte) block size in bytes |
+| `AsuraKeySize` | `32` | 256-bit (32-byte) secret key size in bytes |
+| `AsuraTweakSize` | `16` | 128-bit (16-byte) public tweak size in bytes |
+| `AsuraRounds` | `12` | Number of full rounds (6 double-round steps + final half-round, 13 32-byte round tweakeys) |
 
 #### State and Block Type Aliases
 
@@ -170,7 +180,48 @@ With per-tweak masks `W1 = P1(T ⊕ K1) ⊕ K1` and `W2 = P2(T ⊕ K2) ⊕ K2`:
 
 ---
 
-### 6. Low-Level AES-128 & Round Primitives
+### 6. ASURA 256-Bit Tweakable Block Cipher (INDOCRYPT 2024)
+
+256-bit (32-byte) tweakable block cipher with a 256-bit (32-byte) key and a 128-bit (16-byte) tweak over 12 rounds (`6` double-round steps plus a final half-round; [Isobe et al., INDOCRYPT 2024, LNCS vol. 15495](https://doi.org/10.1007/978-3-031-80308-6_7)). `dst` and `src` may alias across all encryption and decryption functions.
+
+#### Pre-Expanded Round-Tweakey (`rtk`) Mode
+
+When encrypting or decrypting multiple blocks under a fixed `(key, tweak)` pair, `AsuraExpandTweakey` precomputes the 13 32-byte round tweakeys (`rtk *[13][32]byte`, 416 bytes in RAM) once and amortizes the 12-round AES tweak schedule (`theta`) and 12-round key update (`kappa`) across subsequent calls. Because `rtk` depends on both `key` and `tweak`, it must be re-expanded whenever `tweak` changes, and callers should scrub `rtk` via `clear(rtk[:])` or `Zeroize` when finished.
+
+| Function Signature | Block | Round Tweakeys (`rtk`) | Key | Tweak | Description |
+| :--- | :---: | :---: | :---: | :---: | :--- |
+| `AsuraExpandTweakey(rtk *[13][32]byte, key *[32]byte, tweak *[16]byte)` | — | 13 × 32 B (`416 B`) | 32 B | 16 B | Expands `key` and `tweak` into 13 32-byte round tweakeys `rtk[0..12]` |
+| `AsuraEncrypt(rtk *[13][32]byte, dst, src *[32]byte)` | 32 B | 13 × 32 B (`416 B`) | — | — | Encrypts one 32-byte block under pre-expanded `rtk` |
+| `AsuraDecrypt(rtk *[13][32]byte, dst, src *[32]byte)` | 32 B | 13 × 32 B (`416 B`) | — | — | Decrypts one 32-byte block under pre-expanded `rtk` |
+| `AsuraEncryptx4(rtk *[13][32]byte, dst, src *[4][32]byte)` | 4 × 32 B | 13 × 32 B (`416 B`) | — | — | 4-way parallel encryption of four 32-byte blocks under shared `rtk` |
+| `AsuraDecryptx4(rtk *[13][32]byte, dst, src *[4][32]byte)` | 4 × 32 B | 13 × 32 B (`416 B`) | — | — | 4-way parallel decryption of four 32-byte blocks under shared `rtk` |
+
+#### On-The-Fly (`OTF`) Zero-RAM-State Mode
+
+When the 128-bit tweak changes with every block or 4-block batch (or when keeping 416 bytes of expanded key material in RAM is undesirable), the `*OTF` entry points derive round tweakeys on-the-fly inside registers with zero round-tweakey state stored in RAM. All intermediate tweakey registers are wiped before returning.
+
+| Function Signature | Block | Key | Tweak | RAM Key State | Description |
+| :--- | :---: | :---: | :---: | :---: | :--- |
+| `AsuraEncryptOTF(dst, src, key *[32]byte, tweak *[16]byte)` | 32 B | 32 B | 16 B | 0 B | Single-block encryption with on-the-fly tweakey expansion in registers |
+| `AsuraDecryptOTF(dst, src, key *[32]byte, tweak *[16]byte)` | 32 B | 32 B | 16 B | 0 B | Single-block decryption with on-the-fly tweakey derivation and inversion in registers |
+| `AsuraEncryptx4OTF(dst, src *[4][32]byte, key *[32]byte, tweaks *[4][16]byte)` | 4 × 32 B | 32 B | 4 × 16 B | 0 B | 4-way parallel encryption of four 32-byte blocks under shared `key` and four `tweaks` in registers |
+| `AsuraDecryptx4OTF(dst, src *[4][32]byte, key *[32]byte, tweaks *[4][16]byte)` | 4 × 32 B | 32 B | 4 × 16 B | 0 B | 4-way parallel decryption of four 32-byte blocks under shared `key` and four `tweaks` in registers |
+
+#### Pre-Expanded Session Key (`rk`) + On-The-Fly Tweak Mode
+
+Because the ASURA round tweakey injection `gamma` is linear in the tweak state `T^r` (`rtk[r] = (gamma_0(RC[r], K^r) ^ T^r) || (gamma_1(RC[r], K^r) ^ T^r)`), applications that hold a fixed 256-bit session key `key` while varying the 128-bit `tweak` across blocks or 4-block batches can pre-expand the key-dependent round contributions once via `AsuraExpandKey` into `rk *[13][32]byte` (`416 B` in RAM). Each `*RK` call then evolves only `tweak` (or four independent `tweaks`) via the lightweight 16-byte AES encryption round `theta` inside registers (`T^{r+1} = AESENC(T^r, 0)`) and XORs `T^r` into both 16-byte halves of `rk[r]` on the fly, avoiding the 12-round 256-bit `kappa` key schedule and `gamma` AES rounds per call. Callers should scrub `rk` via `clear(rk[:])` or `Zeroize` when finished.
+
+| Function Signature | Block | Session Key (`rk`) | Tweak | Description |
+| :--- | :---: | :---: | :---: | :--- |
+| `AsuraExpandKey(rk *[13][32]byte, key *[32]byte)` | — | 13 × 32 B (`416 B`) | — | Precomputes the 13 tweak-independent 32-byte session round keys `rk[0..12]` from `key` |
+| `AsuraEncryptRK(rk *[13][32]byte, dst, src *[32]byte, tweak *[16]byte)` | 32 B | 13 × 32 B (`416 B`) | 16 B | Single-block encryption under pre-expanded `rk` with on-the-fly `tweak` evolution in registers |
+| `AsuraDecryptRK(rk *[13][32]byte, dst, src *[32]byte, tweak *[16]byte)` | 32 B | 13 × 32 B (`416 B`) | 16 B | Single-block decryption under pre-expanded `rk` with on-the-fly `tweak` evolution in registers |
+| `AsuraEncryptx4RK(rk *[13][32]byte, dst, src *[4][32]byte, tweaks *[4][16]byte)` | 4 × 32 B | 13 × 32 B (`416 B`) | 4 × 16 B | 4-way parallel encryption of four 32-byte blocks under pre-expanded `rk` and four `tweaks` |
+| `AsuraDecryptx4RK(rk *[13][32]byte, dst, src *[4][32]byte, tweaks *[4][16]byte)` | 4 × 32 B | 13 × 32 B (`416 B`) | 4 × 16 B | 4-way parallel decryption of four 32-byte blocks under pre-expanded `rk` and four `tweaks` |
+
+---
+
+### 7. Low-Level AES-128 & Round Primitives
 
 Building blocks for custom AES-based constructions, exposed in both hardware-dispatched and pure-Go bitsliced forms.
 
@@ -194,7 +245,7 @@ Building blocks for custom AES-based constructions, exposed in both hardware-dis
 
 ---
 
-### 7. Runtime Dispatch, Self-Test, and Memory Zeroization
+### 8. Runtime Dispatch, Self-Test, and Memory Zeroization
 
 Runtime CPU tier introspection/override, FIPS 140-3 Known-Answer Self-Test (CAST), and DSE-resistant buffer scrubbing.
 
@@ -202,7 +253,7 @@ Runtime CPU tier introspection/override, FIPS 140-3 Known-Answer Self-Test (CAST
 | :--- | :---: | :--- |
 | `Tier() string` | `string` | Active dispatch tier name: `"avx512"`, `"vaesavx2"`, `"vex"`, `"aesni"`, `"arm64"`, or `"purego"` |
 | `TierCode() int32` | `int32` | Active dispatch tier constant (`TierPureGo`..`TierARMCrypto`) |
-| `SetTier(tier string) error` | `error` | Overrides the active tier (`"auto"`, `"avx512"`, `"vaesavx2"`, `"vex"`, `"aesni"`, `"arm64"`, `"purego"`, plus aliases `"neon"`/`"sve"`/`"sve2"` and `"purec"`/`"scalar"`/`"gpr"`); also configurable at startup via `AREION_FORCE_TIER` |
+| `SetTier(tier string) error` | `error` | Overrides the active tier (`"auto"`, `"avx512"`, `"vaesavx2"`, `"vex"`, `"aesni"`, `"arm64"`, `"purego"`, plus aliases `"neon"`/`"sve"`/`"sve2"` and `"purec"`/`"scalar"`/`"gpr"`); also configurable at startup via `AREION_FORCE_TIER` or `ASURA_FORCE_TIER` |
 | `UseHardwareAcceleration() bool` | `bool` | Reports whether hardware AES acceleration is available and currently enabled (`TierCode() != TierPureGo`) |
 | `SelfTest() error` | `error` | FIPS 140-3 Power-On Known-Answer Self-Test (CAST) across all primitives on the active tier |
 | `Zeroize(b []byte)` | — | Overwrites `b` with zeros and prevents dead-store elimination via `clear(b); runtime.KeepAlive(b)` |

@@ -1219,6 +1219,19 @@ func TestSetTierErrorHandlingAndAliases(t *testing.T) {
 	applyEnvTier()
 	t.Setenv("AREION_FORCE_TIER", "invalid_tier_value")
 	applyEnvTier()
+	t.Setenv("AREION_FORCE_TIER", "")
+	_ = SetTier("auto")
+	t.Setenv("ASURA_FORCE_TIER", "purego")
+	applyEnvTier()
+	if Tier() != "purego" {
+		t.Errorf("applyEnvTier(ASURA_FORCE_TIER=purego) got %s", Tier())
+	}
+	t.Setenv("ASURA_FORCE_TIER", "auto")
+	applyEnvTier()
+	t.Setenv("ASURA_FORCE_TIER", "invalid_tier_value")
+	applyEnvTier()
+	t.Setenv("ASURA_FORCE_TIER", "")
+	_ = SetTier("auto")
 
 	customRC := roundConstantsP1
 	var sCustom, sRef State256
@@ -4571,8 +4584,10 @@ func TestZeroAllocationsAllFunctionsAllTiers(t *testing.T) {
 		blk4   Block4
 		rk4    Key4
 		dst64  Block4
-		rk11   [11]Block
-		zbuf   [64]byte
+		rk11     [11]Block
+		asuraR   [13][32]byte
+		asuraTw4 [4][16]byte
+		zbuf     [64]byte
 	)
 
 	ops := []struct {
@@ -4648,6 +4663,20 @@ func TestZeroAllocationsAllFunctionsAllTiers(t *testing.T) {
 		{"TEM2Decrypt256x4", func() { s256x4 = TEM2Decrypt256x4(&k256x4, &t256x4, &m256x4) }},
 		{"TEM2Encrypt512x4", func() { s512x4 = TEM2Encrypt512x4(&k512x4, &t512x4, &m512x4) }},
 		{"TEM2Decrypt512x4", func() { s512x4 = TEM2Decrypt512x4(&k512x4, &t512x4, &m512x4) }},
+		{"AsuraExpandTweakey", func() { AsuraExpandTweakey(&asuraR, &m256, &blk) }},
+		{"AsuraExpandKey", func() { AsuraExpandKey(&asuraR, &m256) }},
+		{"AsuraEncrypt", func() { AsuraEncrypt(&asuraR, &s256, &m256) }},
+		{"AsuraDecrypt", func() { AsuraDecrypt(&asuraR, &s256, &m256) }},
+		{"AsuraEncryptx4", func() { AsuraEncryptx4(&asuraR, &s256x4, &m256x4) }},
+		{"AsuraDecryptx4", func() { AsuraDecryptx4(&asuraR, &s256x4, &m256x4) }},
+		{"AsuraEncryptOTF", func() { AsuraEncryptOTF(&s256, &m256, &t256, &blk) }},
+		{"AsuraDecryptOTF", func() { AsuraDecryptOTF(&s256, &m256, &t256, &blk) }},
+		{"AsuraEncryptx4OTF", func() { AsuraEncryptx4OTF(&s256x4, &m256x4, &t256, &asuraTw4) }},
+		{"AsuraDecryptx4OTF", func() { AsuraDecryptx4OTF(&s256x4, &m256x4, &t256, &asuraTw4) }},
+		{"AsuraEncryptRK", func() { AsuraEncryptRK(&asuraR, &s256, &m256, &blk) }},
+		{"AsuraDecryptRK", func() { AsuraDecryptRK(&asuraR, &s256, &m256, &blk) }},
+		{"AsuraEncryptx4RK", func() { AsuraEncryptx4RK(&asuraR, &s256x4, &m256x4, &asuraTw4) }},
+		{"AsuraDecryptx4RK", func() { AsuraDecryptx4RK(&asuraR, &s256x4, &m256x4, &asuraTw4) }},
 		{"Zeroize", func() { Zeroize(zbuf[:]) }},
 		{"SelfTest", func() {
 			if err := SelfTest(); err != nil {
@@ -5503,6 +5532,10 @@ func TestAsuraKAT(t *testing.T) {
 		rtk1Want  = "2f2e1ebf5adf153de8124cbcb3a11e3b846825d410661a41701360166b198a83"
 		rtk2Want  = "73172f4c1ba9752c70e2c36528af1770075566c57ac64439217e17c153a4d8ad"
 		rtk12Want = "8ed37f1e04067aba2599a5a7ac6dcb7c06f8836cef70c3169f2e88967a67277a"
+		rk0Want   = "bd5aa356d4dbe39522e90acd605daa29303132333435363738393a3b3c3d3e3f"
+		rk1Want   = "dd1e590f14d94530fe495ede96c8cee4765862645e604a4c664872744e705a5c"
+		rk2Want   = "9c9ef94d9983b1c199604440a3c76f29e8dcb0c4f8ec80d4c8fc90e4d8cca0f4"
+		rk12Want  = "81d7b8c3573f48a89c6446af456c322d09fc44b1bc49f10426d36b9e9366de2b"
 	)
 
 	var p0, k0 [32]byte
@@ -5519,33 +5552,42 @@ func TestAsuraKAT(t *testing.T) {
 	}
 
 	eachTier(t, func(t *testing.T, tier string) {
-		var rtk0Soft, rtk0HW [13][32]byte
+		var rtk0Soft, rtk0HW, rk0Soft, rk0HW [13][32]byte
 		asuraExpandTweakeySoft(&rtk0Soft, &k0, &t0)
 		asuraExpandTweakeyHW(&rtk0HW, &k0, &t0)
 		if rtk0HW != rtk0Soft {
 			t.Fatalf("[%s] KAT0 rtk HW != Soft", tier)
 		}
+		asuraExpandKeySoft(&rk0Soft, &k0)
+		asuraExpandKeyHW(&rk0HW, &k0)
+		if rk0HW != rk0Soft {
+			t.Fatalf("[%s] KAT0 rk HW != Soft", tier)
+		}
 
-		var c0Soft, c0HW, c0OTFSoft, c0OTFHW, d0Soft, d0HW, d0OTFSoft, d0OTFHW [32]byte
+		var c0Soft, c0HW, c0OTFSoft, c0OTFHW, c0RKSoft, c0RKHW, d0Soft, d0HW, d0OTFSoft, d0OTFHW, d0RKSoft, d0RKHW [32]byte
 		asuraEncryptBlockSoft(&rtk0Soft, &c0Soft, &p0)
 		asuraEncryptBlockHW(&rtk0HW, &c0HW, &p0)
 		asuraEncryptBlockOTFSoft(&c0OTFSoft, &p0, &k0, &t0)
 		asuraEncryptBlockOTFHW(&c0OTFHW, &p0, &k0, &t0)
+		asuraEncryptBlockRKSoft(&rk0Soft, &c0RKSoft, &p0, &t0)
+		asuraEncryptBlockRKHW(&rk0HW, &c0RKHW, &p0, &t0)
 		if got := hex.EncodeToString(c0Soft[:]); got != kat0Want {
 			t.Fatalf("[%s] KAT0 Soft mismatch:\ngot:  %s\nwant: %s", tier, got, kat0Want)
 		}
-		if c0HW != c0Soft || c0OTFSoft != c0Soft || c0OTFHW != c0Soft {
+		if c0HW != c0Soft || c0OTFSoft != c0Soft || c0OTFHW != c0Soft || c0RKSoft != c0Soft || c0RKHW != c0Soft {
 			t.Fatalf("[%s] KAT0 Encrypt mismatch across variants", tier)
 		}
 		asuraDecryptBlockSoft(&rtk0Soft, &d0Soft, &c0Soft)
 		asuraDecryptBlockHW(&rtk0HW, &d0HW, &c0HW)
 		asuraDecryptBlockOTFSoft(&d0OTFSoft, &c0OTFSoft, &k0, &t0)
 		asuraDecryptBlockOTFHW(&d0OTFHW, &c0OTFHW, &k0, &t0)
-		if d0Soft != p0 || d0HW != p0 || d0OTFSoft != p0 || d0OTFHW != p0 {
+		asuraDecryptBlockRKSoft(&rk0Soft, &d0RKSoft, &c0RKSoft, &t0)
+		asuraDecryptBlockRKHW(&rk0HW, &d0RKHW, &c0RKHW, &t0)
+		if d0Soft != p0 || d0HW != p0 || d0OTFSoft != p0 || d0OTFHW != p0 || d0RKSoft != p0 || d0RKHW != p0 {
 			t.Fatalf("[%s] KAT0 Decrypt mismatch", tier)
 		}
 
-		var rtk1Soft, rtk1HW [13][32]byte
+		var rtk1Soft, rtk1HW, rk1Soft, rk1HW [13][32]byte
 		asuraExpandTweakeySoft(&rtk1Soft, &k1, &t1)
 		asuraExpandTweakeyHW(&rtk1HW, &k1, &t1)
 		if rtk1HW != rtk1Soft {
@@ -5564,23 +5606,45 @@ func TestAsuraKAT(t *testing.T) {
 			t.Fatalf("[%s] KAT1 rtk[12] mismatch:\ngot:  %s\nwant: %s", tier, got, rtk12Want)
 		}
 
-		var c1Soft, c1HW, c1OTFSoft, c1OTFHW, d1Soft, d1HW, d1OTFSoft, d1OTFHW [32]byte
+		asuraExpandKeySoft(&rk1Soft, &k1)
+		asuraExpandKeyHW(&rk1HW, &k1)
+		if rk1HW != rk1Soft {
+			t.Fatalf("[%s] KAT1 rk HW != Soft", tier)
+		}
+		if got := hex.EncodeToString(rk1HW[0][:]); got != rk0Want {
+			t.Fatalf("[%s] KAT1 rk[0] mismatch:\ngot:  %s\nwant: %s", tier, got, rk0Want)
+		}
+		if got := hex.EncodeToString(rk1HW[1][:]); got != rk1Want {
+			t.Fatalf("[%s] KAT1 rk[1] mismatch:\ngot:  %s\nwant: %s", tier, got, rk1Want)
+		}
+		if got := hex.EncodeToString(rk1HW[2][:]); got != rk2Want {
+			t.Fatalf("[%s] KAT1 rk[2] mismatch:\ngot:  %s\nwant: %s", tier, got, rk2Want)
+		}
+		if got := hex.EncodeToString(rk1HW[12][:]); got != rk12Want {
+			t.Fatalf("[%s] KAT1 rk[12] mismatch:\ngot:  %s\nwant: %s", tier, got, rk12Want)
+		}
+
+		var c1Soft, c1HW, c1OTFSoft, c1OTFHW, c1RKSoft, c1RKHW, d1Soft, d1HW, d1OTFSoft, d1OTFHW, d1RKSoft, d1RKHW [32]byte
 		asuraEncryptBlockSoft(&rtk1Soft, &c1Soft, &p1)
 		asuraEncryptBlockHW(&rtk1HW, &c1HW, &p1)
 		asuraEncryptBlockOTFSoft(&c1OTFSoft, &p1, &k1, &t1)
 		asuraEncryptBlockOTFHW(&c1OTFHW, &p1, &k1, &t1)
+		asuraEncryptBlockRKSoft(&rk1Soft, &c1RKSoft, &p1, &t1)
+		asuraEncryptBlockRKHW(&rk1HW, &c1RKHW, &p1, &t1)
 		if got := hex.EncodeToString(c1Soft[:]); got != kat1Want {
 			t.Fatalf("[%s] KAT1 Soft mismatch:\ngot:  %s\nwant: %s", tier, got, kat1Want)
 		}
-		if c1HW != c1Soft || c1OTFSoft != c1Soft || c1OTFHW != c1Soft {
-			t.Fatalf("[%s] KAT1 Encrypt mismatch across variants:\nc1HW:      %x\nc1OTFSoft: %x\nc1OTFHW:   %x\nwant:      %x", tier, c1HW, c1OTFSoft, c1OTFHW, c1Soft)
+		if c1HW != c1Soft || c1OTFSoft != c1Soft || c1OTFHW != c1Soft || c1RKSoft != c1Soft || c1RKHW != c1Soft {
+			t.Fatalf("[%s] KAT1 Encrypt mismatch across variants:\nc1HW:      %x\nc1OTFSoft: %x\nc1OTFHW:   %x\nc1RKSoft:  %x\nc1RKHW:    %x\nwant:      %x", tier, c1HW, c1OTFSoft, c1OTFHW, c1RKSoft, c1RKHW, c1Soft)
 		}
 		asuraDecryptBlockSoft(&rtk1Soft, &d1Soft, &c1Soft)
 		asuraDecryptBlockHW(&rtk1HW, &d1HW, &c1HW)
 		asuraDecryptBlockOTFSoft(&d1OTFSoft, &c1OTFSoft, &k1, &t1)
 		asuraDecryptBlockOTFHW(&d1OTFHW, &c1OTFHW, &k1, &t1)
-		if d1Soft != p1 || d1HW != p1 || d1OTFSoft != p1 || d1OTFHW != p1 {
-			t.Fatalf("[%s] KAT1 Decrypt mismatch:\nd1Soft:    %x\nd1HW:      %x\nd1OTFSoft: %x\nd1OTFHW:   %x\nwant:      %x", tier, d1Soft, d1HW, d1OTFSoft, d1OTFHW, p1)
+		asuraDecryptBlockRKSoft(&rk1Soft, &d1RKSoft, &c1RKSoft, &t1)
+		asuraDecryptBlockRKHW(&rk1HW, &d1RKHW, &c1RKHW, &t1)
+		if d1Soft != p1 || d1HW != p1 || d1OTFSoft != p1 || d1OTFHW != p1 || d1RKSoft != p1 || d1RKHW != p1 {
+			t.Fatalf("[%s] KAT1 Decrypt mismatch:\nd1Soft:    %x\nd1HW:      %x\nd1OTFSoft: %x\nd1OTFHW:   %x\nd1RKSoft:  %x\nd1RKHW:    %x\nwant:      %x", tier, d1Soft, d1HW, d1OTFSoft, d1OTFHW, d1RKSoft, d1RKHW, p1)
 		}
 	})
 }
@@ -5588,6 +5652,7 @@ func TestAsuraKAT(t *testing.T) {
 func TestAsuraRoundTripAndTiers(t *testing.T) {
 	var key [32]byte
 	var tweak [16]byte
+	var tweaks4 [4][16]byte
 	var pt [32]byte
 	var pts4 [4][32]byte
 	for i := 0; i < 32; i++ {
@@ -5598,36 +5663,56 @@ func TestAsuraRoundTripAndTiers(t *testing.T) {
 		tweak[i] = byte(0x3c ^ (i * 29))
 	}
 	for m := 0; m < 4; m++ {
+		for i := 0; i < 16; i++ {
+			tweaks4[m][i] = byte((m+1)*53 ^ (i * 29) ^ 0x3c)
+		}
 		for i := 0; i < 32; i++ {
 			pts4[m][i] = byte((m+1)*37 ^ (i * 13) ^ 0x71)
 		}
 	}
 
 	eachTier(t, func(t *testing.T, tier string) {
-		var rtkSoft, rtkHW [13][32]byte
+		var rtkSoft, rtkHW, rtkPub [13][32]byte
 		asuraExpandTweakeySoft(&rtkSoft, &key, &tweak)
 		asuraExpandTweakeyHW(&rtkHW, &key, &tweak)
-		if rtkHW != rtkSoft {
-			t.Fatalf("[%s] asuraExpandTweakeyHW != Soft", tier)
+		AsuraExpandTweakey(&rtkPub, &key, &tweak)
+		if rtkHW != rtkSoft || rtkPub != rtkSoft {
+			t.Fatalf("[%s] asuraExpandTweakeyHW / AsuraExpandTweakey != Soft", tier)
 		}
 
-		var cSoft, cHW, cOTFSoft, cOTFHW, cTBC [32]byte
+		var rkSoft, rkHW, rkPub [13][32]byte
+		asuraExpandKeySoft(&rkSoft, &key)
+		asuraExpandKeyHW(&rkHW, &key)
+		AsuraExpandKey(&rkPub, &key)
+		if rkHW != rkSoft || rkPub != rkSoft {
+			t.Fatalf("[%s] asuraExpandKeyHW / AsuraExpandKey != Soft", tier)
+		}
+
+		var cSoft, cHW, cPub, cOTFSoft, cOTFHW, cOTFPub, cRKSoft, cRKHW, cRKPub [32]byte
 		asuraEncryptBlockSoft(&rtkSoft, &cSoft, &pt)
 		asuraEncryptBlockHW(&rtkHW, &cHW, &pt)
+		AsuraEncrypt(&rtkPub, &cPub, &pt)
 		asuraEncryptBlockOTFSoft(&cOTFSoft, &pt, &key, &tweak)
 		asuraEncryptBlockOTFHW(&cOTFHW, &pt, &key, &tweak)
-		asuraTBCEncryptBlockHW(&cTBC, &pt, &key, &tweak)
-		if cHW != cSoft || cOTFSoft != cSoft || cOTFHW != cSoft || cTBC != cSoft {
+		AsuraEncryptOTF(&cOTFPub, &pt, &key, &tweak)
+		asuraEncryptBlockRKSoft(&rkSoft, &cRKSoft, &pt, &tweak)
+		asuraEncryptBlockRKHW(&rkHW, &cRKHW, &pt, &tweak)
+		AsuraEncryptRK(&rkPub, &cRKPub, &pt, &tweak)
+		if cHW != cSoft || cPub != cSoft || cOTFSoft != cSoft || cOTFHW != cSoft || cOTFPub != cSoft || cRKSoft != cSoft || cRKHW != cSoft || cRKPub != cSoft {
 			t.Fatalf("[%s] 1-block Encrypt mismatch", tier)
 		}
 
-		var dSoft, dHW, dOTFSoft, dOTFHW, dTBC [32]byte
+		var dSoft, dHW, dPub, dOTFSoft, dOTFHW, dOTFPub, dRKSoft, dRKHW, dRKPub [32]byte
 		asuraDecryptBlockSoft(&rtkSoft, &dSoft, &cHW)
 		asuraDecryptBlockHW(&rtkHW, &dHW, &cHW)
+		AsuraDecrypt(&rtkPub, &dPub, &cPub)
 		asuraDecryptBlockOTFSoft(&dOTFSoft, &cOTFHW, &key, &tweak)
 		asuraDecryptBlockOTFHW(&dOTFHW, &cOTFHW, &key, &tweak)
-		asuraTBCDecryptBlockHW(&dTBC, &cTBC, &key, &tweak)
-		if dSoft != pt || dHW != pt || dOTFSoft != pt || dOTFHW != pt || dTBC != pt {
+		AsuraDecryptOTF(&dOTFPub, &cOTFPub, &key, &tweak)
+		asuraDecryptBlockRKSoft(&rkSoft, &dRKSoft, &cRKHW, &tweak)
+		asuraDecryptBlockRKHW(&rkHW, &dRKHW, &cRKHW, &tweak)
+		AsuraDecryptRK(&rkPub, &dRKPub, &cRKPub, &tweak)
+		if dSoft != pt || dHW != pt || dPub != pt || dOTFSoft != pt || dOTFHW != pt || dOTFPub != pt || dRKSoft != pt || dRKHW != pt || dRKPub != pt {
 			t.Fatalf("[%s] 1-block Decrypt round-trip mismatch", tier)
 		}
 
@@ -5649,13 +5734,22 @@ func TestAsuraRoundTripAndTiers(t *testing.T) {
 		if inPlace != pt {
 			t.Fatalf("[%s] asuraDecryptBlockOTFHW in-place mismatch", tier)
 		}
+		asuraEncryptBlockRKHW(&rkHW, &inPlace, &inPlace, &tweak)
+		if inPlace != cSoft {
+			t.Fatalf("[%s] asuraEncryptBlockRKHW in-place mismatch", tier)
+		}
+		asuraDecryptBlockRKHW(&rkHW, &inPlace, &inPlace, &tweak)
+		if inPlace != pt {
+			t.Fatalf("[%s] asuraDecryptBlockRKHW in-place mismatch", tier)
+		}
 
 		// 4-block pre-expanded encrypt/decrypt
-		var c4Soft, c4HW, d4Soft, d4HW [4][32]byte
+		var c4Soft, c4HW, c4Pub, d4Soft, d4HW, d4Pub [4][32]byte
 		asuraEncrypt4BlocksSoft(&rtkSoft, &c4Soft, &pts4)
 		asuraEncrypt4BlocksHW(&rtkHW, &c4HW, &pts4)
-		if c4HW != c4Soft {
-			t.Fatalf("[%s] asuraEncrypt4BlocksHW != Soft", tier)
+		AsuraEncryptx4(&rtkPub, &c4Pub, &pts4)
+		if c4HW != c4Soft || c4Pub != c4Soft {
+			t.Fatalf("[%s] asuraEncrypt4BlocksHW / AsuraEncryptx4 != Soft", tier)
 		}
 		for m := 0; m < 4; m++ {
 			var single [32]byte
@@ -5666,8 +5760,9 @@ func TestAsuraRoundTripAndTiers(t *testing.T) {
 		}
 		asuraDecrypt4BlocksSoft(&rtkSoft, &d4Soft, &c4HW)
 		asuraDecrypt4BlocksHW(&rtkHW, &d4HW, &c4HW)
-		if d4Soft != pts4 || d4HW != pts4 {
-			t.Fatalf("[%s] asuraDecrypt4BlocksHW round-trip mismatch", tier)
+		AsuraDecryptx4(&rtkPub, &d4Pub, &c4Pub)
+		if d4Soft != pts4 || d4HW != pts4 || d4Pub != pts4 {
+			t.Fatalf("[%s] asuraDecrypt4BlocksHW / AsuraDecryptx4 round-trip mismatch", tier)
 		}
 
 		// In-place aliasing for 4-block pre-expanded functions
@@ -5681,130 +5776,217 @@ func TestAsuraRoundTripAndTiers(t *testing.T) {
 			t.Fatalf("[%s] asuraDecrypt4BlocksHW in-place mismatch", tier)
 		}
 
-		// 4-block OTF encrypt/decrypt with a single shared tweak
-		var c4OTFSoft, c4OTFHW, c4TBC, d4OTFSoft, d4OTFHW, d4TBC [4][32]byte
-		asuraEncrypt4BlocksOTFSoft(&c4OTFSoft, &pts4, &key, &tweak)
-		asuraEncrypt4BlocksOTFHW(&c4OTFHW, &pts4, &key, &tweak)
-		asuraTBCEncrypt4BlocksHW(&c4TBC, &pts4, &key, &tweak)
-		if c4OTFHW != c4OTFSoft || c4TBC != c4OTFSoft {
-			t.Fatalf("[%s] asuraEncrypt4BlocksOTFHW != Soft", tier)
+		// 4-block OTF encrypt/decrypt with 4 distinct per-block tweaks
+		var c4OTFSoft, c4OTFHW, c4OTFPub, d4OTFSoft, d4OTFHW, d4OTFPub [4][32]byte
+		asuraEncrypt4BlocksOTFSoft(&c4OTFSoft, &pts4, &key, &tweaks4)
+		asuraEncrypt4BlocksOTFHW(&c4OTFHW, &pts4, &key, &tweaks4)
+		AsuraEncryptx4OTF(&c4OTFPub, &pts4, &key, &tweaks4)
+		if c4OTFHW != c4OTFSoft || c4OTFPub != c4OTFSoft {
+			t.Fatalf("[%s] asuraEncrypt4BlocksOTFHW / AsuraEncryptx4OTF != Soft", tier)
 		}
 		for m := 0; m < 4; m++ {
 			var single [32]byte
-			asuraEncryptBlockOTFHW(&single, &pts4[m], &key, &tweak)
+			asuraEncryptBlockOTFHW(&single, &pts4[m], &key, &tweaks4[m])
 			if c4OTFHW[m] != single {
 				t.Fatalf("[%s] asuraEncrypt4BlocksOTFHW lane %d != 1-block OTF", tier, m)
 			}
 		}
-		asuraDecrypt4BlocksOTFSoft(&d4OTFSoft, &c4OTFHW, &key, &tweak)
-		asuraDecrypt4BlocksOTFHW(&d4OTFHW, &c4OTFHW, &key, &tweak)
-		asuraTBCDecrypt4BlocksHW(&d4TBC, &c4TBC, &key, &tweak)
-		if d4OTFSoft != pts4 || d4OTFHW != pts4 || d4TBC != pts4 {
-			t.Fatalf("[%s] asuraDecrypt4BlocksOTFHW round-trip mismatch", tier)
+		asuraDecrypt4BlocksOTFSoft(&d4OTFSoft, &c4OTFHW, &key, &tweaks4)
+		asuraDecrypt4BlocksOTFHW(&d4OTFHW, &c4OTFHW, &key, &tweaks4)
+		AsuraDecryptx4OTF(&d4OTFPub, &c4OTFPub, &key, &tweaks4)
+		if d4OTFSoft != pts4 || d4OTFHW != pts4 || d4OTFPub != pts4 {
+			t.Fatalf("[%s] asuraDecrypt4BlocksOTFHW / AsuraDecryptx4OTF round-trip mismatch", tier)
 		}
 
 		// In-place aliasing for 4-block OTF functions
 		inPlace4 = pts4
-		asuraEncrypt4BlocksOTFHW(&inPlace4, &inPlace4, &key, &tweak)
+		asuraEncrypt4BlocksOTFHW(&inPlace4, &inPlace4, &key, &tweaks4)
 		if inPlace4 != c4OTFSoft {
 			t.Fatalf("[%s] asuraEncrypt4BlocksOTFHW in-place mismatch", tier)
 		}
-		asuraDecrypt4BlocksOTFHW(&inPlace4, &inPlace4, &key, &tweak)
+		asuraDecrypt4BlocksOTFHW(&inPlace4, &inPlace4, &key, &tweaks4)
 		if inPlace4 != pts4 {
 			t.Fatalf("[%s] asuraDecrypt4BlocksOTFHW in-place mismatch", tier)
+		}
+
+		// 4-block RK encrypt/decrypt with pre-expanded key and 4 distinct per-block tweaks
+		var c4RKSoft, c4RKHW, c4RKPub, d4RKSoft, d4RKHW, d4RKPub [4][32]byte
+		asuraEncrypt4BlocksRKSoft(&rkSoft, &c4RKSoft, &pts4, &tweaks4)
+		asuraEncrypt4BlocksRKHW(&rkHW, &c4RKHW, &pts4, &tweaks4)
+		AsuraEncryptx4RK(&rkPub, &c4RKPub, &pts4, &tweaks4)
+		if c4RKSoft != c4OTFSoft || c4RKHW != c4OTFSoft || c4RKPub != c4OTFSoft {
+			t.Fatalf("[%s] asuraEncrypt4BlocksRKHW / AsuraEncryptx4RK != OTFSoft", tier)
+		}
+		for m := 0; m < 4; m++ {
+			var single [32]byte
+			asuraEncryptBlockRKHW(&rkHW, &single, &pts4[m], &tweaks4[m])
+			if c4RKHW[m] != single {
+				t.Fatalf("[%s] asuraEncrypt4BlocksRKHW lane %d != 1-block RK", tier, m)
+			}
+		}
+		asuraDecrypt4BlocksRKSoft(&rkSoft, &d4RKSoft, &c4RKHW, &tweaks4)
+		asuraDecrypt4BlocksRKHW(&rkHW, &d4RKHW, &c4RKHW, &tweaks4)
+		AsuraDecryptx4RK(&rkPub, &d4RKPub, &c4RKPub, &tweaks4)
+		if d4RKSoft != pts4 || d4RKHW != pts4 || d4RKPub != pts4 {
+			t.Fatalf("[%s] asuraDecrypt4BlocksRKHW / AsuraDecryptx4RK round-trip mismatch", tier)
+		}
+
+		// In-place aliasing for 4-block RK functions
+		inPlace4 = pts4
+		asuraEncrypt4BlocksRKHW(&rkHW, &inPlace4, &inPlace4, &tweaks4)
+		if inPlace4 != c4OTFSoft {
+			t.Fatalf("[%s] asuraEncrypt4BlocksRKHW in-place mismatch", tier)
+		}
+		asuraDecrypt4BlocksRKHW(&rkHW, &inPlace4, &inPlace4, &tweaks4)
+		if inPlace4 != pts4 {
+			t.Fatalf("[%s] asuraDecrypt4BlocksRKHW in-place mismatch", tier)
 		}
 	})
 }
 
-func BenchmarkAsuraExpandTweakeyHW(b *testing.B) {
+func BenchmarkAsuraExpandTweakey(b *testing.B) {
 	var rtk [13][32]byte
 	var key [32]byte
 	var tweak [16]byte
 	b.SetBytes(32)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		asuraExpandTweakeyHW(&rtk, &key, &tweak)
+		AsuraExpandTweakey(&rtk, &key, &tweak)
 	}
 }
 
-func BenchmarkAsuraEncryptBlockHW(b *testing.B) {
+func BenchmarkAsuraEncrypt(b *testing.B) {
 	var rtk [13][32]byte
 	var dst, src [32]byte
 	b.SetBytes(32)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		asuraEncryptBlockHW(&rtk, &dst, &src)
+		AsuraEncrypt(&rtk, &dst, &src)
 	}
 }
 
-func BenchmarkAsuraDecryptBlockHW(b *testing.B) {
+func BenchmarkAsuraDecrypt(b *testing.B) {
 	var rtk [13][32]byte
 	var dst, src [32]byte
 	b.SetBytes(32)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		asuraDecryptBlockHW(&rtk, &dst, &src)
+		AsuraDecrypt(&rtk, &dst, &src)
 	}
 }
 
-func BenchmarkAsuraEncrypt4BlocksHW(b *testing.B) {
+func BenchmarkAsuraEncryptx4(b *testing.B) {
 	var rtk [13][32]byte
 	var dst, src [4][32]byte
 	b.SetBytes(128)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		asuraEncrypt4BlocksHW(&rtk, &dst, &src)
+		AsuraEncryptx4(&rtk, &dst, &src)
 	}
 }
 
-func BenchmarkAsuraDecrypt4BlocksHW(b *testing.B) {
+func BenchmarkAsuraDecryptx4(b *testing.B) {
 	var rtk [13][32]byte
 	var dst, src [4][32]byte
 	b.SetBytes(128)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		asuraDecrypt4BlocksHW(&rtk, &dst, &src)
+		AsuraDecryptx4(&rtk, &dst, &src)
 	}
 }
 
-func BenchmarkAsuraEncryptBlockOTFHW(b *testing.B) {
+func BenchmarkAsuraEncryptOTF(b *testing.B) {
 	var dst, src, key [32]byte
 	var tweak [16]byte
 	b.SetBytes(32)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		asuraEncryptBlockOTFHW(&dst, &src, &key, &tweak)
+		AsuraEncryptOTF(&dst, &src, &key, &tweak)
 	}
 }
 
-func BenchmarkAsuraDecryptBlockOTFHW(b *testing.B) {
+func BenchmarkAsuraDecryptOTF(b *testing.B) {
 	var dst, src, key [32]byte
 	var tweak [16]byte
 	b.SetBytes(32)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		asuraDecryptBlockOTFHW(&dst, &src, &key, &tweak)
+		AsuraDecryptOTF(&dst, &src, &key, &tweak)
 	}
 }
 
-func BenchmarkAsuraEncrypt4BlocksOTFHW(b *testing.B) {
+func BenchmarkAsuraEncryptx4OTF(b *testing.B) {
 	var dst, src [4][32]byte
 	var key [32]byte
-	var tweak [16]byte
+	var tweaks [4][16]byte
 	b.SetBytes(128)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		asuraEncrypt4BlocksOTFHW(&dst, &src, &key, &tweak)
+		AsuraEncryptx4OTF(&dst, &src, &key, &tweaks)
 	}
 }
 
-func BenchmarkAsuraDecrypt4BlocksOTFHW(b *testing.B) {
+func BenchmarkAsuraDecryptx4OTF(b *testing.B) {
 	var dst, src [4][32]byte
 	var key [32]byte
-	var tweak [16]byte
+	var tweaks [4][16]byte
 	b.SetBytes(128)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		asuraDecrypt4BlocksOTFHW(&dst, &src, &key, &tweak)
+		AsuraDecryptx4OTF(&dst, &src, &key, &tweaks)
+	}
+}
+
+func BenchmarkAsuraExpandKey(b *testing.B) {
+	var rk [13][32]byte
+	var key [32]byte
+	b.SetBytes(32)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		AsuraExpandKey(&rk, &key)
+	}
+}
+
+func BenchmarkAsuraEncryptRK(b *testing.B) {
+	var rk [13][32]byte
+	var dst, src [32]byte
+	var tweak [16]byte
+	b.SetBytes(32)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		AsuraEncryptRK(&rk, &dst, &src, &tweak)
+	}
+}
+
+func BenchmarkAsuraDecryptRK(b *testing.B) {
+	var rk [13][32]byte
+	var dst, src [32]byte
+	var tweak [16]byte
+	b.SetBytes(32)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		AsuraDecryptRK(&rk, &dst, &src, &tweak)
+	}
+}
+
+func BenchmarkAsuraEncryptx4RK(b *testing.B) {
+	var rk [13][32]byte
+	var dst, src [4][32]byte
+	var tweaks [4][16]byte
+	b.SetBytes(128)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		AsuraEncryptx4RK(&rk, &dst, &src, &tweaks)
+	}
+}
+
+func BenchmarkAsuraDecryptx4RK(b *testing.B) {
+	var rk [13][32]byte
+	var dst, src [4][32]byte
+	var tweaks [4][16]byte
+	b.SetBytes(128)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		AsuraDecryptx4RK(&rk, &dst, &src, &tweaks)
 	}
 }

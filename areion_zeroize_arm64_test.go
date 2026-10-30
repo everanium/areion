@@ -645,30 +645,116 @@ func testAreionArchAsmKernels(t *testing.T, tier string, res *[areionTotalWords]
 		}
 	}
 
-	runAsuraBlock4OTF := func(name string, fn func(*[4][32]byte, *[4][32]byte, *[32]byte, *[16]byte)) {
+	runAsuraBlock4OTF := func(name string, fn func(*[4][32]byte, *[4][32]byte, *[32]byte, *[4][16]byte)) {
 		key := new([32]byte)
-		tw := new([16]byte)
+		tw4 := new([4][16]byte)
 		in4 := new([4][32]byte)
 		out4 := new([4][32]byte)
 		for i := 0; i < 32; i++ {
 			key[i] = byte(0x31 + i*7)
 		}
-		for i := 0; i < 16; i++ {
-			tw[i] = byte(0x59 + i*13)
-		}
 		for l := 0; l < 4; l++ {
+			for i := 0; i < 16; i++ {
+				tw4[l][i] = byte(0x59 + l*31 + i*13)
+			}
 			for i := 0; i < 32; i++ {
 				in4[l][i] = byte(0x47 + l*29 + i*11)
 			}
 		}
 		if w := captureAreionFrameAndRegResidue(func() {
-			fn(out4, in4, key, tw)
+			fn(out4, in4, key, tw4)
 		}, res); w == 0 {
 			t.Fatalf("[%s] %s: probe missed stack window", tier, name)
 		}
-		targets := bytesToNonZeroWords(key[:], tw[:])
+		targets := bytesToNonZeroWords(key[:])
 		for l := 0; l < 4; l++ {
-			targets = append(targets, bytesToNonZeroWords(in4[l][:], out4[l][:])...)
+			targets = append(targets, bytesToNonZeroWords(tw4[l][:], in4[l][:], out4[l][:])...)
+		}
+		if word, off, found := scanForAreionWords(res, targets); found {
+			t.Fatalf("[%s] %s leaked word %#016x at offset %d (window=%d)", tier, name, word, off, areionResidueWindow)
+		}
+	}
+
+	runAsuraExpandKey := func(name string, fn func(*[13][32]byte, *[32]byte)) {
+		rk := new([13][32]byte)
+		key := new([32]byte)
+		for i := range key {
+			key[i] = byte(0x23 + i*7)
+		}
+		if w := captureAreionFrameAndRegResidue(func() {
+			fn(rk, key)
+		}, res); w == 0 {
+			t.Fatalf("[%s] %s: probe missed stack window", tier, name)
+		}
+		targets := bytesToNonZeroWords(key[:])
+		for r := range rk {
+			targets = append(targets, bytesToNonZeroWords(rk[r][:])...)
+		}
+		if word, off, found := scanForAreionWords(res, targets); found {
+			t.Fatalf("[%s] %s leaked word %#016x at offset %d (window=%d)", tier, name, word, off, areionResidueWindow)
+		}
+	}
+
+	runAsuraBlockRK := func(name string, fn func(*[13][32]byte, *[32]byte, *[32]byte, *[16]byte)) {
+		rk := new([13][32]byte)
+		tw := new([16]byte)
+		in := new([32]byte)
+		out := new([32]byte)
+		for r := range rk {
+			for i := 0; i < 32; i++ {
+				rk[r][i] = byte(0x29 + r*17 + i*5)
+			}
+		}
+		for i := range tw {
+			tw[i] = byte(0x59 + i*13)
+		}
+		for i := range in {
+			in[i] = byte(0x71 + i*13)
+		}
+		if w := captureAreionFrameAndRegResidue(func() {
+			fn(rk, out, in, tw)
+		}, res); w == 0 {
+			t.Fatalf("[%s] %s: probe missed stack window", tier, name)
+		}
+		var targets []uint64
+		for r := range rk {
+			targets = append(targets, bytesToNonZeroWords(rk[r][:])...)
+		}
+		targets = append(targets, bytesToNonZeroWords(tw[:], in[:], out[:])...)
+		if word, off, found := scanForAreionWords(res, targets); found {
+			t.Fatalf("[%s] %s leaked word %#016x at offset %d (window=%d)", tier, name, word, off, areionResidueWindow)
+		}
+	}
+
+	runAsuraBlock4RK := func(name string, fn func(*[13][32]byte, *[4][32]byte, *[4][32]byte, *[4][16]byte)) {
+		rk := new([13][32]byte)
+		tw4 := new([4][16]byte)
+		in4 := new([4][32]byte)
+		out4 := new([4][32]byte)
+		for r := range rk {
+			for i := 0; i < 32; i++ {
+				rk[r][i] = byte(0x29 + r*17 + i*5)
+			}
+		}
+		for l := 0; l < 4; l++ {
+			for i := 0; i < 16; i++ {
+				tw4[l][i] = byte(0x59 + l*31 + i*13)
+			}
+			for i := 0; i < 32; i++ {
+				in4[l][i] = byte(0x41 + l*23 + i*7)
+			}
+		}
+		if w := captureAreionFrameAndRegResidue(func() {
+			fn(rk, out4, in4, tw4)
+		}, res); w == 0 {
+			t.Fatalf("[%s] %s: probe missed stack window", tier, name)
+		}
+		var targets []uint64
+		for r := range rk {
+			targets = append(targets, bytesToNonZeroWords(rk[r][:])...)
+		}
+		for l := 0; l < 4; l++ {
+			targets = append(targets, bytesToNonZeroWords(tw4[l][:], in4[l][:], out4[l][:])...)
 		}
 		if word, off, found := scanForAreionWords(res, targets); found {
 			t.Fatalf("[%s] %s leaked word %#016x at offset %d (window=%d)", tier, name, word, off, areionResidueWindow)
@@ -676,12 +762,17 @@ func testAreionArchAsmKernels(t *testing.T, tier string, res *[areionTotalWords]
 	}
 
 	runAsuraExpand("asuraExpandTweakeyAsm", asuraExpandTweakeyAsm)
+	runAsuraExpandKey("asuraExpandKeyAsm", asuraExpandKeyAsm)
 	runAsuraBlock("asuraEncryptBlockAsm", asuraEncryptBlockAsm)
 	runAsuraBlock("asuraDecryptBlockAsm", asuraDecryptBlockAsm)
 	runAsuraBlockOTF("asuraEncryptBlockOTFAsm", asuraEncryptBlockOTFAsm)
 	runAsuraBlockOTF("asuraDecryptBlockOTFAsm", asuraDecryptBlockOTFAsm)
+	runAsuraBlockRK("asuraEncryptBlockRKAsm", asuraEncryptBlockRKAsm)
+	runAsuraBlockRK("asuraDecryptBlockRKAsm", asuraDecryptBlockRKAsm)
 	runAsuraBlock4("asuraEncrypt4BlocksAsm", asuraEncrypt4BlocksAsm)
 	runAsuraBlock4("asuraDecrypt4BlocksAsm", asuraDecrypt4BlocksAsm)
 	runAsuraBlock4OTF("asuraEncrypt4BlocksOTFAsm", asuraEncrypt4BlocksOTFAsm)
 	runAsuraBlock4OTF("asuraDecrypt4BlocksOTFAsm", asuraDecrypt4BlocksOTFAsm)
+	runAsuraBlock4RK("asuraEncrypt4BlocksRKAsm", asuraEncrypt4BlocksRKAsm)
+	runAsuraBlock4RK("asuraDecrypt4BlocksRKAsm", asuraDecrypt4BlocksRKAsm)
 }

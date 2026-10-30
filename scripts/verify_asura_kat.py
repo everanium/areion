@@ -185,6 +185,11 @@ def theta(t: bytes) -> bytes:
     return mix_columns(sub_bytes(shift_rows(t)))
 
 
+def theta_inv(t: bytes) -> bytes:
+    """Inverse tweak update function theta^-1(T) = InvSR(InvSB(InvMC(T)))."""
+    return inv_shift_rows(inv_sub_bytes(inv_mix_columns(t)))
+
+
 def kappa(k: bytes) -> bytes:
     """Key update function kappa(K) = (pi o tau)(2 * pi_256(K))."""
     words = list(struct.unpack("<8I", k))
@@ -224,6 +229,17 @@ def asura_tweakey_schedule(key: bytes, tweak: bytes, R: int = 6) -> list[tuple[b
         k = kappa(k)
         rtks.append(gamma(ASURA_RC[i], k, t))
     return rtks
+
+
+def asura_key_schedule(key: bytes, R: int = 6) -> list[tuple[bytes, bytes]]:
+    """Key-only schedule RK^i = (K_0^i ^ RC^i, K_1^i) for i = 0 .. 2*R."""
+    assert len(key) == 32
+    k = key
+    rks = [(xor_bytes(k[:16], ASURA_RC[0]), k[16:])]
+    for i in range(1, 2 * R + 1):
+        k = kappa(k)
+        rks.append((xor_bytes(k[:16], ASURA_RC[i]), k[16:]))
+    return rks
 
 
 def perm256(x0: bytes, x1: bytes) -> tuple[bytes, bytes]:
@@ -371,6 +387,164 @@ def asura_decrypt_otf(ct: bytes, key: bytes, tweak: bytes, R: int = 6) -> bytes:
     return x0 + x1
 
 
+def asura_encrypt_rk(pt: bytes, rk: list[tuple[bytes, bytes]], tweak: bytes, R: int = 6) -> bytes:
+    """Mode 3 encryption using pre-expanded session key rk and on-the-fly tweak theta."""
+    t = tweak
+    x0, x1 = pt[:16], pt[16:]
+    for r in range(R):
+        k0_0 = xor_bytes(rk[2 * r][0], t)
+        k1_0 = xor_bytes(rk[2 * r][1], t)
+        t = theta(t)
+        k0_1 = xor_bytes(rk[2 * r + 1][0], t)
+        k1_1 = xor_bytes(rk[2 * r + 1][1], t)
+        t = theta(t)
+        x0 = F_gamma_x86(x0, k0_0, k0_1)
+        x1 = F_delta_x86(x1, k1_0, k1_1)
+        if r < R - 1:
+            x0, x1 = perm256(x0, x1)
+    k0_f = xor_bytes(rk[2 * R][0], t)
+    k1_f = xor_bytes(rk[2 * R][1], t)
+    return xor_bytes(x0, k0_f) + xor_bytes(x1, k1_f)
+
+
+def asura_decrypt_rk(ct: bytes, rk: list[tuple[bytes, bytes]], tweak: bytes, R: int = 6) -> bytes:
+    """Mode 3 decryption using pre-expanded session key rk and forward-precomputed tweak history."""
+    t_hist = [tweak]
+    for _ in range(2 * R):
+        t_hist.append(theta(t_hist[-1]))
+    k0_f = xor_bytes(rk[2 * R][0], t_hist[2 * R])
+    k1_f = xor_bytes(rk[2 * R][1], t_hist[2 * R])
+    x0 = xor_bytes(ct[:16], k0_f)
+    x1 = xor_bytes(ct[16:], k1_f)
+    for r in range(R - 1, -1, -1):
+        if r < R - 1:
+            x0, x1 = inv_perm256(x0, x1)
+        k0_0 = xor_bytes(rk[2 * r][0], t_hist[2 * r])
+        k1_0 = xor_bytes(rk[2 * r][1], t_hist[2 * r])
+        k0_1 = xor_bytes(rk[2 * r + 1][0], t_hist[2 * r + 1])
+        k1_1 = xor_bytes(rk[2 * r + 1][1], t_hist[2 * r + 1])
+        x0 = F_gamma_inv_x86(x0, k0_0, k0_1)
+        x1 = F_delta_inv_x86_opt(x1, k1_0, k1_1)
+    return x0 + x1
+
+
+def asura_encrypt_x4_otf(pts: list[bytes], key: bytes, tweaks: list[bytes], R: int = 6) -> list[bytes]:
+    """4-way Mode 2 encryption with 4 independent per-block tweaks."""
+    ts = list(tweaks)
+    k = key
+    xs = [(pt[:16], pt[16:]) for pt in pts]
+    for r in range(R):
+        new_xs = []
+        for m in range(4):
+            k0_0, k1_0 = gamma(ASURA_RC[2 * r], k, ts[m])
+            ts[m] = theta(ts[m])
+            new_xs.append((xs[m][0], xs[m][1], k0_0, k1_0))
+        k = kappa(k)
+        next_xs = []
+        for m in range(4):
+            x0, x1, k0_0, k1_0 = new_xs[m]
+            k0_1, k1_1 = gamma(ASURA_RC[2 * r + 1], k, ts[m])
+            ts[m] = theta(ts[m])
+            x0 = F_gamma_x86(x0, k0_0, k0_1)
+            x1 = F_delta_x86(x1, k1_0, k1_1)
+            if r < R - 1:
+                x0, x1 = perm256(x0, x1)
+            next_xs.append((x0, x1))
+        k = kappa(k)
+        xs = next_xs
+    out = []
+    for m in range(4):
+        k0_f, k1_f = gamma(ASURA_RC[2 * R], k, ts[m])
+        out.append(xor_bytes(xs[m][0], k0_f) + xor_bytes(xs[m][1], k1_f))
+    return out
+
+
+def asura_decrypt_x4_otf(cts: list[bytes], key: bytes, tweaks: list[bytes], R: int = 6) -> list[bytes]:
+    """4-way Mode 2 decryption with 4 independent per-block tweaks."""
+    ts = list(tweaks)
+    k = key
+    for _ in range(2 * R):
+        ts = [theta(t) for t in ts]
+        k = kappa(k)
+    xs = []
+    for m in range(4):
+        k0_f, k1_f = gamma(ASURA_RC[2 * R], k, ts[m])
+        xs.append((xor_bytes(cts[m][:16], k0_f), xor_bytes(cts[m][16:], k1_f)))
+    for r in range(R - 1, -1, -1):
+        if r < R - 1:
+            xs = [inv_perm256(x0, x1) for x0, x1 in xs]
+        ts = [theta_inv(t) for t in ts]
+        k = kappa_inv(k)
+        ks_odd = [gamma(ASURA_RC[2 * r + 1], k, ts[m]) for m in range(4)]
+        ts = [theta_inv(t) for t in ts]
+        k = kappa_inv(k)
+        ks_even = [gamma(ASURA_RC[2 * r], k, ts[m]) for m in range(4)]
+        xs = [
+            (
+                F_gamma_inv_x86(xs[m][0], ks_even[m][0], ks_odd[m][0]),
+                F_delta_inv_x86_opt(xs[m][1], ks_even[m][1], ks_odd[m][1]),
+            )
+            for m in range(4)
+        ]
+    return [x0 + x1 for x0, x1 in xs]
+
+
+def asura_encrypt_x4_rk(pts: list[bytes], rk: list[tuple[bytes, bytes]], tweaks: list[bytes], R: int = 6) -> list[bytes]:
+    """4-way Mode 3 encryption with pre-expanded key rk and 4 independent per-block tweaks."""
+    ts = list(tweaks)
+    xs = [(pt[:16], pt[16:]) for pt in pts]
+    for r in range(R):
+        next_xs = []
+        for m in range(4):
+            k0_0 = xor_bytes(rk[2 * r][0], ts[m])
+            k1_0 = xor_bytes(rk[2 * r][1], ts[m])
+            ts[m] = theta(ts[m])
+            k0_1 = xor_bytes(rk[2 * r + 1][0], ts[m])
+            k1_1 = xor_bytes(rk[2 * r + 1][1], ts[m])
+            ts[m] = theta(ts[m])
+            x0 = F_gamma_x86(xs[m][0], k0_0, k0_1)
+            x1 = F_delta_x86(xs[m][1], k1_0, k1_1)
+            if r < R - 1:
+                x0, x1 = perm256(x0, x1)
+            next_xs.append((x0, x1))
+        xs = next_xs
+    out = []
+    for m in range(4):
+        k0_f = xor_bytes(rk[2 * R][0], ts[m])
+        k1_f = xor_bytes(rk[2 * R][1], ts[m])
+        out.append(xor_bytes(xs[m][0], k0_f) + xor_bytes(xs[m][1], k1_f))
+    return out
+
+
+def asura_decrypt_x4_rk(cts: list[bytes], rk: list[tuple[bytes, bytes]], tweaks: list[bytes], R: int = 6) -> list[bytes]:
+    """4-way Mode 3 decryption with pre-expanded key rk and 4 independent per-block tweaks."""
+    ts = list(tweaks)
+    for _ in range(2 * R):
+        ts = [theta(t) for t in ts]
+    xs = [
+        (
+            xor_bytes(cts[m][:16], xor_bytes(rk[2 * R][0], ts[m])),
+            xor_bytes(cts[m][16:], xor_bytes(rk[2 * R][1], ts[m])),
+        )
+        for m in range(4)
+    ]
+    for r in range(R - 1, -1, -1):
+        if r < R - 1:
+            xs = [inv_perm256(x0, x1) for x0, x1 in xs]
+        ts = [theta_inv(t) for t in ts]
+        ks_odd = [(xor_bytes(rk[2 * r + 1][0], ts[m]), xor_bytes(rk[2 * r + 1][1], ts[m])) for m in range(4)]
+        ts = [theta_inv(t) for t in ts]
+        ks_even = [(xor_bytes(rk[2 * r][0], ts[m]), xor_bytes(rk[2 * r][1], ts[m])) for m in range(4)]
+        xs = [
+            (
+                F_gamma_inv_x86(xs[m][0], ks_even[m][0], ks_odd[m][0]),
+                F_delta_inv_x86_opt(xs[m][1], ks_even[m][1], ks_odd[m][1]),
+            )
+            for m in range(4)
+        ]
+    return [x0 + x1 for x0, x1 in xs]
+
+
 def verify_constants_go() -> bool:
     """Verifies that asuraRoundConstants in constants.go matches ASURA_RC byte-for-byte."""
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -495,30 +669,69 @@ def main() -> None:
     z_pt = bytes(32)
     z_key = bytes(32)
     z_tw = bytes(16)
+    rks_zero = asura_key_schedule(z_key)
     c0_pre = asura_encrypt_preexpanded(z_pt, z_key, z_tw)
     c0_otf = asura_encrypt_otf(z_pt, z_key, z_tw)
+    c0_rk = asura_encrypt_rk(z_pt, rks_zero, z_tw)
     d0_pre = asura_decrypt_preexpanded(c0_pre, z_key, z_tw)
     d0_otf = asura_decrypt_otf(c0_otf, z_key, z_tw)
+    d0_rk = asura_decrypt_rk(c0_rk, rks_zero, z_tw)
 
     s_pt = bytes(range(0x00, 0x20))
     s_key = bytes(range(0x20, 0x40))
     s_tw = bytes(range(0x40, 0x50))
     rtks_seq = asura_tweakey_schedule(s_key, s_tw)
+    rks_seq = asura_key_schedule(s_key)
     c1_pre = asura_encrypt_preexpanded(s_pt, s_key, s_tw)
     c1_otf = asura_encrypt_otf(s_pt, s_key, s_tw)
+    c1_rk = asura_encrypt_rk(s_pt, rks_seq, s_tw)
     d1_pre = asura_decrypt_preexpanded(c1_pre, s_key, s_tw)
     d1_otf = asura_decrypt_otf(c1_otf, s_key, s_tw)
+    d1_rk = asura_decrypt_rk(c1_rk, rks_seq, s_tw)
 
-    if c0_pre == c0_otf and d0_pre == z_pt and d0_otf == z_pt and c1_pre == c1_otf and d1_pre == s_pt and d1_otf == s_pt:
-        print(" [PASS] Pre-expanded and on-the-fly (OTF) encrypt/decrypt match and invert on KAT vectors.")
+    if (
+        c0_pre == c0_otf == c0_rk
+        and d0_pre == z_pt
+        and d0_otf == z_pt
+        and d0_rk == z_pt
+        and c1_pre == c1_otf == c1_rk
+        and d1_pre == s_pt
+        and d1_otf == s_pt
+        and d1_rk == s_pt
+    ):
+        print(" [PASS] Pre-expanded, OTF, and RK encrypt/decrypt match and invert on KAT vectors.")
     else:
-        print(" [FAIL] Pre-expanded / OTF / round-trip check failed on KAT vectors!")
+        print(" [FAIL] Pre-expanded / OTF / RK / round-trip check failed on KAT vectors!")
+        failures += 1
+
+    pts_4 = [bytes(((m + 1) * 37 ^ (i * 13) ^ 0x71) & 0xff for i in range(32)) for m in range(4)]
+    tws_4 = [bytes(((m + 1) * 53 ^ (i * 29) ^ 0x3c) & 0xff for i in range(16)) for m in range(4)]
+    cts_1_otf = [asura_encrypt_otf(pts_4[m], s_key, tws_4[m]) for m in range(4)]
+    cts_4_otf = asura_encrypt_x4_otf(pts_4, s_key, tws_4)
+    dts_4_otf = asura_decrypt_x4_otf(cts_4_otf, s_key, tws_4)
+    cts_1_rk = [asura_encrypt_rk(pts_4[m], rks_seq, tws_4[m]) for m in range(4)]
+    cts_4_rk = asura_encrypt_x4_rk(pts_4, rks_seq, tws_4)
+    dts_4_rk = asura_decrypt_x4_rk(cts_4_rk, rks_seq, tws_4)
+    if (
+        cts_4_otf == cts_1_otf
+        and cts_4_rk == cts_1_rk
+        and cts_4_otf == cts_4_rk
+        and dts_4_otf == pts_4
+        and dts_4_rk == pts_4
+    ):
+        print(" [PASS] 4-way per-block tweak OTF and RK encrypt/decrypt match 4 independent 1-block calls.")
+    else:
+        print(" [FAIL] 4-way per-block tweak OTF / RK check failed!")
         failures += 1
 
     rtk0_hex = (rtks_seq[0][0] + rtks_seq[0][1]).hex()
     rtk1_hex = (rtks_seq[1][0] + rtks_seq[1][1]).hex()
     rtk2_hex = (rtks_seq[2][0] + rtks_seq[2][1]).hex()
     rtk12_hex = (rtks_seq[12][0] + rtks_seq[12][1]).hex()
+    rk0_hex = (rks_seq[0][0] + rks_seq[0][1]).hex()
+    rk1_hex = (rks_seq[1][0] + rks_seq[1][1]).hex()
+    rk2_hex = (rks_seq[2][0] + rks_seq[2][1]).hex()
+    rk12_hex = (rks_seq[12][0] + rks_seq[12][1]).hex()
     kat0_hex = c0_pre.hex()
     kat1_hex = c1_pre.hex()
 
@@ -529,6 +742,10 @@ def main() -> None:
         "rtk1Want": "2f2e1ebf5adf153de8124cbcb3a11e3b846825d410661a41701360166b198a83",
         "rtk2Want": "73172f4c1ba9752c70e2c36528af1770075566c57ac64439217e17c153a4d8ad",
         "rtk12Want": "8ed37f1e04067aba2599a5a7ac6dcb7c06f8836cef70c3169f2e88967a67277a",
+        "rk0Want": "bd5aa356d4dbe39522e90acd605daa29303132333435363738393a3b3c3d3e3f",
+        "rk1Want": "dd1e590f14d94530fe495ede96c8cee4765862645e604a4c664872744e705a5c",
+        "rk2Want": "9c9ef94d9983b1c199604440a3c76f29e8dcb0c4f8ec80d4c8fc90e4d8cca0f4",
+        "rk12Want": "81d7b8c3573f48a89c6446af456c322d09fc44b1bc49f10426d36b9e9366de2b",
     }
 
     derived_kats = {
@@ -538,6 +755,10 @@ def main() -> None:
         "rtk1Want": rtk1_hex,
         "rtk2Want": rtk2_hex,
         "rtk12Want": rtk12_hex,
+        "rk0Want": rk0_hex,
+        "rk1Want": rk1_hex,
+        "rk2Want": rk2_hex,
+        "rk12Want": rk12_hex,
     }
 
     if derived_kats == expected_kats:
@@ -560,6 +781,10 @@ def main() -> None:
     print(f" KAT 1 (seq) RTK[1] : {rtk1_hex}")
     print(f" KAT 1 (seq) RTK[2] : {rtk2_hex}")
     print(f" KAT 1 (seq) RTK[12]: {rtk12_hex}")
+    print(f" KAT 1 (seq) RK[0]  : {rk0_hex}")
+    print(f" KAT 1 (seq) RK[1]  : {rk1_hex}")
+    print(f" KAT 1 (seq) RK[2]  : {rk2_hex}")
+    print(f" KAT 1 (seq) RK[12] : {rk12_hex}")
     print(f" KAT 1 (seq) C      : {kat1_hex}")
     print("=" * 86)
 

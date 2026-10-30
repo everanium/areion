@@ -550,6 +550,105 @@ func TEM2Decrypt512x4(keys *[4][128]byte, tweaks *[4][64]byte, ct *[4][64]byte) 
 	return out
 }
 
+// AsuraExpandTweakey expands a 32-byte (256-bit) key and 16-byte (128-bit) tweak into
+// 13 32-byte round tweakeys rtk[0..12] (416 bytes total) for the 12-round ASURA
+// tweakable block cipher (Isobe et al., INDOCRYPT 2024, LNCS vol. 15495).
+// Callers should scrub rtk with Zeroize or clear when no longer needed.
+func AsuraExpandTweakey(rtk *[13][32]byte, key *[32]byte, tweak *[16]byte) {
+	asuraExpandTweakeyHW(rtk, key, tweak)
+}
+
+// AsuraEncrypt encrypts one 32-byte (256-bit) block under the 13 pre-expanded ASURA
+// round tweakeys rtk. dst and src may alias.
+func AsuraEncrypt(rtk *[13][32]byte, dst, src *[32]byte) {
+	asuraEncryptBlockHW(rtk, dst, src)
+}
+
+// AsuraDecrypt decrypts one 32-byte (256-bit) ciphertext block under the 13 pre-expanded
+// ASURA round tweakeys rtk. dst and src may alias.
+func AsuraDecrypt(rtk *[13][32]byte, dst, src *[32]byte) {
+	asuraDecryptBlockHW(rtk, dst, src)
+}
+
+// AsuraEncryptx4 encrypts four 32-byte (256-bit) blocks in parallel under the shared
+// 13 pre-expanded ASURA round tweakeys rtk. dst and src may alias.
+func AsuraEncryptx4(rtk *[13][32]byte, dst, src *[4][32]byte) {
+	asuraEncrypt4BlocksHW(rtk, dst, src)
+}
+
+// AsuraDecryptx4 decrypts four 32-byte (256-bit) ciphertext blocks in parallel under the
+// shared 13 pre-expanded ASURA round tweakeys rtk. dst and src may alias.
+func AsuraDecryptx4(rtk *[13][32]byte, dst, src *[4][32]byte) {
+	asuraDecrypt4BlocksHW(rtk, dst, src)
+}
+
+// AsuraEncryptOTF encrypts one 32-byte (256-bit) block under a 32-byte key and 16-byte
+// tweak using on-the-fly (OTF) tweakey expansion in registers with zero round-tweakey
+// state stored in RAM. dst and src may alias.
+func AsuraEncryptOTF(dst, src, key *[32]byte, tweak *[16]byte) {
+	asuraEncryptBlockOTFHW(dst, src, key, tweak)
+}
+
+// AsuraDecryptOTF decrypts one 32-byte (256-bit) ciphertext block under a 32-byte key
+// and 16-byte tweak using on-the-fly (OTF) tweakey derivation and inversion in registers
+// with zero round-tweakey state stored in RAM. dst and src may alias.
+func AsuraDecryptOTF(dst, src, key *[32]byte, tweak *[16]byte) {
+	asuraDecryptBlockOTFHW(dst, src, key, tweak)
+}
+
+// AsuraEncryptx4OTF encrypts four 32-byte (256-bit) blocks in parallel under a shared
+// 32-byte key and four 16-byte tweaks using on-the-fly (OTF) tweakey expansion in registers
+// with zero round-tweakey state stored in RAM. dst and src may alias.
+func AsuraEncryptx4OTF(dst, src *[4][32]byte, key *[32]byte, tweaks *[4][16]byte) {
+	asuraEncrypt4BlocksOTFHW(dst, src, key, tweaks)
+}
+
+// AsuraDecryptx4OTF decrypts four 32-byte (256-bit) ciphertext blocks in parallel under
+// a shared 32-byte key and four 16-byte tweaks using on-the-fly (OTF) tweakey derivation and
+// inversion in registers with zero round-tweakey state stored in RAM. dst and src may alias.
+func AsuraDecryptx4OTF(dst, src *[4][32]byte, key *[32]byte, tweaks *[4][16]byte) {
+	asuraDecrypt4BlocksOTFHW(dst, src, key, tweaks)
+}
+
+// AsuraExpandKey expands a 32-byte (256-bit) key into 13 32-byte session round keys
+// rk[0..12] (416 bytes total) for the 12-round ASURA tweakable block cipher:
+//
+//	rk[i][0:16]  = K_0^i ^ RC^i
+//	rk[i][16:32] = K_1^i
+//
+// Callers should scrub rk with Zeroize or clear when the session is over.
+func AsuraExpandKey(rk *[13][32]byte, key *[32]byte) {
+	asuraExpandKeyHW(rk, key)
+}
+
+// AsuraEncryptRK encrypts one 32-byte (256-bit) block under the 13 pre-expanded ASURA
+// session round keys rk and a 16-byte (128-bit) tweak expanded on the fly in registers.
+// dst and src may alias.
+func AsuraEncryptRK(rk *[13][32]byte, dst, src *[32]byte, tweak *[16]byte) {
+	asuraEncryptBlockRKHW(rk, dst, src, tweak)
+}
+
+// AsuraDecryptRK decrypts one 32-byte (256-bit) ciphertext block under the 13 pre-expanded
+// ASURA session round keys rk and a 16-byte (128-bit) tweak expanded on the fly in registers.
+// dst and src may alias.
+func AsuraDecryptRK(rk *[13][32]byte, dst, src *[32]byte, tweak *[16]byte) {
+	asuraDecryptBlockRKHW(rk, dst, src, tweak)
+}
+
+// AsuraEncryptx4RK encrypts four 32-byte (256-bit) blocks in parallel under the shared
+// 13 pre-expanded ASURA session round keys rk and four 16-byte (128-bit) tweaks
+// expanded on the fly in registers. dst and src may alias.
+func AsuraEncryptx4RK(rk *[13][32]byte, dst, src *[4][32]byte, tweaks *[4][16]byte) {
+	asuraEncrypt4BlocksRKHW(rk, dst, src, tweaks)
+}
+
+// AsuraDecryptx4RK decrypts four 32-byte (256-bit) ciphertext blocks in parallel under
+// the shared 13 pre-expanded ASURA session round keys rk and four 16-byte (128-bit)
+// tweaks expanded on the fly in registers. dst and src may alias.
+func AsuraDecryptx4RK(rk *[13][32]byte, dst, src *[4][32]byte, tweaks *[4][16]byte) {
+	asuraDecrypt4BlocksRKHW(rk, dst, src, tweaks)
+}
+
 // Zeroize overwrites all bytes in b with zeros and prevents dead-store
 // elimination via runtime.KeepAlive.
 func Zeroize(b []byte) {
@@ -658,11 +757,18 @@ var (
 		0x69, 0xc4, 0xe0, 0xd8, 0x6a, 0x7b, 0x04, 0x30,
 		0xd8, 0xcd, 0xb7, 0x80, 0x70, 0xb4, 0xc5, 0x5a,
 	}
+	selfTestWantAsura = [32]byte{
+		0x74, 0xe5, 0x18, 0x9f, 0x71, 0x2d, 0xc7, 0x8c,
+		0x0e, 0x6b, 0x8d, 0x9c, 0x82, 0x53, 0x72, 0x2a,
+		0x8d, 0xd5, 0x71, 0x44, 0xfb, 0x26, 0x98, 0xff,
+		0x1c, 0x06, 0x54, 0xc5, 0x60, 0x99, 0xd1, 0xcd,
+	}
 )
 
 // SelfTest executes a FIPS 140-3 Power-On Known-Answer Self-Test (CAST) across the
 // active backend tier covering AES-128, Permute256/512, InversePermute256/512, P2 variants,
-// DM256/512, SoEM256/512, EM/EM2/TEM/TEM2 (256 and 512), and x4 batch functions.
+// DM256/512, SoEM256/512, EM/EM2/TEM/TEM2 (256 and 512), ASURA (pre-expanded rtk and OTF),
+// and x4 batch functions.
 // It returns nil on success or a non-nil error if any KAT check fails.
 func SelfTest() error {
 	aesKey := [16]byte{
@@ -965,6 +1071,38 @@ func SelfTest() error {
 		}
 		if ct512x4[lane] != selfTestWantTEM2512 || pt512x4[lane] != m512 {
 			return errors.New("areion: SelfTest TEM2-512x4 KAT mismatch")
+		}
+	}
+
+	var asuraKey, asuraPT, asuraCT, asuraDT, asuraCTOTF, asuraDTOTF, asuraCTRK, asuraDTRK [32]byte
+	var asuraTweak [16]byte
+	var asuraTweaks4 [4][16]byte
+	var asuraRTK, asuraRK [13][32]byte
+	var asuraPT4, asuraCT4, asuraDT4, asuraCT4OTF, asuraDT4OTF, asuraCT4RK, asuraDT4RK [4][32]byte
+	AsuraExpandTweakey(&asuraRTK, &asuraKey, &asuraTweak)
+	AsuraEncrypt(&asuraRTK, &asuraCT, &asuraPT)
+	AsuraDecrypt(&asuraRTK, &asuraDT, &asuraCT)
+	AsuraEncryptx4(&asuraRTK, &asuraCT4, &asuraPT4)
+	AsuraDecryptx4(&asuraRTK, &asuraDT4, &asuraCT4)
+	clear(asuraRTK[:])
+	runtime.KeepAlive(&asuraRTK)
+	AsuraExpandKey(&asuraRK, &asuraKey)
+	AsuraEncryptRK(&asuraRK, &asuraCTRK, &asuraPT, &asuraTweak)
+	AsuraDecryptRK(&asuraRK, &asuraDTRK, &asuraCTRK, &asuraTweak)
+	AsuraEncryptx4RK(&asuraRK, &asuraCT4RK, &asuraPT4, &asuraTweaks4)
+	AsuraDecryptx4RK(&asuraRK, &asuraDT4RK, &asuraCT4RK, &asuraTweaks4)
+	clear(asuraRK[:])
+	runtime.KeepAlive(&asuraRK)
+	AsuraEncryptOTF(&asuraCTOTF, &asuraPT, &asuraKey, &asuraTweak)
+	AsuraDecryptOTF(&asuraDTOTF, &asuraCTOTF, &asuraKey, &asuraTweak)
+	AsuraEncryptx4OTF(&asuraCT4OTF, &asuraPT4, &asuraKey, &asuraTweaks4)
+	AsuraDecryptx4OTF(&asuraDT4OTF, &asuraCT4OTF, &asuraKey, &asuraTweaks4)
+	if asuraCT != selfTestWantAsura || asuraDT != asuraPT || asuraCTOTF != selfTestWantAsura || asuraDTOTF != asuraPT || asuraCTRK != selfTestWantAsura || asuraDTRK != asuraPT {
+		return errors.New("areion: SelfTest Asura KAT mismatch")
+	}
+	for lane := 0; lane < 4; lane++ {
+		if asuraCT4[lane] != selfTestWantAsura || asuraDT4[lane] != asuraPT || asuraCT4OTF[lane] != selfTestWantAsura || asuraDT4OTF[lane] != asuraPT || asuraCT4RK[lane] != selfTestWantAsura || asuraDT4RK[lane] != asuraPT {
+			return errors.New("areion: SelfTest Asurax4 KAT mismatch")
 		}
 	}
 
