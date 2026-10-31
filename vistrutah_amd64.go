@@ -6,70 +6,139 @@ package areion
 func vistrutah256EncryptBlockAsm(dst, src, key *[32]byte, rounds int)
 
 //go:noescape
+func vistrutah256DecryptBlockAsm(dst, src, key *[32]byte, rounds int)
+
+//go:noescape
 func vistrutah256EncryptBlockVexAsm(dst, src, key *[32]byte, rounds int)
+
+//go:noescape
+func vistrutah256DecryptBlockVexAsm(dst, src, key *[32]byte, rounds int)
 
 //go:noescape
 func vistrutah256EncryptBlockYmmAsm(dst, src, key *[32]byte, rounds int)
 
 //go:noescape
+func vistrutah256DecryptBlockYmmAsm(dst, src, key *[32]byte, rounds int)
+
+//go:noescape
 func vistrutah256Encrypt4BlocksAesNiAsm(dst, src *[4][32]byte, key *[32]byte, rounds int)
+
+//go:noescape
+func vistrutah256Decrypt4BlocksAesNiAsm(dst, src *[4][32]byte, key *[32]byte, rounds int)
 
 //go:noescape
 func vistrutah256Encrypt4BlocksVexAsm(dst, src *[4][32]byte, key *[32]byte, rounds int)
 
 //go:noescape
+func vistrutah256Decrypt4BlocksVexAsm(dst, src *[4][32]byte, key *[32]byte, rounds int)
+
+//go:noescape
 func vistrutah256Encrypt4BlocksYmmAsm(dst, src *[4][32]byte, key *[32]byte, rounds int)
+
+//go:noescape
+func vistrutah256Decrypt4BlocksYmmAsm(dst, src *[4][32]byte, key *[32]byte, rounds int)
 
 //go:noescape
 func vistrutah256Encrypt4BlocksZmmAsm(dst, src *[4][32]byte, key *[32]byte, rounds int)
 
 //go:noescape
+func vistrutah256Decrypt4BlocksZmmAsm(dst, src *[4][32]byte, key *[32]byte, rounds int)
+
+//go:noescape
 func vistrutah512EncryptBlock256Asm(dst, src *[64]byte, key *[32]byte, rounds int)
+
+//go:noescape
+func vistrutah512DecryptBlock256Asm(dst, src *[64]byte, key *[32]byte, rounds int)
 
 //go:noescape
 func vistrutah512EncryptBlock256VexAsm(dst, src *[64]byte, key *[32]byte, rounds int)
 
 //go:noescape
+func vistrutah512DecryptBlock256VexAsm(dst, src *[64]byte, key *[32]byte, rounds int)
+
+//go:noescape
 func vistrutah512EncryptBlock256YmmAsm(dst, src *[64]byte, key *[32]byte, rounds int)
+
+//go:noescape
+func vistrutah512DecryptBlock256YmmAsm(dst, src *[64]byte, key *[32]byte, rounds int)
 
 //go:noescape
 func vistrutah512EncryptBlock256ZmmAsm(dst, src *[64]byte, key *[32]byte, rounds int)
 
 //go:noescape
+func vistrutah512DecryptBlock256ZmmAsm(dst, src *[64]byte, key *[32]byte, rounds int)
+
+//go:noescape
 func vistrutah512EncryptBlock512Asm(dst, src, key *[64]byte, rounds int)
+
+//go:noescape
+func vistrutah512DecryptBlock512Asm(dst, src, key *[64]byte, rounds int)
 
 //go:noescape
 func vistrutah512EncryptBlock512VexAsm(dst, src, key *[64]byte, rounds int)
 
 //go:noescape
+func vistrutah512DecryptBlock512VexAsm(dst, src, key *[64]byte, rounds int)
+
+//go:noescape
 func vistrutah512EncryptBlock512YmmAsm(dst, src, key *[64]byte, rounds int)
+
+//go:noescape
+func vistrutah512DecryptBlock512YmmAsm(dst, src, key *[64]byte, rounds int)
 
 //go:noescape
 func vistrutah512EncryptBlock512ZmmAsm(dst, src, key *[64]byte, rounds int)
 
 //go:noescape
+func vistrutah512DecryptBlock512ZmmAsm(dst, src, key *[64]byte, rounds int)
+
+//go:noescape
 func vistrutah512Encrypt4Blocks256AesNiAsm(dst, src *[4][64]byte, key *[32]byte, rounds int)
+
+//go:noescape
+func vistrutah512Decrypt4Blocks256AesNiAsm(dst, src *[4][64]byte, key *[32]byte, rounds int)
 
 //go:noescape
 func vistrutah512Encrypt4Blocks256VexAsm(dst, src *[4][64]byte, key *[32]byte, rounds int)
 
 //go:noescape
+func vistrutah512Decrypt4Blocks256VexAsm(dst, src *[4][64]byte, key *[32]byte, rounds int)
+
+//go:noescape
 func vistrutah512Encrypt4Blocks256YmmAsm(dst, src *[4][64]byte, key *[32]byte, rounds int)
+
+//go:noescape
+func vistrutah512Decrypt4Blocks256YmmAsm(dst, src *[4][64]byte, key *[32]byte, rounds int)
 
 //go:noescape
 func vistrutah512Encrypt4Blocks256ZmmAsm(dst, src *[4][64]byte, key *[32]byte, rounds int)
 
 //go:noescape
+func vistrutah512Decrypt4Blocks256ZmmAsm(dst, src *[4][64]byte, key *[32]byte, rounds int)
+
+//go:noescape
 func vistrutah512Encrypt4Blocks512AesNiAsm(dst, src *[4][64]byte, key *[64]byte, rounds int)
+
+//go:noescape
+func vistrutah512Decrypt4Blocks512AesNiAsm(dst, src *[4][64]byte, key *[64]byte, rounds int)
 
 //go:noescape
 func vistrutah512Encrypt4Blocks512VexAsm(dst, src *[4][64]byte, key *[64]byte, rounds int)
 
 //go:noescape
+func vistrutah512Decrypt4Blocks512VexAsm(dst, src *[4][64]byte, key *[64]byte, rounds int)
+
+//go:noescape
 func vistrutah512Encrypt4Blocks512YmmAsm(dst, src *[4][64]byte, key *[64]byte, rounds int)
 
 //go:noescape
+func vistrutah512Decrypt4Blocks512YmmAsm(dst, src *[4][64]byte, key *[64]byte, rounds int)
+
+//go:noescape
 func vistrutah512Encrypt4Blocks512ZmmAsm(dst, src *[4][64]byte, key *[64]byte, rounds int)
+
+//go:noescape
+func vistrutah512Decrypt4Blocks512ZmmAsm(dst, src *[4][64]byte, key *[64]byte, rounds int)
 
 func vistrutah256EncryptBlockHW(dst, src, key *[32]byte, rounds int) {
 	if rounds != 10 && rounds != 14 {
@@ -86,6 +155,24 @@ func vistrutah256EncryptBlockHW(dst, src, key *[32]byte, rounds int) {
 		vistrutah256EncryptBlockAsm(dst, src, key, rounds)
 	default:
 		vistrutah256EncryptBlockSoft(dst, src, key, rounds)
+	}
+}
+
+func vistrutah256DecryptBlockHW(dst, src, key *[32]byte, rounds int) {
+	if rounds != 10 && rounds != 14 {
+		vistrutah256DecryptBlockSoft(dst, src, key, rounds)
+		return
+	}
+	tier := TierCode()
+	switch {
+	case hasVAESAVX2 && tier >= TierVAESAVX2:
+		vistrutah256DecryptBlockYmmAsm(dst, src, key, rounds)
+	case hasVEX && tier >= TierVEX:
+		vistrutah256DecryptBlockVexAsm(dst, src, key, rounds)
+	case hasAESNI && tier >= TierAESNI:
+		vistrutah256DecryptBlockAsm(dst, src, key, rounds)
+	default:
+		vistrutah256DecryptBlockSoft(dst, src, key, rounds)
 	}
 }
 
@@ -109,6 +196,26 @@ func vistrutah256Encrypt4BlocksHW(dst, src *[4][32]byte, key *[32]byte, rounds i
 	}
 }
 
+func vistrutah256Decrypt4BlocksHW(dst, src *[4][32]byte, key *[32]byte, rounds int) {
+	if rounds != 10 && rounds != 14 {
+		vistrutah256Decrypt4BlocksSoft(dst, src, key, rounds)
+		return
+	}
+	tier := TierCode()
+	switch {
+	case hasAVX512 && hasVAESAVX2 && tier >= TierAVX512:
+		vistrutah256Decrypt4BlocksZmmAsm(dst, src, key, rounds)
+	case hasVAESAVX2 && tier >= TierVAESAVX2:
+		vistrutah256Decrypt4BlocksYmmAsm(dst, src, key, rounds)
+	case hasVEX && tier >= TierVEX:
+		vistrutah256Decrypt4BlocksVexAsm(dst, src, key, rounds)
+	case hasAESNI && tier >= TierAESNI:
+		vistrutah256Decrypt4BlocksAesNiAsm(dst, src, key, rounds)
+	default:
+		vistrutah256Decrypt4BlocksSoft(dst, src, key, rounds)
+	}
+}
+
 func vistrutah512EncryptBlock256HW(dst, src *[64]byte, key *[32]byte, rounds int) {
 	if rounds != 10 && rounds != 12 && rounds != 14 && rounds != 18 {
 		vistrutah512EncryptBlock256Soft(dst, src, key, rounds)
@@ -126,6 +233,26 @@ func vistrutah512EncryptBlock256HW(dst, src *[64]byte, key *[32]byte, rounds int
 		vistrutah512EncryptBlock256Asm(dst, src, key, rounds)
 	default:
 		vistrutah512EncryptBlock256Soft(dst, src, key, rounds)
+	}
+}
+
+func vistrutah512DecryptBlock256HW(dst, src *[64]byte, key *[32]byte, rounds int) {
+	if rounds != 10 && rounds != 12 && rounds != 14 && rounds != 18 {
+		vistrutah512DecryptBlock256Soft(dst, src, key, rounds)
+		return
+	}
+	tier := TierCode()
+	switch {
+	case hasAVX512 && hasVAESAVX2 && tier >= TierAVX512:
+		vistrutah512DecryptBlock256ZmmAsm(dst, src, key, rounds)
+	case hasVAESAVX2 && tier >= TierVAESAVX2:
+		vistrutah512DecryptBlock256YmmAsm(dst, src, key, rounds)
+	case hasVEX && tier >= TierVEX:
+		vistrutah512DecryptBlock256VexAsm(dst, src, key, rounds)
+	case hasAESNI && tier >= TierAESNI:
+		vistrutah512DecryptBlock256Asm(dst, src, key, rounds)
+	default:
+		vistrutah512DecryptBlock256Soft(dst, src, key, rounds)
 	}
 }
 
@@ -149,6 +276,26 @@ func vistrutah512EncryptBlock512HW(dst, src, key *[64]byte, rounds int) {
 	}
 }
 
+func vistrutah512DecryptBlock512HW(dst, src, key *[64]byte, rounds int) {
+	if rounds != 10 && rounds != 12 && rounds != 14 && rounds != 18 {
+		vistrutah512DecryptBlock512Soft(dst, src, key, rounds)
+		return
+	}
+	tier := TierCode()
+	switch {
+	case hasAVX512 && hasVAESAVX2 && tier >= TierAVX512:
+		vistrutah512DecryptBlock512ZmmAsm(dst, src, key, rounds)
+	case hasVAESAVX2 && tier >= TierVAESAVX2:
+		vistrutah512DecryptBlock512YmmAsm(dst, src, key, rounds)
+	case hasVEX && tier >= TierVEX:
+		vistrutah512DecryptBlock512VexAsm(dst, src, key, rounds)
+	case hasAESNI && tier >= TierAESNI:
+		vistrutah512DecryptBlock512Asm(dst, src, key, rounds)
+	default:
+		vistrutah512DecryptBlock512Soft(dst, src, key, rounds)
+	}
+}
+
 func vistrutah512Encrypt4Blocks256HW(dst, src *[4][64]byte, key *[32]byte, rounds int) {
 	if rounds != 10 && rounds != 12 && rounds != 14 && rounds != 18 {
 		vistrutah512Encrypt4Blocks256Soft(dst, src, key, rounds)
@@ -169,6 +316,26 @@ func vistrutah512Encrypt4Blocks256HW(dst, src *[4][64]byte, key *[32]byte, round
 	}
 }
 
+func vistrutah512Decrypt4Blocks256HW(dst, src *[4][64]byte, key *[32]byte, rounds int) {
+	if rounds != 10 && rounds != 12 && rounds != 14 && rounds != 18 {
+		vistrutah512Decrypt4Blocks256Soft(dst, src, key, rounds)
+		return
+	}
+	tier := TierCode()
+	switch {
+	case hasAVX512 && hasVAESAVX2 && tier >= TierAVX512:
+		vistrutah512Decrypt4Blocks256ZmmAsm(dst, src, key, rounds)
+	case hasVAESAVX2 && tier >= TierVAESAVX2:
+		vistrutah512Decrypt4Blocks256YmmAsm(dst, src, key, rounds)
+	case hasVEX && tier >= TierVEX:
+		vistrutah512Decrypt4Blocks256VexAsm(dst, src, key, rounds)
+	case hasAESNI && tier >= TierAESNI:
+		vistrutah512Decrypt4Blocks256AesNiAsm(dst, src, key, rounds)
+	default:
+		vistrutah512Decrypt4Blocks256Soft(dst, src, key, rounds)
+	}
+}
+
 func vistrutah512Encrypt4Blocks512HW(dst, src *[4][64]byte, key *[64]byte, rounds int) {
 	if rounds != 10 && rounds != 12 && rounds != 14 && rounds != 18 {
 		vistrutah512Encrypt4Blocks512Soft(dst, src, key, rounds)
@@ -186,5 +353,25 @@ func vistrutah512Encrypt4Blocks512HW(dst, src *[4][64]byte, key *[64]byte, round
 		vistrutah512Encrypt4Blocks512AesNiAsm(dst, src, key, rounds)
 	default:
 		vistrutah512Encrypt4Blocks512Soft(dst, src, key, rounds)
+	}
+}
+
+func vistrutah512Decrypt4Blocks512HW(dst, src *[4][64]byte, key *[64]byte, rounds int) {
+	if rounds != 10 && rounds != 12 && rounds != 14 && rounds != 18 {
+		vistrutah512Decrypt4Blocks512Soft(dst, src, key, rounds)
+		return
+	}
+	tier := TierCode()
+	switch {
+	case hasAVX512 && hasVAESAVX2 && tier >= TierAVX512:
+		vistrutah512Decrypt4Blocks512ZmmAsm(dst, src, key, rounds)
+	case hasVAESAVX2 && tier >= TierVAESAVX2:
+		vistrutah512Decrypt4Blocks512YmmAsm(dst, src, key, rounds)
+	case hasVEX && tier >= TierVEX:
+		vistrutah512Decrypt4Blocks512VexAsm(dst, src, key, rounds)
+	case hasAESNI && tier >= TierAESNI:
+		vistrutah512Decrypt4Blocks512AesNiAsm(dst, src, key, rounds)
+	default:
+		vistrutah512Decrypt4Blocks512Soft(dst, src, key, rounds)
 	}
 }

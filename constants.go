@@ -107,16 +107,26 @@ var roundConstantsP2 = [15][16]byte{
 }
 
 // rijndael256Consts holds the 16-byte SIMD byte-permutation masks for Drucker-Gueron
-// fused Rijndael-256 rounds (ShiftRows_AES128⁻¹ ∘ ShiftRows_R256(0, 1, 3, 4)):
-//   - Entry 0: x86-64 PBLENDVB / VPBLENDVB cross-half blend mask
-//   - Entry 1: x86-64 PSHUFB / VPSHUFB within-half byte shuffle control
-//   - Entry 2: ARM64 NEON 2-register TBL index vector for the low 128-bit half
-//   - Entry 3: ARM64 NEON 2-register TBL index vector for the high 128-bit half
-var rijndael256Consts = [4][16]byte{
+// fused Rijndael-256 rounds (ShiftRows_AES128⁻¹ ∘ ShiftRows_R256(0, 1, 3, 4) for
+// encryption at entries 0..3, and ShiftRows_AES128 ∘ InvShiftRows_R256(0, 1, 3, 4)
+// for Equivalent Inverse Cipher decryption at entries 4..7):
+//   - Entry 0 (offset   0): x86-64 PBLENDVB / VPBLENDVB forward cross-half blend mask
+//   - Entry 1 (offset  16): x86-64 PSHUFB / VPSHUFB forward within-half byte shuffle
+//   - Entry 2 (offset  32): ARM64 NEON 2-register TBL forward index vector (low half)
+//   - Entry 3 (offset  48): ARM64 NEON 2-register TBL forward index vector (high half)
+//   - Entry 4 (offset  64): x86-64 PBLENDVB / VPBLENDVB inverse cross-half blend mask
+//   - Entry 5 (offset  80): x86-64 PSHUFB / VPSHUFB inverse within-half byte shuffle
+//   - Entry 6 (offset  96): ARM64 NEON 2-register TBL inverse index vector (low half)
+//   - Entry 7 (offset 112): ARM64 NEON 2-register TBL inverse index vector (high half)
+var rijndael256Consts = [8][16]byte{
 	{0x00, 0xff, 0xff, 0xff, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0x00, 0xff},
 	{0x00, 0x01, 0x06, 0x07, 0x04, 0x05, 0x0a, 0x0b, 0x08, 0x09, 0x0e, 0x0f, 0x0c, 0x0d, 0x02, 0x03},
 	{0x00, 0x11, 0x16, 0x17, 0x04, 0x05, 0x1a, 0x1b, 0x08, 0x09, 0x0e, 0x1f, 0x0c, 0x0d, 0x12, 0x13},
 	{0x10, 0x01, 0x06, 0x07, 0x14, 0x15, 0x0a, 0x0b, 0x18, 0x19, 0x1e, 0x0f, 0x1c, 0x1d, 0x02, 0x03},
+	{0x00, 0x00, 0x00, 0xff, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00, 0xff, 0xff, 0x00, 0xff, 0xff, 0xff},
+	{0x00, 0x01, 0x0e, 0x0f, 0x04, 0x05, 0x02, 0x03, 0x08, 0x09, 0x06, 0x07, 0x0c, 0x0d, 0x0a, 0x0b},
+	{0x00, 0x01, 0x1e, 0x1f, 0x04, 0x05, 0x02, 0x13, 0x08, 0x09, 0x16, 0x17, 0x0c, 0x1d, 0x1a, 0x1b},
+	{0x10, 0x11, 0x0e, 0x0f, 0x14, 0x15, 0x12, 0x03, 0x18, 0x19, 0x06, 0x07, 0x1c, 0x0d, 0x0a, 0x0b},
 }
 
 // vistrutahRoundConstants holds the 16 128-bit round constants (c_1 .. c_16)
@@ -149,7 +159,13 @@ var vistrutahRoundConstants = [16][16]byte{
 //   - Rows 12..13(offset 192): [psi_mask_a, psi_mask_a] (x86 PSHUFB primary-lane Psi mask)
 //   - Rows 14..15(offset 224): [psi_mask_b, psi_mask_b] (x86 PSHUFB opposite-lane Psi mask)
 //   - Rows 16..17(offset 256): [psi[0..15], psi[16..31]] (ARM64 2-reg VTBL Psi indices)
-var vistrutahConsts = [18][16]byte{
+//   - Rows 18..21(offset 288): [p4_inv, p5_inv, p4_inv, p5_inv] (Vistrutah-256 inverse key schedule rho^-1)
+//   - Rows 22..25(offset 352): [p4^5, p5^5, p4^5, p5^5] (Vistrutah-256 5-step key jump rho^5)
+//   - Rows 26..27(offset 416): [inv_mix256, inv_mix256] (YMM Vistrutah-256 inverse mixSlice mask)
+//   - Rows 28..31(offset 448): [sigma11, sigma6, sigma11, sigma6] (Vistrutah-512 inverse key schedule rho^-1)
+//   - Rows 32..35(offset 512): [sigma9, sigma2, sigma9, sigma2] (Vistrutah-512 5-step key jump rho^5)
+//   - Rows 36..39(offset 576): [deint4 x 4] (x86 Vistrutah-512 inverse mixSlice pre-shuffle)
+var vistrutahConsts = [40][16]byte{
 	// Rows 0..3 (offset 0): p4, p5, p4, p5
 	{9, 7, 13, 14, 0, 10, 3, 5, 1, 2, 15, 4, 6, 12, 11, 8},
 	{12, 8, 1, 9, 15, 4, 0, 3, 14, 10, 6, 7, 2, 5, 13, 11},
@@ -174,6 +190,34 @@ var vistrutahConsts = [18][16]byte{
 	// Rows 16..17 (offset 256): raw Psi[0..15] and Psi[16..31] for ARM64 VTBL
 	{30, 29, 8, 23, 10, 9, 20, 3, 22, 21, 0, 31, 2, 1, 28, 11},
 	{14, 13, 24, 7, 26, 25, 4, 19, 6, 5, 16, 15, 18, 17, 12, 27},
+	// Rows 18..21 (offset 288): p4_inv, p5_inv, p4_inv, p5_inv
+	{4, 8, 9, 6, 11, 7, 12, 1, 15, 0, 5, 14, 13, 2, 3, 10},
+	{6, 2, 12, 7, 5, 13, 10, 11, 1, 3, 9, 15, 0, 14, 8, 4},
+	{4, 8, 9, 6, 11, 7, 12, 1, 15, 0, 5, 14, 13, 2, 3, 10},
+	{6, 2, 12, 7, 5, 13, 10, 11, 1, 3, 9, 15, 0, 14, 8, 4},
+	// Rows 22..25 (offset 352): p4^5, p5^5, p4^5, p5^5
+	{6, 8, 14, 9, 12, 7, 0, 1, 15, 3, 5, 13, 4, 11, 2, 10},
+	{14, 4, 5, 12, 9, 3, 8, 0, 15, 2, 1, 6, 13, 7, 11, 10},
+	{6, 8, 14, 9, 12, 7, 0, 1, 15, 3, 5, 13, 4, 11, 2, 10},
+	{14, 4, 5, 12, 9, 3, 8, 0, 15, 2, 1, 6, 13, 7, 11, 10},
+	// Rows 26..27 (offset 416): inv_mix256, inv_mix256
+	{0, 8, 1, 9, 2, 10, 3, 11, 4, 12, 5, 13, 6, 14, 7, 15},
+	{0, 8, 1, 9, 2, 10, 3, 11, 4, 12, 5, 13, 6, 14, 7, 15},
+	// Rows 28..31 (offset 448): sigma11, sigma6, sigma11, sigma6
+	{11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+	{6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5},
+	{11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+	{6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5},
+	// Rows 32..35 (offset 512): sigma9, sigma2, sigma9, sigma2
+	{9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7, 8},
+	{2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0, 1},
+	{9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7, 8},
+	{2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0, 1},
+	// Rows 36..39 (offset 576): deint4 x 4
+	{0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15},
+	{0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15},
+	{0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15},
+	{0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15},
 }
 
 var vistrutahPsi = [32]byte{

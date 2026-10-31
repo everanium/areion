@@ -427,6 +427,8 @@ func testAreionArchAsmKernels(t *testing.T, tier string, res *[areionTotalWords]
 	for r := 0; r < 15; r++ {
 		r256RKTargets = append(r256RKTargets, bytesToNonZeroWords(r256RK[r][:])...)
 	}
+	r256Dec := new([32]byte)
+	r256Dec4 := new([4][32]byte)
 	if w := captureAreionFrameAndRegResidue(func() {
 		rijndael256EncryptBlockAsm(r256RK, r256Out, r256In)
 	}, res); w == 0 {
@@ -434,6 +436,14 @@ func testAreionArchAsmKernels(t *testing.T, tier string, res *[areionTotalWords]
 	}
 	if word, off, found := scanForAreionWords(res, append(append([]uint64{}, r256RKTargets...), bytesToNonZeroWords(r256In[:], r256Out[:])...)); found {
 		t.Fatalf("[%s] rijndael256EncryptBlockAsm leaked word %#016x at offset %d (window=%d)", tier, word, off, areionResidueWindow)
+	}
+	if w := captureAreionFrameAndRegResidue(func() {
+		rijndael256DecryptBlockAsm(r256RK, r256Dec, r256Out)
+	}, res); w == 0 {
+		t.Fatalf("[%s] rijndael256DecryptBlockAsm: probe missed stack window", tier)
+	}
+	if word, off, found := scanForAreionWords(res, append(append([]uint64{}, r256RKTargets...), bytesToNonZeroWords(r256Out[:], r256Dec[:])...)); found {
+		t.Fatalf("[%s] rijndael256DecryptBlockAsm leaked word %#016x at offset %d (window=%d)", tier, word, off, areionResidueWindow)
 	}
 
 	if w := captureAreionFrameAndRegResidue(func() {
@@ -448,17 +458,33 @@ func testAreionArchAsmKernels(t *testing.T, tier string, res *[areionTotalWords]
 	if word, off, found := scanForAreionWords(res, r256Targets4); found {
 		t.Fatalf("[%s] rijndael256Encrypt4BlocksAsm leaked word %#016x at offset %d (window=%d)", tier, word, off, areionResidueWindow)
 	}
+	if w := captureAreionFrameAndRegResidue(func() {
+		rijndael256Decrypt4BlocksAsm(r256RK, r256Dec4, r256Out4)
+	}, res); w == 0 {
+		t.Fatalf("[%s] rijndael256Decrypt4BlocksAsm: probe missed stack window", tier)
+	}
+	r256DecTargets4 := append([]uint64{}, r256RKTargets...)
+	for l := 0; l < 4; l++ {
+		r256DecTargets4 = append(r256DecTargets4, bytesToNonZeroWords(r256Out4[l][:], r256Dec4[l][:])...)
+	}
+	if word, off, found := scanForAreionWords(res, r256DecTargets4); found {
+		t.Fatalf("[%s] rijndael256Decrypt4BlocksAsm leaked word %#016x at offset %d (window=%d)", tier, word, off, areionResidueWindow)
+	}
 
 	vKey256 := new([32]byte)
 	vKey512 := new([64]byte)
 	vIn256 := new([32]byte)
 	vOut256 := new([32]byte)
+	vDec256 := new([32]byte)
 	vIn256x4 := new([4][32]byte)
 	vOut256x4 := new([4][32]byte)
+	vDec256x4 := new([4][32]byte)
 	vIn512 := new([64]byte)
 	vOut512 := new([64]byte)
+	vDec512 := new([64]byte)
 	vIn512x4 := new([4][64]byte)
 	vOut512x4 := new([4][64]byte)
+	vDec512x4 := new([4][64]byte)
 	for i := 0; i < 32; i++ {
 		vKey256[i] = byte(0x31 + i*7)
 		vIn256[i] = byte(0x93 + i*13)
@@ -485,6 +511,14 @@ func testAreionArchAsmKernels(t *testing.T, tier string, res *[areionTotalWords]
 			t.Fatalf("[%s] vistrutah256EncryptBlockAsm(%d) leaked word %#016x at offset %d", tier, r, word, off)
 		}
 		if w := captureAreionFrameAndRegResidue(func() {
+			vistrutah256DecryptBlockAsm(vDec256, vOut256, vKey256, r)
+		}, res); w == 0 {
+			t.Fatalf("[%s] vistrutah256DecryptBlockAsm(%d): probe missed stack window", tier, r)
+		}
+		if word, off, found := scanForAreionWords(res, bytesToNonZeroWords(vKey256[:], vOut256[:], vDec256[:])); found {
+			t.Fatalf("[%s] vistrutah256DecryptBlockAsm(%d) leaked word %#016x at offset %d", tier, r, word, off)
+		}
+		if w := captureAreionFrameAndRegResidue(func() {
 			vistrutah256Encrypt4BlocksAsm(vOut256x4, vIn256x4, vKey256, r)
 		}, res); w == 0 {
 			t.Fatalf("[%s] vistrutah256Encrypt4BlocksAsm(%d): probe missed stack window", tier, r)
@@ -495,6 +529,18 @@ func testAreionArchAsmKernels(t *testing.T, tier string, res *[areionTotalWords]
 		}
 		if word, off, found := scanForAreionWords(res, vTargets); found {
 			t.Fatalf("[%s] vistrutah256Encrypt4BlocksAsm(%d) leaked word %#016x at offset %d", tier, r, word, off)
+		}
+		if w := captureAreionFrameAndRegResidue(func() {
+			vistrutah256Decrypt4BlocksAsm(vDec256x4, vOut256x4, vKey256, r)
+		}, res); w == 0 {
+			t.Fatalf("[%s] vistrutah256Decrypt4BlocksAsm(%d): probe missed stack window", tier, r)
+		}
+		vDecTargets := bytesToNonZeroWords(vKey256[:])
+		for l := 0; l < 4; l++ {
+			vDecTargets = append(vDecTargets, bytesToNonZeroWords(vOut256x4[l][:], vDec256x4[l][:])...)
+		}
+		if word, off, found := scanForAreionWords(res, vDecTargets); found {
+			t.Fatalf("[%s] vistrutah256Decrypt4BlocksAsm(%d) leaked word %#016x at offset %d", tier, r, word, off)
 		}
 	}
 	for _, r := range []int{10, 12, 14, 18} {
@@ -507,12 +553,28 @@ func testAreionArchAsmKernels(t *testing.T, tier string, res *[areionTotalWords]
 			t.Fatalf("[%s] vistrutah512EncryptBlock256Asm(%d) leaked word %#016x at offset %d", tier, r, word, off)
 		}
 		if w := captureAreionFrameAndRegResidue(func() {
+			vistrutah512DecryptBlock256Asm(vDec512, vOut512, vKey256, r)
+		}, res); w == 0 {
+			t.Fatalf("[%s] vistrutah512DecryptBlock256Asm(%d): probe missed stack window", tier, r)
+		}
+		if word, off, found := scanForAreionWords(res, bytesToNonZeroWords(vKey256[:], vOut512[:], vDec512[:])); found {
+			t.Fatalf("[%s] vistrutah512DecryptBlock256Asm(%d) leaked word %#016x at offset %d", tier, r, word, off)
+		}
+		if w := captureAreionFrameAndRegResidue(func() {
 			vistrutah512EncryptBlock512Asm(vOut512, vIn512, vKey512, r)
 		}, res); w == 0 {
 			t.Fatalf("[%s] vistrutah512EncryptBlock512Asm(%d): probe missed stack window", tier, r)
 		}
 		if word, off, found := scanForAreionWords(res, bytesToNonZeroWords(vKey512[:], vIn512[:], vOut512[:])); found {
 			t.Fatalf("[%s] vistrutah512EncryptBlock512Asm(%d) leaked word %#016x at offset %d", tier, r, word, off)
+		}
+		if w := captureAreionFrameAndRegResidue(func() {
+			vistrutah512DecryptBlock512Asm(vDec512, vOut512, vKey512, r)
+		}, res); w == 0 {
+			t.Fatalf("[%s] vistrutah512DecryptBlock512Asm(%d): probe missed stack window", tier, r)
+		}
+		if word, off, found := scanForAreionWords(res, bytesToNonZeroWords(vKey512[:], vOut512[:], vDec512[:])); found {
+			t.Fatalf("[%s] vistrutah512DecryptBlock512Asm(%d) leaked word %#016x at offset %d", tier, r, word, off)
 		}
 		if w := captureAreionFrameAndRegResidue(func() {
 			vistrutah512Encrypt4Blocks256Asm(vOut512x4, vIn512x4, vKey256, r)
@@ -527,6 +589,18 @@ func testAreionArchAsmKernels(t *testing.T, tier string, res *[areionTotalWords]
 			t.Fatalf("[%s] vistrutah512Encrypt4Blocks256Asm(%d) leaked word %#016x at offset %d", tier, r, word, off)
 		}
 		if w := captureAreionFrameAndRegResidue(func() {
+			vistrutah512Decrypt4Blocks256Asm(vDec512x4, vOut512x4, vKey256, r)
+		}, res); w == 0 {
+			t.Fatalf("[%s] vistrutah512Decrypt4Blocks256Asm(%d): probe missed stack window", tier, r)
+		}
+		vDecTargets256 := bytesToNonZeroWords(vKey256[:])
+		for l := 0; l < 4; l++ {
+			vDecTargets256 = append(vDecTargets256, bytesToNonZeroWords(vOut512x4[l][:], vDec512x4[l][:])...)
+		}
+		if word, off, found := scanForAreionWords(res, vDecTargets256); found {
+			t.Fatalf("[%s] vistrutah512Decrypt4Blocks256Asm(%d) leaked word %#016x at offset %d", tier, r, word, off)
+		}
+		if w := captureAreionFrameAndRegResidue(func() {
 			vistrutah512Encrypt4Blocks512Asm(vOut512x4, vIn512x4, vKey512, r)
 		}, res); w == 0 {
 			t.Fatalf("[%s] vistrutah512Encrypt4Blocks512Asm(%d): probe missed stack window", tier, r)
@@ -537,6 +611,18 @@ func testAreionArchAsmKernels(t *testing.T, tier string, res *[areionTotalWords]
 		}
 		if word, off, found := scanForAreionWords(res, vTargets512); found {
 			t.Fatalf("[%s] vistrutah512Encrypt4Blocks512Asm(%d) leaked word %#016x at offset %d", tier, r, word, off)
+		}
+		if w := captureAreionFrameAndRegResidue(func() {
+			vistrutah512Decrypt4Blocks512Asm(vDec512x4, vOut512x4, vKey512, r)
+		}, res); w == 0 {
+			t.Fatalf("[%s] vistrutah512Decrypt4Blocks512Asm(%d): probe missed stack window", tier, r)
+		}
+		vDecTargets512 := bytesToNonZeroWords(vKey512[:])
+		for l := 0; l < 4; l++ {
+			vDecTargets512 = append(vDecTargets512, bytesToNonZeroWords(vOut512x4[l][:], vDec512x4[l][:])...)
+		}
+		if word, off, found := scanForAreionWords(res, vDecTargets512); found {
+			t.Fatalf("[%s] vistrutah512Decrypt4Blocks512Asm(%d) leaked word %#016x at offset %d", tier, r, word, off)
 		}
 	}
 

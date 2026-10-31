@@ -1873,45 +1873,6 @@ var rijndaelInvSBox = [256]byte{
 	0x17, 0x2b, 0x04, 0x7e, 0xba, 0x77, 0xd6, 0x26, 0xe1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0c, 0x7d,
 }
 
-var rijndaelRcon = [15]byte{
-	0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40,
-	0x80, 0x1b, 0x36, 0x6c, 0xd8, 0xab, 0x4d,
-}
-
-func rijndael256ExpandKey(key *[32]byte, rk *[15][32]byte) {
-	var w [120][4]byte
-	for i := 0; i < 8; i++ {
-		copy(w[i][:], key[4*i:4*i+4])
-	}
-	for i := 8; i < 120; i++ {
-		tmp := w[i-1]
-		switch i % 8 {
-		case 0:
-			tmp = [4]byte{
-				rijndaelSBox[tmp[1]] ^ rijndaelRcon[i/8],
-				rijndaelSBox[tmp[2]],
-				rijndaelSBox[tmp[3]],
-				rijndaelSBox[tmp[0]],
-			}
-		case 4:
-			tmp = [4]byte{
-				rijndaelSBox[tmp[0]],
-				rijndaelSBox[tmp[1]],
-				rijndaelSBox[tmp[2]],
-				rijndaelSBox[tmp[3]],
-			}
-		}
-		for j := 0; j < 4; j++ {
-			w[i][j] = w[i-8][j] ^ tmp[j]
-		}
-	}
-	for r := 0; r < 15; r++ {
-		for c := 0; c < 8; c++ {
-			copy(rk[r][4*c:4*c+4], w[8*r+c][:])
-		}
-	}
-}
-
 func gfMul(a, b byte) byte {
 	var p byte
 	for i := 0; i < 8; i++ {
@@ -1992,36 +1953,63 @@ func rijndael256DecryptBlockRef(rk *[15][32]byte, dst, src *[32]byte) {
 func TestRijndael256ReferenceAndRoundTrip(t *testing.T) {
 	eachTier(t, func(t *testing.T, tier string) {
 		for trial := 0; trial < 32; trial++ {
-			var key, pt, ctRef, decRef, ctHW [32]byte
+			var key, pt, ctRef, decRef, ctSoft, ctHW, decSoft, decHW [32]byte
 			rand.Read(key[:])
 			rand.Read(pt[:])
-			var rk [15][32]byte
+			var rk, drk, drk2 [15][32]byte
 			rijndael256ExpandKey(&key, &rk)
+			rijndael256ExpandKeyDec(&key, &drk)
+			drk2 = rk
+			rijndael256InvertRoundKeys(&drk2, &drk2)
+			if drk2 != drk {
+				t.Fatalf("[%s] Rijndael-256 in-place rijndael256InvertRoundKeys mismatch at trial %d", tier, trial)
+			}
 			rijndael256EncryptBlockRef(&rk, &ctRef, &pt)
 			rijndael256DecryptBlockRef(&rk, &decRef, &ctRef)
 			if decRef != pt {
 				t.Fatalf("[%s] Rijndael-256 ref roundtrip failed at trial %d", tier, trial)
 			}
+			rijndael256EncryptBlockSoftware(&rk, &ctSoft, &pt)
+			if ctSoft != ctRef {
+				t.Fatalf("[%s] Rijndael-256 Soft vs ref mismatch at trial %d\nSoft: %x\nRef:  %x", tier, trial, ctSoft, ctRef)
+			}
 			rijndael256EncryptBlockHW(&rk, &ctHW, &pt)
 			if ctHW != ctRef {
 				t.Fatalf("[%s] Rijndael-256 HW vs ref mismatch at trial %d\nHW:  %x\nRef: %x", tier, trial, ctHW, ctRef)
+			}
+			rijndael256DecryptBlockSoftware(&drk, &decSoft, &ctHW)
+			if decSoft != pt {
+				t.Fatalf("[%s] Rijndael-256 Soft decrypt mismatch at trial %d\ngot:  %x\nwant: %x", tier, trial, decSoft, pt)
+			}
+			rijndael256DecryptBlockHW(&drk, &decHW, &ctHW)
+			if decHW != pt {
+				t.Fatalf("[%s] Rijndael-256 HW decrypt mismatch at trial %d\ngot:  %x\nwant: %x", tier, trial, decHW, pt)
 			}
 			inplace := pt
 			rijndael256EncryptBlockHW(&rk, &inplace, &inplace)
 			if inplace != ctRef {
 				t.Fatalf("[%s] Rijndael-256 HW in-place mismatch at trial %d", tier, trial)
 			}
+			rijndael256DecryptBlockHW(&drk, &inplace, &inplace)
+			if inplace != pt {
+				t.Fatalf("[%s] Rijndael-256 HW decrypt in-place mismatch at trial %d", tier, trial)
+			}
 		}
 
 		var key [32]byte
-		var pt4, ct4 [4][32]byte
+		var pt4, ct4Soft, ct4, dec4Soft, dec4HW [4][32]byte
 		rand.Read(key[:])
 		for b := 0; b < 4; b++ {
 			rand.Read(pt4[b][:])
 		}
-		var rk [15][32]byte
+		var rk, drk [15][32]byte
 		rijndael256ExpandKey(&key, &rk)
+		rijndael256ExpandKeyDec(&key, &drk)
+		rijndael256Encrypt4BlocksSoftware(&rk, &ct4Soft, &pt4)
 		rijndael256Encrypt4BlocksHW(&rk, &ct4, &pt4)
+		if ct4Soft != ct4 {
+			t.Fatalf("[%s] Rijndael-256 x4 Soft vs HW mismatch", tier)
+		}
 		for b := 0; b < 4; b++ {
 			var want [32]byte
 			rijndael256EncryptBlockRef(&rk, &want, &pt4[b])
@@ -2029,10 +2017,22 @@ func TestRijndael256ReferenceAndRoundTrip(t *testing.T) {
 				t.Fatalf("[%s] Rijndael-256 x4 lane %d mismatch", tier, b)
 			}
 		}
+		rijndael256Decrypt4BlocksSoftware(&drk, &dec4Soft, &ct4)
+		if dec4Soft != pt4 {
+			t.Fatalf("[%s] Rijndael-256 x4 Soft decrypt mismatch", tier)
+		}
+		rijndael256Decrypt4BlocksHW(&drk, &dec4HW, &ct4)
+		if dec4HW != pt4 {
+			t.Fatalf("[%s] Rijndael-256 x4 HW decrypt mismatch", tier)
+		}
 		inplace4 := pt4
 		rijndael256Encrypt4BlocksHW(&rk, &inplace4, &inplace4)
 		if inplace4 != ct4 {
 			t.Fatalf("[%s] Rijndael-256 x4 in-place mismatch", tier)
+		}
+		rijndael256Decrypt4BlocksHW(&drk, &inplace4, &inplace4)
+		if inplace4 != pt4 {
+			t.Fatalf("[%s] Rijndael-256 x4 decrypt in-place mismatch", tier)
 		}
 	})
 }
@@ -3094,6 +3094,17 @@ func BenchmarkRijndael256EncryptBlockHW(b *testing.B) {
 	}
 }
 
+func BenchmarkRijndael256DecryptBlockHW(b *testing.B) {
+	var key, state, out [32]byte
+	var drk [15][32]byte
+	rijndael256ExpandKeyDec(&key, &drk)
+	b.SetBytes(32)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		rijndael256DecryptBlockHW(&drk, &out, &state)
+	}
+}
+
 func BenchmarkRijndael256Encrypt4BlocksHW(b *testing.B) {
 	var key [32]byte
 	var states, out [4][32]byte
@@ -3103,6 +3114,18 @@ func BenchmarkRijndael256Encrypt4BlocksHW(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		rijndael256Encrypt4BlocksHW(&rk, &out, &states)
+	}
+}
+
+func BenchmarkRijndael256Decrypt4BlocksHW(b *testing.B) {
+	var key [32]byte
+	var states, out [4][32]byte
+	var drk [15][32]byte
+	rijndael256ExpandKeyDec(&key, &drk)
+	b.SetBytes(128)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		rijndael256Decrypt4BlocksHW(&drk, &out, &states)
 	}
 }
 
@@ -5213,7 +5236,7 @@ func TestVistrutahKAT(t *testing.T) {
 
 	eachTier(t, func(t *testing.T, tier string) {
 		for _, tc := range kats256 {
-			var cSoft, cHW, decSoft [32]byte
+			var cSoft, cHW, decSoft, decHW [32]byte
 			vistrutah256EncryptBlockSoft(&cSoft, &p256, &k256, tc.rounds)
 			if got := hex.EncodeToString(cSoft[:]); got != tc.want {
 				t.Fatalf("[%s] Vistrutah-256 (%dr) Soft KAT mismatch:\ngot:  %s\nwant: %s", tier, tc.rounds, got, tc.want)
@@ -5226,6 +5249,10 @@ func TestVistrutahKAT(t *testing.T) {
 			if decSoft != p256 {
 				t.Fatalf("[%s] Vistrutah-256 (%dr) Decrypt round-trip mismatch", tier, tc.rounds)
 			}
+			vistrutah256DecryptBlockHW(&decHW, &cHW, &k256, tc.rounds)
+			if decHW != p256 {
+				t.Fatalf("[%s] Vistrutah-256 (%dr) Decrypt HW round-trip mismatch:\ngot:  %x\nwant: %x", tier, tc.rounds, decHW, p256)
+			}
 
 			// In-place aliasing check
 			inPlace := p256
@@ -5233,9 +5260,13 @@ func TestVistrutahKAT(t *testing.T) {
 			if inPlace != cSoft {
 				t.Fatalf("[%s] Vistrutah-256 (%dr) in-place HW mismatch", tier, tc.rounds)
 			}
+			vistrutah256DecryptBlockHW(&inPlace, &inPlace, &k256, tc.rounds)
+			if inPlace != p256 {
+				t.Fatalf("[%s] Vistrutah-256 (%dr) in-place Decrypt HW mismatch", tier, tc.rounds)
+			}
 
 			// x4 batch differential check with distinct plaintexts
-			var p4, c4Soft, c4HW, dec4Soft [4][32]byte
+			var p4, c4Soft, c4HW, dec4Soft, dec4HW [4][32]byte
 			for lane := 0; lane < 4; lane++ {
 				p4[lane] = p256
 				p4[lane][0] ^= byte(lane * 0x37)
@@ -5257,18 +5288,33 @@ func TestVistrutahKAT(t *testing.T) {
 			if dec4Soft != p4 {
 				t.Fatalf("[%s] Vistrutah-256 (%dr) 4Blocks Decrypt round-trip mismatch", tier, tc.rounds)
 			}
+			vistrutah256Decrypt4BlocksHW(&dec4HW, &c4HW, &k256, tc.rounds)
+			if dec4HW != p4 {
+				t.Fatalf("[%s] Vistrutah-256 (%dr) 4Blocks Decrypt HW round-trip mismatch", tier, tc.rounds)
+			}
+			inPlace4 := p4
+			vistrutah256Encrypt4BlocksHW(&inPlace4, &inPlace4, &k256, tc.rounds)
+			if inPlace4 != c4Soft {
+				t.Fatalf("[%s] Vistrutah-256 (%dr) 4Blocks in-place Encrypt HW mismatch", tier, tc.rounds)
+			}
+			vistrutah256Decrypt4BlocksHW(&inPlace4, &inPlace4, &k256, tc.rounds)
+			if inPlace4 != p4 {
+				t.Fatalf("[%s] Vistrutah-256 (%dr) 4Blocks in-place Decrypt HW mismatch", tier, tc.rounds)
+			}
 		}
 
 		for _, tc := range kats512 {
-			var cSoft, cHW, decSoft [64]byte
+			var cSoft, cHW, decSoft, decHW [64]byte
 			if tc.keyBits == 256 {
 				vistrutah512EncryptBlock256Soft(&cSoft, &p512, &k256, tc.rounds)
 				vistrutah512EncryptBlock256HW(&cHW, &p512, &k256, tc.rounds)
 				vistrutah512DecryptBlock256Soft(&decSoft, &cHW, &k256, tc.rounds)
+				vistrutah512DecryptBlock256HW(&decHW, &cHW, &k256, tc.rounds)
 			} else {
 				vistrutah512EncryptBlock512Soft(&cSoft, &p512, &k512, tc.rounds)
 				vistrutah512EncryptBlock512HW(&cHW, &p512, &k512, tc.rounds)
 				vistrutah512DecryptBlock512Soft(&decSoft, &cHW, &k512, tc.rounds)
+				vistrutah512DecryptBlock512HW(&decHW, &cHW, &k512, tc.rounds)
 			}
 			if got := hex.EncodeToString(cSoft[:]); got != tc.want {
 				t.Fatalf("[%s] Vistrutah-512-%d (%dr) Soft KAT mismatch:\ngot:  %s\nwant: %s", tier, tc.keyBits, tc.rounds, got, tc.want)
@@ -5279,9 +5325,34 @@ func TestVistrutahKAT(t *testing.T) {
 			if decSoft != p512 {
 				t.Fatalf("[%s] Vistrutah-512-%d (%dr) Decrypt round-trip mismatch", tier, tc.keyBits, tc.rounds)
 			}
+			if decHW != p512 {
+				t.Fatalf("[%s] Vistrutah-512-%d (%dr) Decrypt HW round-trip mismatch:\ngot:  %x\nwant: %x", tier, tc.keyBits, tc.rounds, decHW, p512)
+			}
+
+			// In-place aliasing check
+			inPlace := p512
+			if tc.keyBits == 256 {
+				vistrutah512EncryptBlock256HW(&inPlace, &inPlace, &k256, tc.rounds)
+				if inPlace != cSoft {
+					t.Fatalf("[%s] Vistrutah-512-256 (%dr) in-place Encrypt HW mismatch", tier, tc.rounds)
+				}
+				vistrutah512DecryptBlock256HW(&inPlace, &inPlace, &k256, tc.rounds)
+				if inPlace != p512 {
+					t.Fatalf("[%s] Vistrutah-512-256 (%dr) in-place Decrypt HW mismatch", tier, tc.rounds)
+				}
+			} else {
+				vistrutah512EncryptBlock512HW(&inPlace, &inPlace, &k512, tc.rounds)
+				if inPlace != cSoft {
+					t.Fatalf("[%s] Vistrutah-512-512 (%dr) in-place Encrypt HW mismatch", tier, tc.rounds)
+				}
+				vistrutah512DecryptBlock512HW(&inPlace, &inPlace, &k512, tc.rounds)
+				if inPlace != p512 {
+					t.Fatalf("[%s] Vistrutah-512-512 (%dr) in-place Decrypt HW mismatch", tier, tc.rounds)
+				}
+			}
 
 			// x4 batch differential check with distinct plaintexts
-			var p4, c4Soft, c4HW, dec4Soft [4][64]byte
+			var p4, c4Soft, c4HW, dec4Soft, dec4HW [4][64]byte
 			for lane := 0; lane < 4; lane++ {
 				p4[lane] = p512
 				p4[lane][0] ^= byte(lane * 0x37)
@@ -5293,10 +5364,12 @@ func TestVistrutahKAT(t *testing.T) {
 				vistrutah512Encrypt4Blocks256Soft(&c4Soft, &p4, &k256, tc.rounds)
 				vistrutah512Encrypt4Blocks256HW(&c4HW, &p4, &k256, tc.rounds)
 				vistrutah512Decrypt4Blocks256Soft(&dec4Soft, &c4HW, &k256, tc.rounds)
+				vistrutah512Decrypt4Blocks256HW(&dec4HW, &c4HW, &k256, tc.rounds)
 			} else {
 				vistrutah512Encrypt4Blocks512Soft(&c4Soft, &p4, &k512, tc.rounds)
 				vistrutah512Encrypt4Blocks512HW(&c4HW, &p4, &k512, tc.rounds)
 				vistrutah512Decrypt4Blocks512Soft(&dec4Soft, &c4HW, &k512, tc.rounds)
+				vistrutah512Decrypt4Blocks512HW(&dec4HW, &c4HW, &k512, tc.rounds)
 			}
 			if c4HW != c4Soft {
 				t.Fatalf("[%s] Vistrutah-512-%d (%dr) 4Blocks HW != Soft", tier, tc.keyBits, tc.rounds)
@@ -5314,6 +5387,29 @@ func TestVistrutahKAT(t *testing.T) {
 			}
 			if dec4Soft != p4 {
 				t.Fatalf("[%s] Vistrutah-512-%d (%dr) 4Blocks Decrypt round-trip mismatch", tier, tc.keyBits, tc.rounds)
+			}
+			if dec4HW != p4 {
+				t.Fatalf("[%s] Vistrutah-512-%d (%dr) 4Blocks Decrypt HW round-trip mismatch", tier, tc.keyBits, tc.rounds)
+			}
+			inPlace4 := p4
+			if tc.keyBits == 256 {
+				vistrutah512Encrypt4Blocks256HW(&inPlace4, &inPlace4, &k256, tc.rounds)
+				if inPlace4 != c4Soft {
+					t.Fatalf("[%s] Vistrutah-512-256 (%dr) 4Blocks in-place Encrypt HW mismatch", tier, tc.rounds)
+				}
+				vistrutah512Decrypt4Blocks256HW(&inPlace4, &inPlace4, &k256, tc.rounds)
+				if inPlace4 != p4 {
+					t.Fatalf("[%s] Vistrutah-512-256 (%dr) 4Blocks in-place Decrypt HW mismatch", tier, tc.rounds)
+				}
+			} else {
+				vistrutah512Encrypt4Blocks512HW(&inPlace4, &inPlace4, &k512, tc.rounds)
+				if inPlace4 != c4Soft {
+					t.Fatalf("[%s] Vistrutah-512-512 (%dr) 4Blocks in-place Encrypt HW mismatch", tier, tc.rounds)
+				}
+				vistrutah512Decrypt4Blocks512HW(&inPlace4, &inPlace4, &k512, tc.rounds)
+				if inPlace4 != p4 {
+					t.Fatalf("[%s] Vistrutah-512-512 (%dr) 4Blocks in-place Decrypt HW mismatch", tier, tc.rounds)
+				}
 			}
 		}
 
@@ -5334,43 +5430,49 @@ func TestVistrutahKAT(t *testing.T) {
 
 		// Non-standard round counts (software fallback path in HW dispatchers) and out-of-range round guards
 		for _, r := range []int{12, 16} {
-			var c1Soft, c1HW, d1Soft [32]byte
+			var c1Soft, c1HW, d1Soft, d1HW [32]byte
 			vistrutah256EncryptBlockSoft(&c1Soft, &p256, &k256, r)
 			vistrutah256EncryptBlockHW(&c1HW, &p256, &k256, r)
 			vistrutah256DecryptBlockSoft(&d1Soft, &c1HW, &k256, r)
-			if c1HW != c1Soft || d1Soft != p256 {
+			vistrutah256DecryptBlockHW(&d1HW, &c1HW, &k256, r)
+			if c1HW != c1Soft || d1Soft != p256 || d1HW != p256 {
 				t.Fatalf("[%s] Vistrutah-256 (%dr) fallback mismatch", tier, r)
 			}
-			var p4, c4Soft, c4HW, d4Soft [4][32]byte
+			var p4, c4Soft, c4HW, d4Soft, d4HW [4][32]byte
 			p4[0] = p256
 			vistrutah256Encrypt4BlocksSoft(&c4Soft, &p4, &k256, r)
 			vistrutah256Encrypt4BlocksHW(&c4HW, &p4, &k256, r)
 			vistrutah256Decrypt4BlocksSoft(&d4Soft, &c4HW, &k256, r)
-			if c4HW != c4Soft || d4Soft != p4 {
+			vistrutah256Decrypt4BlocksHW(&d4HW, &c4HW, &k256, r)
+			if c4HW != c4Soft || d4Soft != p4 || d4HW != p4 {
 				t.Fatalf("[%s] Vistrutah-256 (%dr) 4Blocks fallback mismatch", tier, r)
 			}
 		}
 		{
 			const r = 16
-			var c256Soft, c256HW, d256Soft, c512Soft, c512HW, d512Soft [64]byte
+			var c256Soft, c256HW, d256Soft, d256HW, c512Soft, c512HW, d512Soft, d512HW [64]byte
 			vistrutah512EncryptBlock256Soft(&c256Soft, &p512, &k256, r)
 			vistrutah512EncryptBlock256HW(&c256HW, &p512, &k256, r)
 			vistrutah512DecryptBlock256Soft(&d256Soft, &c256HW, &k256, r)
+			vistrutah512DecryptBlock256HW(&d256HW, &c256HW, &k256, r)
 			vistrutah512EncryptBlock512Soft(&c512Soft, &p512, &k512, r)
 			vistrutah512EncryptBlock512HW(&c512HW, &p512, &k512, r)
 			vistrutah512DecryptBlock512Soft(&d512Soft, &c512HW, &k512, r)
-			if c256HW != c256Soft || d256Soft != p512 || c512HW != c512Soft || d512Soft != p512 {
+			vistrutah512DecryptBlock512HW(&d512HW, &c512HW, &k512, r)
+			if c256HW != c256Soft || d256Soft != p512 || d256HW != p512 || c512HW != c512Soft || d512Soft != p512 || d512HW != p512 {
 				t.Fatalf("[%s] Vistrutah-512 (%dr) fallback mismatch", tier, r)
 			}
-			var p4, c4_256Soft, c4_256HW, d4_256Soft, c4_512Soft, c4_512HW, d4_512Soft [4][64]byte
+			var p4, c4_256Soft, c4_256HW, d4_256Soft, d4_256HW, c4_512Soft, c4_512HW, d4_512Soft, d4_512HW [4][64]byte
 			p4[0] = p512
 			vistrutah512Encrypt4Blocks256Soft(&c4_256Soft, &p4, &k256, r)
 			vistrutah512Encrypt4Blocks256HW(&c4_256HW, &p4, &k256, r)
 			vistrutah512Decrypt4Blocks256Soft(&d4_256Soft, &c4_256HW, &k256, r)
+			vistrutah512Decrypt4Blocks256HW(&d4_256HW, &c4_256HW, &k256, r)
 			vistrutah512Encrypt4Blocks512Soft(&c4_512Soft, &p4, &k512, r)
 			vistrutah512Encrypt4Blocks512HW(&c4_512HW, &p4, &k512, r)
 			vistrutah512Decrypt4Blocks512Soft(&d4_512Soft, &c4_512HW, &k512, r)
-			if c4_256HW != c4_256Soft || d4_256Soft != p4 || c4_512HW != c4_512Soft || d4_512Soft != p4 {
+			vistrutah512Decrypt4Blocks512HW(&d4_512HW, &c4_512HW, &k512, r)
+			if c4_256HW != c4_256Soft || d4_256Soft != p4 || d4_256HW != p4 || c4_512HW != c4_512Soft || d4_512Soft != p4 || d4_512HW != p4 {
 				t.Fatalf("[%s] Vistrutah-512 (%dr) 4Blocks fallback mismatch", tier, r)
 			}
 		}
@@ -5378,12 +5480,25 @@ func TestVistrutahKAT(t *testing.T) {
 			var b32 [32]byte
 			var b32x4 [4][32]byte
 			var b64 [64]byte
+			var b64x4 [4][64]byte
 			vistrutah256EncryptBlockSoft(&b32, &p256, &k256, badRounds)
 			vistrutah256DecryptBlockSoft(&b32, &p256, &k256, badRounds)
+			vistrutah256EncryptBlockHW(&b32, &p256, &k256, badRounds)
+			vistrutah256DecryptBlockHW(&b32, &p256, &k256, badRounds)
 			vistrutah256Encrypt4BlocksSoft(&b32x4, &b32x4, &k256, badRounds)
 			vistrutah256Decrypt4BlocksSoft(&b32x4, &b32x4, &k256, badRounds)
+			vistrutah256Encrypt4BlocksHW(&b32x4, &b32x4, &k256, badRounds)
+			vistrutah256Decrypt4BlocksHW(&b32x4, &b32x4, &k256, badRounds)
 			vistrutah512EncryptBlock256Soft(&b64, &p512, &k256, badRounds)
 			vistrutah512DecryptBlock256Soft(&b64, &p512, &k256, badRounds)
+			vistrutah512EncryptBlock256HW(&b64, &p512, &k256, badRounds)
+			vistrutah512DecryptBlock256HW(&b64, &p512, &k256, badRounds)
+			vistrutah512EncryptBlock512HW(&b64, &p512, &k512, badRounds)
+			vistrutah512DecryptBlock512HW(&b64, &p512, &k512, badRounds)
+			vistrutah512Encrypt4Blocks256HW(&b64x4, &b64x4, &k256, badRounds)
+			vistrutah512Decrypt4Blocks256HW(&b64x4, &b64x4, &k256, badRounds)
+			vistrutah512Encrypt4Blocks512HW(&b64x4, &b64x4, &k512, badRounds)
+			vistrutah512Decrypt4Blocks512HW(&b64x4, &b64x4, &k512, badRounds)
 		}
 	})
 }
@@ -5397,12 +5512,30 @@ func BenchmarkVistrutah256_10r_EncryptBlockHW(b *testing.B) {
 	}
 }
 
+func BenchmarkVistrutah256_10r_DecryptBlockHW(b *testing.B) {
+	var key, state, out [32]byte
+	b.SetBytes(32)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		vistrutah256DecryptBlockHW(&out, &state, &key, 10)
+	}
+}
+
 func BenchmarkVistrutah256_14r_EncryptBlockHW(b *testing.B) {
 	var key, state, out [32]byte
 	b.SetBytes(32)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		vistrutah256EncryptBlockHW(&out, &state, &key, 14)
+	}
+}
+
+func BenchmarkVistrutah256_14r_DecryptBlockHW(b *testing.B) {
+	var key, state, out [32]byte
+	b.SetBytes(32)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		vistrutah256DecryptBlockHW(&out, &state, &key, 14)
 	}
 }
 
@@ -5416,6 +5549,16 @@ func BenchmarkVistrutah256_10r_Encrypt4BlocksHW(b *testing.B) {
 	}
 }
 
+func BenchmarkVistrutah256_10r_Decrypt4BlocksHW(b *testing.B) {
+	var key [32]byte
+	var states, out [4][32]byte
+	b.SetBytes(128)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		vistrutah256Decrypt4BlocksHW(&out, &states, &key, 10)
+	}
+}
+
 func BenchmarkVistrutah256_14r_Encrypt4BlocksHW(b *testing.B) {
 	var key [32]byte
 	var states, out [4][32]byte
@@ -5423,6 +5566,16 @@ func BenchmarkVistrutah256_14r_Encrypt4BlocksHW(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		vistrutah256Encrypt4BlocksHW(&out, &states, &key, 14)
+	}
+}
+
+func BenchmarkVistrutah256_14r_Decrypt4BlocksHW(b *testing.B) {
+	var key [32]byte
+	var states, out [4][32]byte
+	b.SetBytes(128)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		vistrutah256Decrypt4BlocksHW(&out, &states, &key, 14)
 	}
 }
 
@@ -5436,6 +5589,16 @@ func BenchmarkVistrutah512_256k_10r_EncryptBlockHW(b *testing.B) {
 	}
 }
 
+func BenchmarkVistrutah512_256k_10r_DecryptBlockHW(b *testing.B) {
+	var key [32]byte
+	var state, out [64]byte
+	b.SetBytes(64)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		vistrutah512DecryptBlock256HW(&out, &state, &key, 10)
+	}
+}
+
 func BenchmarkVistrutah512_256k_14r_EncryptBlockHW(b *testing.B) {
 	var key [32]byte
 	var state, out [64]byte
@@ -5443,6 +5606,16 @@ func BenchmarkVistrutah512_256k_14r_EncryptBlockHW(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		vistrutah512EncryptBlock256HW(&out, &state, &key, 14)
+	}
+}
+
+func BenchmarkVistrutah512_256k_14r_DecryptBlockHW(b *testing.B) {
+	var key [32]byte
+	var state, out [64]byte
+	b.SetBytes(64)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		vistrutah512DecryptBlock256HW(&out, &state, &key, 14)
 	}
 }
 
@@ -5456,6 +5629,16 @@ func BenchmarkVistrutah512_256k_18r_EncryptBlockHW(b *testing.B) {
 	}
 }
 
+func BenchmarkVistrutah512_256k_18r_DecryptBlockHW(b *testing.B) {
+	var key [32]byte
+	var state, out [64]byte
+	b.SetBytes(64)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		vistrutah512DecryptBlock256HW(&out, &state, &key, 18)
+	}
+}
+
 func BenchmarkVistrutah512_512k_12r_EncryptBlockHW(b *testing.B) {
 	var key, state, out [64]byte
 	b.SetBytes(64)
@@ -5465,12 +5648,30 @@ func BenchmarkVistrutah512_512k_12r_EncryptBlockHW(b *testing.B) {
 	}
 }
 
+func BenchmarkVistrutah512_512k_12r_DecryptBlockHW(b *testing.B) {
+	var key, state, out [64]byte
+	b.SetBytes(64)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		vistrutah512DecryptBlock512HW(&out, &state, &key, 12)
+	}
+}
+
 func BenchmarkVistrutah512_512k_18r_EncryptBlockHW(b *testing.B) {
 	var key, state, out [64]byte
 	b.SetBytes(64)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		vistrutah512EncryptBlock512HW(&out, &state, &key, 18)
+	}
+}
+
+func BenchmarkVistrutah512_512k_18r_DecryptBlockHW(b *testing.B) {
+	var key, state, out [64]byte
+	b.SetBytes(64)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		vistrutah512DecryptBlock512HW(&out, &state, &key, 18)
 	}
 }
 
@@ -5484,6 +5685,16 @@ func BenchmarkVistrutah512_256k_10r_Encrypt4BlocksHW(b *testing.B) {
 	}
 }
 
+func BenchmarkVistrutah512_256k_10r_Decrypt4BlocksHW(b *testing.B) {
+	var key [32]byte
+	var states, out [4][64]byte
+	b.SetBytes(256)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		vistrutah512Decrypt4Blocks256HW(&out, &states, &key, 10)
+	}
+}
+
 func BenchmarkVistrutah512_256k_14r_Encrypt4BlocksHW(b *testing.B) {
 	var key [32]byte
 	var states, out [4][64]byte
@@ -5491,6 +5702,16 @@ func BenchmarkVistrutah512_256k_14r_Encrypt4BlocksHW(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		vistrutah512Encrypt4Blocks256HW(&out, &states, &key, 14)
+	}
+}
+
+func BenchmarkVistrutah512_256k_14r_Decrypt4BlocksHW(b *testing.B) {
+	var key [32]byte
+	var states, out [4][64]byte
+	b.SetBytes(256)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		vistrutah512Decrypt4Blocks256HW(&out, &states, &key, 14)
 	}
 }
 
@@ -5504,6 +5725,16 @@ func BenchmarkVistrutah512_256k_18r_Encrypt4BlocksHW(b *testing.B) {
 	}
 }
 
+func BenchmarkVistrutah512_256k_18r_Decrypt4BlocksHW(b *testing.B) {
+	var key [32]byte
+	var states, out [4][64]byte
+	b.SetBytes(256)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		vistrutah512Decrypt4Blocks256HW(&out, &states, &key, 18)
+	}
+}
+
 func BenchmarkVistrutah512_512k_12r_Encrypt4BlocksHW(b *testing.B) {
 	var key [64]byte
 	var states, out [4][64]byte
@@ -5514,6 +5745,16 @@ func BenchmarkVistrutah512_512k_12r_Encrypt4BlocksHW(b *testing.B) {
 	}
 }
 
+func BenchmarkVistrutah512_512k_12r_Decrypt4BlocksHW(b *testing.B) {
+	var key [64]byte
+	var states, out [4][64]byte
+	b.SetBytes(256)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		vistrutah512Decrypt4Blocks512HW(&out, &states, &key, 12)
+	}
+}
+
 func BenchmarkVistrutah512_512k_18r_Encrypt4BlocksHW(b *testing.B) {
 	var key [64]byte
 	var states, out [4][64]byte
@@ -5521,6 +5762,16 @@ func BenchmarkVistrutah512_512k_18r_Encrypt4BlocksHW(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		vistrutah512Encrypt4Blocks512HW(&out, &states, &key, 18)
+	}
+}
+
+func BenchmarkVistrutah512_512k_18r_Decrypt4BlocksHW(b *testing.B) {
+	var key [64]byte
+	var states, out [4][64]byte
+	b.SetBytes(256)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		vistrutah512Decrypt4Blocks512HW(&out, &states, &key, 18)
 	}
 }
 

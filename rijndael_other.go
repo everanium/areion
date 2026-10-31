@@ -6,6 +6,14 @@ func rijndael256EncryptBlockHW(rk *[15][32]byte, dst, src *[32]byte) {
 	rijndael256EncryptBlockSoftware(rk, dst, src)
 }
 
+func rijndael256DecryptBlockHW(drk *[15][32]byte, dst, src *[32]byte) {
+	rijndael256DecryptBlockSoftware(drk, dst, src)
+}
+
 func rijndael256Encrypt4BlocksHW(rk *[15][32]byte, dst, src *[4][32]byte) {
 	rijndael256Encrypt4BlocksSoftware(rk, dst, src)
+}
+
+func rijndael256Decrypt4BlocksHW(drk *[15][32]byte, dst, src *[4][32]byte) {
+	rijndael256Decrypt4BlocksSoftware(drk, dst, src)
 }

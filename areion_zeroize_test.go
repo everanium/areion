@@ -878,11 +878,51 @@ func TestFusedKernelsLeaveNoSecretInFrame(t *testing.T) {
 			}
 
 			// 7. Fused Drucker-Gueron Rijndael-256 block and 4-block primitives
+			r256Key := new([32]byte)
 			r256RK := new([15][32]byte)
+			r256DRK := new([15][32]byte)
 			r256In := new([32]byte)
 			r256Out := new([32]byte)
+			r256Dec := new([32]byte)
 			r256In4 := new([4][32]byte)
 			r256Out4 := new([4][32]byte)
+			r256Dec4 := new([4][32]byte)
+			for i := range r256Key {
+				r256Key[i] = byte(0x4D + i*7)
+			}
+			if w := captureAreionFrameAndRegResidue(func() {
+				rijndael256ExpandKey(r256Key, r256RK)
+			}, res); w == 0 {
+				t.Fatalf("[%s] rijndael256ExpandKey: probe missed stack window", tier)
+			}
+			var r256ExpandTargets []uint64
+			r256ExpandTargets = append(r256ExpandTargets, bytesToNonZeroWords(r256Key[:])...)
+			for r := 0; r < 15; r++ {
+				r256ExpandTargets = append(r256ExpandTargets, bytesToNonZeroWords(r256RK[r][:])...)
+			}
+			if word, off, found := scanFn(res, r256ExpandTargets); found {
+				t.Fatalf("[%s] rijndael256ExpandKey leaked word %#016x at offset %d (window=%d)", tier, word, off, areionResidueWindow)
+			}
+			if w := captureAreionFrameAndRegResidue(func() {
+				rijndael256InvertRoundKeys(r256DRK, r256RK)
+			}, res); w == 0 {
+				t.Fatalf("[%s] rijndael256InvertRoundKeys: probe missed stack window", tier)
+			}
+			r256InvTargets := append([]uint64{}, r256ExpandTargets...)
+			for r := 0; r < 15; r++ {
+				r256InvTargets = append(r256InvTargets, bytesToNonZeroWords(r256DRK[r][:])...)
+			}
+			if word, off, found := scanFn(res, r256InvTargets); found {
+				t.Fatalf("[%s] rijndael256InvertRoundKeys leaked word %#016x at offset %d (window=%d)", tier, word, off, areionResidueWindow)
+			}
+			if w := captureAreionFrameAndRegResidue(func() {
+				rijndael256ExpandKeyDec(r256Key, r256DRK)
+			}, res); w == 0 {
+				t.Fatalf("[%s] rijndael256ExpandKeyDec: probe missed stack window", tier)
+			}
+			if word, off, found := scanFn(res, r256InvTargets); found {
+				t.Fatalf("[%s] rijndael256ExpandKeyDec leaked word %#016x at offset %d (window=%d)", tier, word, off, areionResidueWindow)
+			}
 			for r := 0; r < 15; r++ {
 				for i := 0; i < 32; i++ {
 					r256RK[r][i] = byte(0x27 + r*19 + i*7)
@@ -909,6 +949,15 @@ func TestFusedKernelsLeaveNoSecretInFrame(t *testing.T) {
 			if word, off, found := scanFn(res, r256Targets1); found {
 				t.Fatalf("[%s] rijndael256EncryptBlockHW leaked word %#016x at offset %d (window=%d)", tier, word, off, areionResidueWindow)
 			}
+			if w := captureAreionFrameAndRegResidue(func() {
+				rijndael256DecryptBlockHW(r256RK, r256Dec, r256Out)
+			}, res); w == 0 {
+				t.Fatalf("[%s] rijndael256DecryptBlockHW: probe missed stack window", tier)
+			}
+			r256DecTargets1 := append(append([]uint64{}, r256RKTargets...), bytesToNonZeroWords(r256Out[:], r256Dec[:])...)
+			if word, off, found := scanFn(res, r256DecTargets1); found {
+				t.Fatalf("[%s] rijndael256DecryptBlockHW leaked word %#016x at offset %d (window=%d)", tier, word, off, areionResidueWindow)
+			}
 
 			if w := captureAreionFrameAndRegResidue(func() {
 				rijndael256Encrypt4BlocksHW(r256RK, r256Out4, r256In4)
@@ -921,6 +970,18 @@ func TestFusedKernelsLeaveNoSecretInFrame(t *testing.T) {
 			}
 			if word, off, found := scanFn(res, r256Targets4); found {
 				t.Fatalf("[%s] rijndael256Encrypt4BlocksHW leaked word %#016x at offset %d (window=%d)", tier, word, off, areionResidueWindow)
+			}
+			if w := captureAreionFrameAndRegResidue(func() {
+				rijndael256Decrypt4BlocksHW(r256RK, r256Dec4, r256Out4)
+			}, res); w == 0 {
+				t.Fatalf("[%s] rijndael256Decrypt4BlocksHW: probe missed stack window", tier)
+			}
+			r256DecTargets4 := append([]uint64{}, r256RKTargets...)
+			for l := 0; l < 4; l++ {
+				r256DecTargets4 = append(r256DecTargets4, bytesToNonZeroWords(r256Out4[l][:], r256Dec4[l][:])...)
+			}
+			if word, off, found := scanFn(res, r256DecTargets4); found {
+				t.Fatalf("[%s] rijndael256Decrypt4BlocksHW leaked word %#016x at offset %d (window=%d)", tier, word, off, areionResidueWindow)
 			}
 
 			// 8. Vistrutah-256 and Vistrutah-512 block and 4-block primitives
@@ -964,6 +1025,14 @@ func TestFusedKernelsLeaveNoSecretInFrame(t *testing.T) {
 					t.Fatalf("[%s] vistrutah256EncryptBlockHW(%d) leaked word %#016x at offset %d", tier, r, word, off)
 				}
 				if w := captureAreionFrameAndRegResidue(func() {
+					vistrutah256DecryptBlockHW(vDec256, vOut256, vKey256, r)
+				}, res); w == 0 {
+					t.Fatalf("[%s] vistrutah256DecryptBlockHW(%d): probe missed stack window", tier, r)
+				}
+				if word, off, found := scanFn(res, bytesToNonZeroWords(vKey256[:], vOut256[:], vDec256[:])); found {
+					t.Fatalf("[%s] vistrutah256DecryptBlockHW(%d) leaked word %#016x at offset %d", tier, r, word, off)
+				}
+				if w := captureAreionFrameAndRegResidue(func() {
 					vistrutah256DecryptBlockSoft(vDec256, vOut256, vKey256, r)
 				}, res); w == 0 {
 					t.Fatalf("[%s] vistrutah256DecryptBlockSoft(%d): probe missed stack window", tier, r)
@@ -982,6 +1051,18 @@ func TestFusedKernelsLeaveNoSecretInFrame(t *testing.T) {
 				}
 				if word, off, found := scanFn(res, vTargets); found {
 					t.Fatalf("[%s] vistrutah256Encrypt4BlocksHW(%d) leaked word %#016x at offset %d", tier, r, word, off)
+				}
+				if w := captureAreionFrameAndRegResidue(func() {
+					vistrutah256Decrypt4BlocksHW(vDec256x4, vOut256x4, vKey256, r)
+				}, res); w == 0 {
+					t.Fatalf("[%s] vistrutah256Decrypt4BlocksHW(%d): probe missed stack window", tier, r)
+				}
+				vDecHWTargets := bytesToNonZeroWords(vKey256[:])
+				for l := 0; l < 4; l++ {
+					vDecHWTargets = append(vDecHWTargets, bytesToNonZeroWords(vOut256x4[l][:], vDec256x4[l][:])...)
+				}
+				if word, off, found := scanFn(res, vDecHWTargets); found {
+					t.Fatalf("[%s] vistrutah256Decrypt4BlocksHW(%d) leaked word %#016x at offset %d", tier, r, word, off)
 				}
 				if w := captureAreionFrameAndRegResidue(func() {
 					vistrutah256Decrypt4BlocksSoft(vDec256x4, vOut256x4, vKey256, r)
@@ -1006,6 +1087,14 @@ func TestFusedKernelsLeaveNoSecretInFrame(t *testing.T) {
 					t.Fatalf("[%s] vistrutah512EncryptBlock256HW(%d) leaked word %#016x at offset %d", tier, r, word, off)
 				}
 				if w := captureAreionFrameAndRegResidue(func() {
+					vistrutah512DecryptBlock256HW(vDec512, vOut512, vKey256, r)
+				}, res); w == 0 {
+					t.Fatalf("[%s] vistrutah512DecryptBlock256HW(%d): probe missed stack window", tier, r)
+				}
+				if word, off, found := scanFn(res, bytesToNonZeroWords(vKey256[:], vOut512[:], vDec512[:])); found {
+					t.Fatalf("[%s] vistrutah512DecryptBlock256HW(%d) leaked word %#016x at offset %d", tier, r, word, off)
+				}
+				if w := captureAreionFrameAndRegResidue(func() {
 					vistrutah512DecryptBlock256Soft(vDec512, vOut512, vKey256, r)
 				}, res); w == 0 {
 					t.Fatalf("[%s] vistrutah512DecryptBlock256Soft(%d): probe missed stack window", tier, r)
@@ -1020,6 +1109,14 @@ func TestFusedKernelsLeaveNoSecretInFrame(t *testing.T) {
 				}
 				if word, off, found := scanFn(res, bytesToNonZeroWords(vKey512[:], vIn512[:], vOut512[:])); found {
 					t.Fatalf("[%s] vistrutah512EncryptBlock512HW(%d) leaked word %#016x at offset %d", tier, r, word, off)
+				}
+				if w := captureAreionFrameAndRegResidue(func() {
+					vistrutah512DecryptBlock512HW(vDec512, vOut512, vKey512, r)
+				}, res); w == 0 {
+					t.Fatalf("[%s] vistrutah512DecryptBlock512HW(%d): probe missed stack window", tier, r)
+				}
+				if word, off, found := scanFn(res, bytesToNonZeroWords(vKey512[:], vOut512[:], vDec512[:])); found {
+					t.Fatalf("[%s] vistrutah512DecryptBlock512HW(%d) leaked word %#016x at offset %d", tier, r, word, off)
 				}
 				if w := captureAreionFrameAndRegResidue(func() {
 					vistrutah512DecryptBlock512Soft(vDec512, vOut512, vKey512, r)
@@ -1040,6 +1137,18 @@ func TestFusedKernelsLeaveNoSecretInFrame(t *testing.T) {
 				}
 				if word, off, found := scanFn(res, vTargets256); found {
 					t.Fatalf("[%s] vistrutah512Encrypt4Blocks256HW(%d) leaked word %#016x at offset %d", tier, r, word, off)
+				}
+				if w := captureAreionFrameAndRegResidue(func() {
+					vistrutah512Decrypt4Blocks256HW(vDec512x4, vOut512x4, vKey256, r)
+				}, res); w == 0 {
+					t.Fatalf("[%s] vistrutah512Decrypt4Blocks256HW(%d): probe missed stack window", tier, r)
+				}
+				vDecHWTargets256 := bytesToNonZeroWords(vKey256[:])
+				for l := 0; l < 4; l++ {
+					vDecHWTargets256 = append(vDecHWTargets256, bytesToNonZeroWords(vOut512x4[l][:], vDec512x4[l][:])...)
+				}
+				if word, off, found := scanFn(res, vDecHWTargets256); found {
+					t.Fatalf("[%s] vistrutah512Decrypt4Blocks256HW(%d) leaked word %#016x at offset %d", tier, r, word, off)
 				}
 				if w := captureAreionFrameAndRegResidue(func() {
 					vistrutah512Decrypt4Blocks256Soft(vDec512x4, vOut512x4, vKey256, r)
@@ -1064,6 +1173,18 @@ func TestFusedKernelsLeaveNoSecretInFrame(t *testing.T) {
 				}
 				if word, off, found := scanFn(res, vTargets512); found {
 					t.Fatalf("[%s] vistrutah512Encrypt4Blocks512HW(%d) leaked word %#016x at offset %d", tier, r, word, off)
+				}
+				if w := captureAreionFrameAndRegResidue(func() {
+					vistrutah512Decrypt4Blocks512HW(vDec512x4, vOut512x4, vKey512, r)
+				}, res); w == 0 {
+					t.Fatalf("[%s] vistrutah512Decrypt4Blocks512HW(%d): probe missed stack window", tier, r)
+				}
+				vDecHWTargets512 := bytesToNonZeroWords(vKey512[:])
+				for l := 0; l < 4; l++ {
+					vDecHWTargets512 = append(vDecHWTargets512, bytesToNonZeroWords(vOut512x4[l][:], vDec512x4[l][:])...)
+				}
+				if word, off, found := scanFn(res, vDecHWTargets512); found {
+					t.Fatalf("[%s] vistrutah512Decrypt4Blocks512HW(%d) leaked word %#016x at offset %d", tier, r, word, off)
 				}
 				if w := captureAreionFrameAndRegResidue(func() {
 					vistrutah512Decrypt4Blocks512Soft(vDec512x4, vOut512x4, vKey512, r)
