@@ -33,7 +33,7 @@ Depends only on `golang.org/x/sys/cpu`.
 
 | Category | Exported Symbols | Block / State | Key (`K1 \|\| K2`) | Tweak (`T`) | Summary |
 | :--- | :--- | :---: | :---: | :---: | :--- |
-| **[Types & Constants](API.md#1-types-and-constants)** | `Version` (`"0.2.2"`), `Version{Major,Minor,Patch}`, `Asura{BlockSize,KeySize,TweakSize,Rounds}`, `State256`, `State512`, `Block`, `Block4`, `Key4`, `TierPureGo`..`TierARMCrypto` | 16–64 B | — | — | Version constants (`"0.2.2"`), ASURA parameters, fixed-size byte-array state/block type aliases, and hardware dispatch tier constants |
+| **[Types & Constants](API.md#1-types-and-constants)** | `Version` (`"0.2.3"`), `Version{Major,Minor,Patch}`, `Asura{BlockSize,KeySize,TweakSize,Rounds}`, `State256`, `State512`, `Block`, `Block4`, `Key4`, `TierPureGo`..`TierARMCrypto` | 16–64 B | — | — | Version constants (`"0.2.3"`), ASURA parameters, fixed-size byte-array state/block type aliases, and hardware dispatch tier constants |
 | **[Permutations (P1)](API.md#2-cryptographic-permutations-p1-and-p2-single-block--4-way)** | `Permute{256,512}`, `InversePermute{256,512}`, `*{256,512}x4` | 32 / 64 B | — | — | 10-round Areion-256 and 15-round Areion-512 forward/inverse permutations (Table 1) & 4-way batches |
 | **[Permutations (P2)](API.md#2-cryptographic-permutations-p1-and-p2-single-block--4-way)** | `Permute{256,512}P2`, `InversePermute{256,512}P2`, `*P2x4` | 32 / 64 B | — | — | Domain-separated second permutations `P2 / P2⁻¹` (Table 2, π words 15..29) & 4-way batches |
 | **[Davies-Meyer](API.md#3-davies-meyer-compression-functions)** | `DM256`, `DM512` | 32 / 64 B | — | — | Short-input compression functions returning a 32-byte digest: `P1(m) ⊕ m` and its 256-bit truncation |
@@ -224,6 +224,7 @@ The package automatically detects host CPU features:
 | **`AES128Round`** | 243.6 (66.38 ns) | 5,992.4 (2.67 ns) | 6,563.4 (2.45 ns) | 6,760.8 (2.37 ns) | 6,713.3 (2.39 ns) | 0.53 |
 | **`AES128Round4`** | 603.2 (106.13 ns) | 14,438.0 (4.46 ns) | 16,977.1 (3.78 ns) | 19,402.6 (3.30 ns) | 21,714.9 (2.98 ns) | 0.17 |
 | **`ExpandKey128`** | 527.9 (333.50 ns) | 4,694.4 (37.52 ns) | 4,813.8 (36.56 ns) | 4,723.4 (37.27 ns) | 4,657.4 (37.81 ns) | 0.75 |
+| **`AES128CTRXOR`** | 107.8 (593.97 ns) | 1,491.3 (42.92 ns) | 1,495.1 (42.93 ns) | 1,510.3 (42.40 ns) | 1,422.1 (45.01 ns) | 2.38 |
 | **`AES128EncryptBlock`** | 30.9 (519.67 ns) | 1,889.3 (8.47 ns) | 1,899.6 (8.42 ns) | 1,902.4 (8.41 ns) | 1,903.3 (8.41 ns) | 1.89 |
 | **`AES128Encrypt4Blocks`** | 115.8 (553.07 ns) | 7,272.8 (8.80 ns) | 7,390.9 (8.66 ns) | 7,381.9 (8.67 ns) | 7,386.2 (8.67 ns) | 0.49 |
 
@@ -345,6 +346,7 @@ All operations: 0 B/op, 0 allocs/op. On Intel® Core™ i7-11700K, `EMEncrypt256
 | **`AES128Round`** | 212.9 (75.14 ns) | 4,459.5 (3.59 ns) | 0.63 |
 | **`AES128Round4`** | 577.7 (110.80 ns) | 16,739.7 (3.82 ns) | 0.17 |
 | **`ExpandKey128`** | 451.1 (390.20 ns) | 6,511.9 (27.03 ns) | 0.43 |
+| **`AES128CTRXOR`** | 106.2 (602.67 ns) | 1,551.6 (41.25 ns) | 1.80 |
 | **`AES128EncryptBlock`** | 31.5 (507.70 ns) | 1,594.2 (10.04 ns) | 1.76 |
 | **`AES128Encrypt4Blocks`** | 115.0 (556.47 ns) | 6,053.8 (10.57 ns) | 0.46 |
 
