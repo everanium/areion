@@ -1500,57 +1500,70 @@ func addCounterBE128(dst *[16]byte, iv *[16]byte, offset uint64) {
 
 //go:noinline
 func aes128CTRXORBody(rk *[11][16]byte, dst, src []byte, iv *[16]byte, blockOffset uint64) {
-	var ctrs4, ks4 Block4
-	var ctr1, ks1 Block
-
-	for len(src) >= 64 {
-		addCounterBE128((*Block)(ctrs4[0:16]), iv, blockOffset)
-		addCounterBE128((*Block)(ctrs4[16:32]), iv, blockOffset+1)
-		addCounterBE128((*Block)(ctrs4[32:48]), iv, blockOffset+2)
-		addCounterBE128((*Block)(ctrs4[48:64]), iv, blockOffset+3)
-		aes128Encrypt4Blocks(rk, &ks4, &ctrs4)
-		for i := 0; i < 64; i += 8 {
-			v := binary.LittleEndian.Uint64(src[i:i+8]) ^ binary.LittleEndian.Uint64(ks4[i:i+8])
-			binary.LittleEndian.PutUint64(dst[i:i+8], v)
+	if len(src) >= 64 {
+		var ctrs4, ks4 Block4
+		for len(src) >= 64 {
+			addCounterBE128((*Block)(ctrs4[0:16]), iv, blockOffset)
+			addCounterBE128((*Block)(ctrs4[16:32]), iv, blockOffset+1)
+			addCounterBE128((*Block)(ctrs4[32:48]), iv, blockOffset+2)
+			addCounterBE128((*Block)(ctrs4[48:64]), iv, blockOffset+3)
+			aes128Encrypt4Blocks(rk, &ks4, &ctrs4)
+			_, _ = src[63], dst[63]
+			s0 := binary.LittleEndian.Uint64(src[0:8]) ^ binary.LittleEndian.Uint64(ks4[0:8])
+			s1 := binary.LittleEndian.Uint64(src[8:16]) ^ binary.LittleEndian.Uint64(ks4[8:16])
+			s2 := binary.LittleEndian.Uint64(src[16:24]) ^ binary.LittleEndian.Uint64(ks4[16:24])
+			s3 := binary.LittleEndian.Uint64(src[24:32]) ^ binary.LittleEndian.Uint64(ks4[24:32])
+			s4 := binary.LittleEndian.Uint64(src[32:40]) ^ binary.LittleEndian.Uint64(ks4[32:40])
+			s5 := binary.LittleEndian.Uint64(src[40:48]) ^ binary.LittleEndian.Uint64(ks4[40:48])
+			s6 := binary.LittleEndian.Uint64(src[48:56]) ^ binary.LittleEndian.Uint64(ks4[48:56])
+			s7 := binary.LittleEndian.Uint64(src[56:64]) ^ binary.LittleEndian.Uint64(ks4[56:64])
+			binary.LittleEndian.PutUint64(dst[0:8], s0)
+			binary.LittleEndian.PutUint64(dst[8:16], s1)
+			binary.LittleEndian.PutUint64(dst[16:24], s2)
+			binary.LittleEndian.PutUint64(dst[24:32], s3)
+			binary.LittleEndian.PutUint64(dst[32:40], s4)
+			binary.LittleEndian.PutUint64(dst[40:48], s5)
+			binary.LittleEndian.PutUint64(dst[48:56], s6)
+			binary.LittleEndian.PutUint64(dst[56:64], s7)
+			src = src[64:]
+			dst = dst[64:]
+			blockOffset += 4
 		}
-		src = src[64:]
-		dst = dst[64:]
-		blockOffset += 4
-	}
-
-	for len(src) >= 16 {
-		addCounterBE128(&ctr1, iv, blockOffset)
-		aes128EncryptBlock(rk, &ks1, &ctr1)
-		v0 := binary.LittleEndian.Uint64(src[0:8]) ^ binary.LittleEndian.Uint64(ks1[0:8])
-		v1 := binary.LittleEndian.Uint64(src[8:16]) ^ binary.LittleEndian.Uint64(ks1[8:16])
-		binary.LittleEndian.PutUint64(dst[0:8], v0)
-		binary.LittleEndian.PutUint64(dst[8:16], v1)
-		src = src[16:]
-		dst = dst[16:]
-		blockOffset++
+		clear(ctrs4[:])
+		clear(ks4[:])
+		runtime.KeepAlive(&ctrs4)
+		runtime.KeepAlive(&ks4)
 	}
 
 	if len(src) > 0 {
-		addCounterBE128(&ctr1, iv, blockOffset)
-		aes128EncryptBlock(rk, &ks1, &ctr1)
-		for i := range src {
-			dst[i] = src[i] ^ ks1[i]
+		var ctr1, ks1 Block
+		for len(src) >= 16 {
+			addCounterBE128(&ctr1, iv, blockOffset)
+			aes128EncryptBlock(rk, &ks1, &ctr1)
+			v0 := binary.LittleEndian.Uint64(src[0:8]) ^ binary.LittleEndian.Uint64(ks1[0:8])
+			v1 := binary.LittleEndian.Uint64(src[8:16]) ^ binary.LittleEndian.Uint64(ks1[8:16])
+			binary.LittleEndian.PutUint64(dst[0:8], v0)
+			binary.LittleEndian.PutUint64(dst[8:16], v1)
+			src = src[16:]
+			dst = dst[16:]
+			blockOffset++
 		}
+		if len(src) > 0 {
+			addCounterBE128(&ctr1, iv, blockOffset)
+			aes128EncryptBlock(rk, &ks1, &ctr1)
+			for i := range src {
+				dst[i] = src[i] ^ ks1[i]
+			}
+		}
+		clear(ctr1[:])
+		clear(ks1[:])
+		runtime.KeepAlive(&ctr1)
+		runtime.KeepAlive(&ks1)
 	}
-
-	clear(ctrs4[:])
-	clear(ks4[:])
-	clear(ctr1[:])
-	clear(ks1[:])
-	runtime.KeepAlive(&ctrs4)
-	runtime.KeepAlive(&ks4)
-	runtime.KeepAlive(&ctr1)
-	runtime.KeepAlive(&ks1)
 }
 
 func aes128CTRXORSoftware(rk *[11][16]byte, dst, src []byte, iv *[16]byte, blockOffset uint64) {
 	aes128CTRXORBody(rk, dst, src, iv, blockOffset)
-	wipeSoftwareStack()
 	clobberScratchGPRs()
 }
 

@@ -27,10 +27,10 @@ Version constants, ASURA cipher size constants, fixed-size byte-array type alias
 
 | Constant | Value | Description |
 | :--- | :---: | :--- |
-| `Version` | `"0.2.3"` | Semantic version string |
+| `Version` | `"0.2.4"` | Semantic version string |
 | `VersionMajor` | `0` | Major version number |
 | `VersionMinor` | `2` | Minor version number |
-| `VersionPatch` | `3` | Patch version number |
+| `VersionPatch` | `4` | Patch version number |
 
 #### ASURA 256-Bit Tweakable Block Cipher Constants
 

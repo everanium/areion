@@ -2,10 +2,10 @@ package areion
 
 // Library version constants.
 const (
-	Version      = "0.2.3"
+	Version      = "0.2.4"
 	VersionMajor = 0
 	VersionMinor = 2
-	VersionPatch = 3
+	VersionPatch = 4
 )
 
 // ASURA 256-bit tweakable block cipher parameters (Isobe et al., INDOCRYPT 2024, LNCS vol. 15495).
