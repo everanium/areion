@@ -27,10 +27,10 @@ Version constants, ASURA cipher size constants, fixed-size byte-array type alias
 
 | Constant | Value | Description |
 | :--- | :---: | :--- |
-| `Version` | `"0.2.1"` | Semantic version string |
+| `Version` | `"0.2.2"` | Semantic version string |
 | `VersionMajor` | `0` | Major version number |
 | `VersionMinor` | `2` | Minor version number |
-| `VersionPatch` | `1` | Patch version number |
+| `VersionPatch` | `2` | Patch version number |
 
 #### ASURA 256-Bit Tweakable Block Cipher Constants
 
@@ -242,6 +242,14 @@ Building blocks for custom AES-based constructions, exposed in both hardware-dis
 | `ExpandKey128(key *[16]byte, rk *[11][16]byte)` | 16 B → 11 × 16 B | Expands a 16-byte AES-128 key into 11 round keys (FIPS 197 §5.2) |
 | `AES128EncryptBlock(rk *[11][16]byte, dst, src *[16]byte)` | 16 B | Full 10-round AES-128 single-block encryption (`dst` and `src` may alias) |
 | `AES128Encrypt4Blocks(rk *[11][16]byte, dst, src *[64]byte)` | 4 × 16 B | Full 10-round AES-128 4-block parallel encryption under shared `rk` (`dst` and `src` may alias) |
+| `AES128CTRXOR(rk *[11][16]byte, dst, src []byte, iv *[16]byte, blockOffset uint64)` | Arbitrary | AES-128-CTR keystream XOR starting at 128-bit big-endian counter `BE128(iv) + blockOffset` (NIST SP 800-38A §6.5; supports in-place operation) |
+
+```go
+var rk [11][16]byte
+areion.ExpandKey128(&key, &rk)
+areion.AES128CTRXOR(&rk, dst, src, &iv, 0)
+clear(rk[:])
+```
 
 ---
 

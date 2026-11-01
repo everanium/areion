@@ -1489,6 +1489,71 @@ func aes128Encrypt4BlocksSoftware(rk *[11][16]byte, dst, src *[64]byte) {
 	clobberScratchGPRs()
 }
 
+func addCounterBE128(dst *[16]byte, iv *[16]byte, offset uint64) {
+	hi := binary.BigEndian.Uint64(iv[0:8])
+	lo := binary.BigEndian.Uint64(iv[8:16])
+	lo, carry := bits.Add64(lo, offset, 0)
+	hi += carry
+	binary.BigEndian.PutUint64(dst[0:8], hi)
+	binary.BigEndian.PutUint64(dst[8:16], lo)
+}
+
+//go:noinline
+func aes128CTRXORBody(rk *[11][16]byte, dst, src []byte, iv *[16]byte, blockOffset uint64) {
+	var ctrs4, ks4 Block4
+	var ctr1, ks1 Block
+
+	for len(src) >= 64 {
+		addCounterBE128((*Block)(ctrs4[0:16]), iv, blockOffset)
+		addCounterBE128((*Block)(ctrs4[16:32]), iv, blockOffset+1)
+		addCounterBE128((*Block)(ctrs4[32:48]), iv, blockOffset+2)
+		addCounterBE128((*Block)(ctrs4[48:64]), iv, blockOffset+3)
+		aes128Encrypt4Blocks(rk, &ks4, &ctrs4)
+		for i := 0; i < 64; i += 8 {
+			v := binary.LittleEndian.Uint64(src[i:i+8]) ^ binary.LittleEndian.Uint64(ks4[i:i+8])
+			binary.LittleEndian.PutUint64(dst[i:i+8], v)
+		}
+		src = src[64:]
+		dst = dst[64:]
+		blockOffset += 4
+	}
+
+	for len(src) >= 16 {
+		addCounterBE128(&ctr1, iv, blockOffset)
+		aes128EncryptBlock(rk, &ks1, &ctr1)
+		v0 := binary.LittleEndian.Uint64(src[0:8]) ^ binary.LittleEndian.Uint64(ks1[0:8])
+		v1 := binary.LittleEndian.Uint64(src[8:16]) ^ binary.LittleEndian.Uint64(ks1[8:16])
+		binary.LittleEndian.PutUint64(dst[0:8], v0)
+		binary.LittleEndian.PutUint64(dst[8:16], v1)
+		src = src[16:]
+		dst = dst[16:]
+		blockOffset++
+	}
+
+	if len(src) > 0 {
+		addCounterBE128(&ctr1, iv, blockOffset)
+		aes128EncryptBlock(rk, &ks1, &ctr1)
+		for i := range src {
+			dst[i] = src[i] ^ ks1[i]
+		}
+	}
+
+	clear(ctrs4[:])
+	clear(ks4[:])
+	clear(ctr1[:])
+	clear(ks1[:])
+	runtime.KeepAlive(&ctrs4)
+	runtime.KeepAlive(&ks4)
+	runtime.KeepAlive(&ctr1)
+	runtime.KeepAlive(&ks1)
+}
+
+func aes128CTRXORSoftware(rk *[11][16]byte, dst, src []byte, iv *[16]byte, blockOffset uint64) {
+	aes128CTRXORBody(rk, dst, src, iv, blockOffset)
+	wipeSoftwareStack()
+	clobberScratchGPRs()
+}
+
 //go:noinline
 func emEncrypt256SoftwareBody(out, m *[32]byte, k *[64]byte) {
 	var state State256

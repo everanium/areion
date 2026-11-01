@@ -284,6 +284,26 @@ func AES128Encrypt4Blocks(rk *[11][16]byte, dst, src *[64]byte) {
 	aes128Encrypt4Blocks(rk, dst, src)
 }
 
+// AES128CTRXOR XORs src with the AES-128-CTR keystream generated from pre-expanded
+// round keys rk and 16-byte initial counter block iv starting at 16-byte block
+// index blockOffset, writing len(src) bytes into dst[:len(src)].
+//
+// Counter block i (0-indexed from blockOffset) is computed as the 128-bit
+// big-endian sum (BE128(iv) + blockOffset + i) mod 2^128, matching NIST SP 800-38A
+// Section 6.5.
+//
+// Panics if len(dst) < len(src). Supports in-place operation and arbitrary byte
+// lengths.
+func AES128CTRXOR(rk *[11][16]byte, dst, src []byte, iv *[16]byte, blockOffset uint64) {
+	if len(dst) < len(src) {
+		panic("areion: dst buffer shorter than src")
+	}
+	if len(src) == 0 {
+		return
+	}
+	aes128CTRXORSoftware(rk, dst[:len(src)], src, iv, blockOffset)
+}
+
 // EMEncrypt256 encrypts a 32-byte block under a 64-byte key = K1 || K2 (K1 = key[0:32], K2 = key[32:64])
 // using the 1-round Even-Mansour wide-block cipher over P1_256:
 //
@@ -783,15 +803,33 @@ func SelfTest() error {
 	var aesCT [16]byte
 	ExpandKey128(&aesKey, &aesRK)
 	AES128EncryptBlock(&aesRK, &aesCT, &aesPT)
+	var ctrPT, ctrCT, ctrDT [64]byte
+	for i := range ctrPT {
+		ctrPT[i] = byte(i + 1)
+	}
+	AES128CTRXOR(&aesRK, ctrCT[:], ctrPT[:], &aesPT, 0)
+	AES128CTRXOR(&aesRK, ctrDT[:], ctrCT[:], &aesPT, 0)
+	var ctrKS0 [16]byte
+	for i := 0; i < 16; i++ {
+		ctrKS0[i] = ctrCT[i] ^ ctrPT[i]
+	}
 	clear(aesRK[:])
 	runtime.KeepAlive(&aesRK)
 	Zeroize(aesKey[:])
 	Zeroize(aesPT[:])
-	if aesCT != selfTestWantAES128 {
+	if aesCT != selfTestWantAES128 || ctrKS0 != selfTestWantAES128 || ctrDT != ctrPT {
 		Zeroize(aesCT[:])
+		Zeroize(ctrKS0[:])
+		Zeroize(ctrPT[:])
+		Zeroize(ctrCT[:])
+		Zeroize(ctrDT[:])
 		return errors.New("areion: SelfTest AES128EncryptBlock KAT mismatch")
 	}
 	Zeroize(aesCT[:])
+	Zeroize(ctrKS0[:])
+	Zeroize(ctrPT[:])
+	Zeroize(ctrCT[:])
+	Zeroize(ctrDT[:])
 
 	var zero256, s256 [32]byte
 	var zero512, s512 [64]byte

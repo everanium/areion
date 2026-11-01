@@ -1563,6 +1563,162 @@ func TestAES128PrimitivesAllTiers(t *testing.T) {
 	})
 }
 
+func TestAES128CTRXOR(t *testing.T) {
+	mustHex := func(s string) []byte {
+		b, err := hex.DecodeString(s)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return b
+	}
+
+	// 1. NIST SP 800-38A Section F.5.1 / F.5.2 AES-128-CTR test vector
+	nistKey := (*[16]byte)(mustHex("2b7e151628aed2a6abf7158809cf4f3c"))
+	nistIV := (*[16]byte)(mustHex("f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff"))
+	nistPT := mustHex("6bc1bee22e409f96e93d7e117393172aae2d8a571e03ac9c9eb76fac45af8e5130c81c46a35ce411e5fbc1191a0a52eff69f2445df4f9b17ad2b417be66c3710")
+	nistCTWant := mustHex("874d6191b620e3261bef6864990db6ce9806f66b7970fdff8617187bb9fffdff5ae4df3edbd5d35e5b4f09020db03eab1e031dda2fbe03d1792170a0f3009cee")
+
+	// Reference single-block CTR oracle using AES128EncryptBlock
+	refCTRXOR := func(rk *[11][16]byte, dst, src []byte, iv *[16]byte, blockOffset uint64) {
+		hi0 := binary.BigEndian.Uint64(iv[0:8])
+		lo0 := binary.BigEndian.Uint64(iv[8:16])
+		for i := 0; i < len(src); i += 16 {
+			blkIdx := blockOffset + uint64(i/16)
+			lo, carry := bits.Add64(lo0, blkIdx, 0)
+			hi := hi0 + carry
+			var ctr, ks [16]byte
+			binary.BigEndian.PutUint64(ctr[0:8], hi)
+			binary.BigEndian.PutUint64(ctr[8:16], lo)
+			AES128EncryptBlock(rk, &ks, &ctr)
+			n := len(src) - i
+			if n > 16 {
+				n = 16
+			}
+			for j := 0; j < n; j++ {
+				dst[i+j] = src[i+j] ^ ks[j]
+			}
+		}
+	}
+
+	lengths := []int{
+		0,
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+		16, 32, 48,
+		64, 128,
+		103,
+	}
+
+	eachTier(t, func(t *testing.T, tier string) {
+		var nistRK [11][16]byte
+		ExpandKey128(nistKey, &nistRK)
+
+		gotCT := make([]byte, len(nistPT))
+		AES128CTRXOR(&nistRK, gotCT, nistPT, nistIV, 0)
+		if !bytes.Equal(gotCT, nistCTWant) {
+			t.Fatalf("[%s] NIST SP 800-38A F.5.1 encrypt mismatch:\ngot:  %x\nwant: %x", tier, gotCT, nistCTWant)
+		}
+		gotPT := make([]byte, len(nistCTWant))
+		AES128CTRXOR(&nistRK, gotPT, gotCT, nistIV, 0)
+		if !bytes.Equal(gotPT, nistPT) {
+			t.Fatalf("[%s] NIST SP 800-38A F.5.2 decrypt mismatch:\ngot:  %x\nwant: %x", tier, gotPT, nistPT)
+		}
+
+		// 2. All length regimes, in-place operation, and chunked blockOffset streaming
+		var key, iv [16]byte
+		for i := 0; i < 16; i++ {
+			key[i] = byte(0x31 + i*11)
+			iv[i] = byte(0x89 + i*7)
+		}
+		var rk [11][16]byte
+		ExpandKey128(&key, &rk)
+
+		srcFull := make([]byte, 256)
+		for i := range srcFull {
+			srcFull[i] = byte((i*37 + 0x5c) & 0xff)
+		}
+
+		for _, n := range lengths {
+			for _, off := range []uint64{0, 1, 7} {
+				src := srcFull[:n]
+				got := make([]byte, n+8)
+				for i := range got {
+					got[i] = 0xa5
+				}
+				want := make([]byte, n)
+				refCTRXOR(&rk, want, src, &iv, off)
+				AES128CTRXOR(&rk, got, src, &iv, off)
+				if !bytes.Equal(got[:n], want) {
+					t.Fatalf("[%s] AES128CTRXOR(len=%d, off=%d) mismatch:\ngot:  %x\nwant: %x", tier, n, off, got[:n], want)
+				}
+				for i := n; i < len(got); i++ {
+					if got[i] != 0xa5 {
+						t.Fatalf("[%s] AES128CTRXOR(len=%d) overwrote dst[%d]", tier, n, i)
+					}
+				}
+
+				// In-place operation
+				inPlace := append([]byte(nil), src...)
+				AES128CTRXOR(&rk, inPlace, inPlace, &iv, off)
+				if !bytes.Equal(inPlace, want) {
+					t.Fatalf("[%s] AES128CTRXOR in-place (len=%d, off=%d) mismatch", tier, n, off)
+				}
+				AES128CTRXOR(&rk, inPlace, inPlace, &iv, off)
+				if !bytes.Equal(inPlace, src) {
+					t.Fatalf("[%s] AES128CTRXOR in-place decrypt (len=%d, off=%d) mismatch", tier, n, off)
+				}
+			}
+		}
+
+		// Chunked blockOffset streaming equivalence for len = 103 (64 + 32 + 7)
+		var whole103, chunked103 [103]byte
+		AES128CTRXOR(&rk, whole103[:], srcFull[:103], &iv, 0)
+		AES128CTRXOR(&rk, chunked103[0:64], srcFull[0:64], &iv, 0)
+		AES128CTRXOR(&rk, chunked103[64:96], srcFull[64:96], &iv, 4)
+		AES128CTRXOR(&rk, chunked103[96:103], srcFull[96:103], &iv, 6)
+		if chunked103 != whole103 {
+			t.Fatalf("[%s] AES128CTRXOR chunked streaming mismatch:\ngot:  %x\nwant: %x", tier, chunked103, whole103)
+		}
+
+		// 3. 128-bit big-endian counter carry rollover across 64-bit boundary
+		carryIV := [16]byte{
+			0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+			0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe,
+		}
+		var carryGot, carryWant [64]byte
+		AES128CTRXOR(&rk, carryGot[:], srcFull[:64], &carryIV, 1)
+		refCTRXOR(&rk, carryWant[:], srcFull[:64], &carryIV, 1)
+		if carryGot != carryWant {
+			t.Fatalf("[%s] AES128CTRXOR 64-bit carry rollover mismatch:\ngot:  %x\nwant: %x", tier, carryGot, carryWant)
+		}
+		// Explicitly verify block 1 in the batch used counter 0x0102030405060709_0000000000000000
+		wantCtrBlk1 := [16]byte{
+			0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x09,
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		}
+		var wantKSBlk1 [16]byte
+		AES128EncryptBlock(&rk, &wantKSBlk1, &wantCtrBlk1)
+		for i := 0; i < 16; i++ {
+			if gotKS := carryGot[16+i] ^ srcFull[16+i]; gotKS != wantKSBlk1[i] {
+				t.Fatalf("[%s] carry rollover block 1 keystream byte %d = 0x%02x, want 0x%02x", tier, i, gotKS, wantKSBlk1[i])
+			}
+		}
+	})
+
+	// 4. Panic check when len(dst) < len(src)
+	func() {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Fatal("AES128CTRXOR did not panic when len(dst) < len(src)")
+			}
+		}()
+		var rk [11][16]byte
+		var iv [16]byte
+		var dst [15]byte
+		var src [16]byte
+		AES128CTRXOR(&rk, dst[:], src[:], &iv, 0)
+	}()
+}
+
 // --- Reference helpers for EM / EM2 / TEM / TEM2 wide-block ciphers ---
 
 func refEMEncrypt256(key *[64]byte, m *[32]byte) (out [32]byte) {
@@ -2760,6 +2916,18 @@ func BenchmarkAES128Encrypt4Blocks(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		AES128Encrypt4Blocks(&rk, &state, &state)
+	}
+}
+
+func BenchmarkAES128CTRXOR(b *testing.B) {
+	var rk [11]Block
+	var iv Block
+	var buf [64]byte
+	b.SetBytes(64)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		AES128CTRXOR(&rk, buf[:], buf[:], &iv, uint64(i))
 	}
 }
 
@@ -4654,6 +4822,7 @@ func TestZeroAllocationsAllFunctionsAllTiers(t *testing.T) {
 		{"ExpandKey128", func() { ExpandKey128(&rk16, &rk11) }},
 		{"AES128EncryptBlock", func() { AES128EncryptBlock(&rk11, &dst16, &blk) }},
 		{"AES128Encrypt4Blocks", func() { AES128Encrypt4Blocks(&rk11, &dst64, &blk4) }},
+		{"AES128CTRXOR", func() { AES128CTRXOR(&rk11, dst64[:], blk4[:], &blk, 0) }},
 		{"EMEncrypt256", func() { s256 = EMEncrypt256(&k256, &m256) }},
 		{"EMDecrypt256", func() { s256 = EMDecrypt256(&k256, &m256) }},
 		{"EMEncrypt512", func() { s512 = EMEncrypt512(&k512, &m512) }},

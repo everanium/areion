@@ -33,7 +33,7 @@ Depends only on `golang.org/x/sys/cpu`.
 
 | Category | Exported Symbols | Block / State | Key (`K1 \|\| K2`) | Tweak (`T`) | Summary |
 | :--- | :--- | :---: | :---: | :---: | :--- |
-| **[Types & Constants](API.md#1-types-and-constants)** | `Version` (`"0.2.1"`), `Version{Major,Minor,Patch}`, `Asura{BlockSize,KeySize,TweakSize,Rounds}`, `State256`, `State512`, `Block`, `Block4`, `Key4`, `TierPureGo`..`TierARMCrypto` | 16–64 B | — | — | Version constants (`"0.2.1"`), ASURA parameters, fixed-size byte-array state/block type aliases, and hardware dispatch tier constants |
+| **[Types & Constants](API.md#1-types-and-constants)** | `Version` (`"0.2.2"`), `Version{Major,Minor,Patch}`, `Asura{BlockSize,KeySize,TweakSize,Rounds}`, `State256`, `State512`, `Block`, `Block4`, `Key4`, `TierPureGo`..`TierARMCrypto` | 16–64 B | — | — | Version constants (`"0.2.2"`), ASURA parameters, fixed-size byte-array state/block type aliases, and hardware dispatch tier constants |
 | **[Permutations (P1)](API.md#2-cryptographic-permutations-p1-and-p2-single-block--4-way)** | `Permute{256,512}`, `InversePermute{256,512}`, `*{256,512}x4` | 32 / 64 B | — | — | 10-round Areion-256 and 15-round Areion-512 forward/inverse permutations (Table 1) & 4-way batches |
 | **[Permutations (P2)](API.md#2-cryptographic-permutations-p1-and-p2-single-block--4-way)** | `Permute{256,512}P2`, `InversePermute{256,512}P2`, `*P2x4` | 32 / 64 B | — | — | Domain-separated second permutations `P2 / P2⁻¹` (Table 2, π words 15..29) & 4-way batches |
 | **[Davies-Meyer](API.md#3-davies-meyer-compression-functions)** | `DM256`, `DM512` | 32 / 64 B | — | — | Short-input compression functions returning a 32-byte digest: `P1(m) ⊕ m` and its 256-bit truncation |
@@ -41,7 +41,7 @@ Depends only on `golang.org/x/sys/cpu`.
 | **[`1-EM` & `2-EM` Ciphers](API.md#5-invertible-wide-block-ciphers-em-em2-tem-tem2)** | `EM{,2}Encrypt{256,512}{,x4}`, `EM{,2}Decrypt{256,512}{,x4}` | 32 / 64 B | 64 / 128 B | — | Invertible wide-block Even-Mansour ciphers: `1-EM` (birthday `2^(n/2)` PRP) and `2-EM` (BBB `2^(2n/3)` PRP) |
 | **[`1-TEM` & `2-TEM` Ciphers](API.md#5-invertible-wide-block-ciphers-em-em2-tem-tem2)** | `TEM{,2}Encrypt{256,512}{,x4}`, `TEM{,2}Decrypt{256,512}{,x4}` | 32 / 64 B | 64 / 128 B | 32 / 64 B | Tweakable wide-block Even-Mansour ciphers: `1-TEM` (birthday `2^(n/2)` TPRP) and `2-TEM` (BBB `2^(2n/3)` TPRP) |
 | **[ASURA 256-bit TBC (INDOCRYPT 2024)](API.md#6-asura-256-bit-tweakable-block-cipher-indocrypt-2024)** | `AsuraExpandTweakey`, `Asura{Encrypt,Decrypt}{,x4}`, `AsuraExpandKey`, `Asura{Encrypt,Decrypt}{,x4}RK`, `Asura{Encrypt,Decrypt}{,x4}OTF`, `Asura{BlockSize,KeySize,TweakSize,Rounds}` | 32 B | 32 B | 16 B | 12-round 256-bit tweakable block cipher in pre-expanded `rtk` (`13×32 B`), hybrid `rk` (`13×32 B`) + OTF tweak, and zero-RAM-state `OTF` modes (single-block & 4-way batches) |
-| **[AES-128 & Rounds](API.md#7-low-level-aes-128--round-primitives)** | `AES128Round{,4}`, `AES128FinalRound{,4}`, `Round{,HW,4HW}`, `FinalRound{,HW,4HW}`, `XorBlock{,4}`, `ExpandKey128`, `AES128Encrypt{Block,4Blocks}` | 16 / 64 B | 16 B | — | Hardware-dispatched & software AES-128 round primitives, key expansion, and block encryption |
+| **[AES-128 & Rounds](API.md#7-low-level-aes-128--round-primitives)** | `AES128Round{,4}`, `AES128FinalRound{,4}`, `Round{,HW,4HW}`, `FinalRound{,HW,4HW}`, `XorBlock{,4}`, `ExpandKey128`, `AES128Encrypt{Block,4Blocks}`, `AES128CTRXOR` | 16 / 64 B | 16 B | — | Hardware-dispatched & software AES-128 round primitives, key expansion, block encryption, and CTR keystream XOR |
 | **[Runtime, CAST & Zeroize](API.md#8-runtime-dispatch-self-test-and-memory-zeroization)** | `Tier`, `TierCode`, `SetTier`, `UseHardwareAcceleration`, `SelfTest`, `Zeroize` | — | — | — | Runtime tier introspection/override (`AREION_FORCE_TIER` / `ASURA_FORCE_TIER`), FIPS 140-3 Known-Answer Self-Test (CAST), and DSE-safe zeroization |
 
 ---
@@ -675,6 +675,22 @@ func main() {
 10. **ASURA: An Efficient Large-State Tweakable Block Cipher for ARM Environment**
     Atsushi Tanaka, Rentaro Shiba, Kosei Sakamoto, Mostafizar Rahman, Takuro Shiraya, Takanori Isobe.
     *Progress in Cryptology — INDOCRYPT 2024*, Lecture Notes in Computer Science, vol. 15495, pp. 143–164, Springer (2025), [doi:10.1007/978-3-031-80308-6_7](https://doi.org/10.1007/978-3-031-80308-6_7).
+
+---
+
+## Release Verification
+
+Release tags, commits, and `SHA256SUMS` manifests (`SHA256SUMS.sig`) are signed with the project Ed25519 signing key:
+
+- **Public key:** `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFNXVn74pDakH4cj6+Qk5uDVFASGfPL4XdDihoeOlp/F andrew@encloud.blue`
+- **Fingerprint:** `SHA256:Fo2/bsjgnGr4KtJZgr83Q4NE/ZGeY7dTOx7vzukqvAo`
+
+```sh
+printf 'andrew@encloud.blue ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFNXVn74pDakH4cj6+Qk5uDVFASGfPL4XdDihoeOlp/F\n' > /tmp/areion-allowed-signers
+git -c gpg.ssh.allowedSignersFile=/tmp/areion-allowed-signers verify-tag <tag>
+ssh-keygen -Y verify -f /tmp/areion-allowed-signers -I andrew@encloud.blue -n file -s SHA256SUMS.sig < SHA256SUMS
+sha256sum --check SHA256SUMS
+```
 
 ---
 

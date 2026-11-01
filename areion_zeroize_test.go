@@ -759,6 +759,49 @@ func TestFusedKernelsLeaveNoSecretInFrame(t *testing.T) {
 				t.Fatalf("[%s] AES128Encrypt4Blocks leaked word %#016x at offset %d (window=%d)", tier, word, off, areionResidueWindow)
 			}
 
+			aesCTRIV := new(Block)
+			for i := range aesCTRIV {
+				aesCTRIV[i] = byte(0x77 + i*13)
+			}
+			var rkWords []uint64
+			for r := 0; r < 11; r++ {
+				rkWords = append(rkWords, bytesToNonZeroWords(rk[r][:])...)
+			}
+			if w := captureAreionFrameAndRegResidue(func() {
+				AES128CTRXOR(rk, aesOut4[:], aesIn4[:], aesCTRIV, 3)
+			}, res); w == 0 {
+				t.Fatalf("[%s] AES128CTRXOR(64B): probe missed stack window", tier)
+			}
+			var ctrKS64 [64]byte
+			for i := 0; i < 64; i++ {
+				ctrKS64[i] = aesOut4[i] ^ aesIn4[i]
+			}
+			ctrTargets64 := append([]uint64{}, rkWords...)
+			ctrTargets64 = append(ctrTargets64, bytesToNonZeroWords(aesKey[:], aesCTRIV[:], aesIn4[:], aesOut4[:], ctrKS64[:])...)
+			if word, off, found := scanFn(res, ctrTargets64); found {
+				t.Fatalf("[%s] AES128CTRXOR(64B) leaked word %#016x at offset %d (window=%d)", tier, word, off, areionResidueWindow)
+			}
+
+			aesIn91 := new([96]byte)
+			aesOut91 := new([96]byte)
+			for i := range aesIn91 {
+				aesIn91[i] = byte(0x95 + i*7)
+			}
+			if w := captureAreionFrameAndRegResidue(func() {
+				AES128CTRXOR(rk, aesOut91[:91], aesIn91[:91], aesCTRIV, 5)
+			}, res); w == 0 {
+				t.Fatalf("[%s] AES128CTRXOR(91B): probe missed stack window", tier)
+			}
+			var ctrKS91 [96]byte
+			for i := 0; i < 91; i++ {
+				ctrKS91[i] = aesOut91[i] ^ aesIn91[i]
+			}
+			ctrTargets91 := append([]uint64{}, rkWords...)
+			ctrTargets91 = append(ctrTargets91, bytesToNonZeroWords(aesKey[:], aesCTRIV[:], aesIn91[:88], aesOut91[:88], ctrKS91[:88])...)
+			if word, off, found := scanFn(res, ctrTargets91); found {
+				t.Fatalf("[%s] AES128CTRXOR(91B) leaked word %#016x at offset %d (window=%d)", tier, word, off, areionResidueWindow)
+			}
+
 			*aesOut = *aesIn
 			if w := captureAreionFrameAndRegResidue(func() {
 				RoundHW(aesOut, aesKey)
